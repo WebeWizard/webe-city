@@ -90,6 +90,23 @@ Installing a plugin can enable executable hooks: review the package first.
 Use the management interface in which you installed the plugin. Host policies
 may restrict plugins, and plugin-management inventories can differ.
 
+### If a hook blocks initialization
+
+The enabled plugin runs `node` before tool calls, even in repositories without
+a city. If `preToolUse` fails to launch, check `node --version` on the execution
+host: Node.js >=22 must be on the PATH inherited by VS Code, not just activated
+in an integrated terminal. After installing Node or changing PATH, fully exit
+and restart VS Code, then start a fresh session.
+
+On Windows with fnm, install a supported Node version and select a default.
+Expose the stable default runtime directory (`%APPDATA%\fnm\aliases\default`)
+on your user PATH, or launch VS Code from an fnm-activated shell after fully
+exiting it. A PowerShell profile alone does not initialize non-interactive hooks.
+
+If the hook instead returns a denial with `Cause:`, report that validation
+code and message. An unenrolled repository should produce no decision; do not
+delete city records or bypass validation to clear an enrolled-state denial.
+
 ### Copilot CLI
 
 With the official CLI installed, register this local development marketplace:

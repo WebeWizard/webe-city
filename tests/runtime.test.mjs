@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, test } from 'node:test';
 import { checkOrderUnchanged, institutionalReviewStatus, loadCity } from '../scripts/lib/city.mjs';
+import { publishCity } from '../scripts/lib/filesystem.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const cli = path.join(project, 'scripts/city.mjs');
@@ -981,6 +982,27 @@ test('the installed plugin works from paths with spaces and never enrolls itself
   assert.equal(success(['status', '--root', root], installedCLI).enrolled, true);
   assert.deepEqual(hookResult(payload(root), path.join(installed, 'scripts/city-hook.mjs')), {});
   assert.deepEqual(await snapshot(installed), before);
+});
+
+test('city publication preserves existing destinations and removes its staging directory', async () => {
+  for (const kind of ['file', 'empty-directory', 'nonempty-directory']) {
+    const { root } = await fixture();
+    const destination = path.join(root, '.city');
+    if (kind === 'file') await writeFile(destination, 'Existing content.\n');
+    else {
+      await mkdir(destination);
+      if (kind === 'nonempty-directory') {
+        await writeFile(path.join(destination, 'resident-record.txt'), 'Existing record.\n');
+      }
+    }
+    const before = await snapshot(root);
+    await assert.rejects(
+      publishCity(root, new Map([['config.json', '{"proposed":true}\n']])),
+      { code: 'CONFLICT' },
+      kind,
+    );
+    assert.deepEqual(await snapshot(root), before, kind);
+  }
 });
 
 test('hook is inert outside a city and for valid draft cities, with no allow override', async () => {
