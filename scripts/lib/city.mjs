@@ -1,0 +1,1428 @@
+import { createHash, randomUUID } from 'node:crypto';
+import path from 'node:path';
+import { mkdir } from 'node:fs/promises';
+import {
+  AUTHORIZATION_OUTCOMES, COMMAND_ONLY_STATES, CONFIG_SCHEMA_VERSION, DECIDERS, DELEGATION_POLICY,
+  DELIVERY_DECISION_SCHEMA_VERSION, DRAFT_NOTICE, EVIDENCE_RULE, LEGACY_CONFIG_SCHEMA_VERSION, LIMITS,
+  OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
+  WORK_ORDER_SCHEMA_VERSION,
+  governanceNotice, provenance,
+} from './constants.mjs';
+import { CityError, fail } from './errors.mjs';
+import {
+  assertIdentity, atomicCityFile, atomicConfig, atomicRecord, directory, encodeJSON, entries, inspect,
+  publishCity, readRegular, regularFile, rootDirectory, withMutationLock,
+} from './filesystem.mjs';
+import {
+  authorizationCurrent, calendarDate, CANONICAL_RECORD_TYPES, checkTransition, parseJSON, parseReserved,
+  RECORD_EXCHANGE_TYPES, text,
+  validateConfig, validateDecision, validateDistricts, validateOrderId, validateProjects, validateRecordId,
+  validateRecordsRequest, validateState, validateWorkOrder,
+} from './validation.mjs';
+import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
+
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+async function governanceLayout(cityPath) {
+  await regularFile(path.join(cityPath, 'charter.md'), 'City draft charter');
+  await regularFile(path.join(cityPath, 'instruction-fragment.md'), 'City instruction fragment');
+  const policyPath = path.join(cityPath, 'policies');
+  const policyIdentity = await directory(policyPath, 'City policies');
+  const policies = await entries(policyPath, 'City policies');
+  if (policies.length === 0) fail('INVALID_CITY', 'City draft policies are missing. Restore or repair the governance templates.');
+  for (const name of policies) {
+    if (!name.endsWith('.md')) fail('INVALID_CITY', 'City policies must contain only regular Markdown policy files.');
+    await regularFile(path.join(policyPath, name), 'City policy');
+  }
+  await assertIdentity(policyPath, policyIdentity, 'City policies');
+}
+
+async function governanceDigests(cityPath) {
+  const charter = await readRegular(path.join(cityPath, 'charter.md'), 'City charter');
+  const policyPath = path.join(cityPath, 'policies');
+  const policies = [];
+  for (const name of await entries(policyPath, 'City policies')) {
+    const source = await readRegular(path.join(policyPath, name), 'City policy');
+    policies.push({ path: `policies/${name}`, sha256: sha256(source.bytes) });
+  }
+  return { charter: sha256(charter.bytes), policies };
+}
+
+// Reported, never enforced: blocking on drift would let any later amendment lock the repository via the hook.
+function adoptionDrift(adoption, digests) {
+  const adopted = new Map(adoption.policies.map((policy) => [policy.path, policy.sha256]));
+  const current = new Map(digests.policies.map((policy) => [policy.path, policy.sha256]));
+  const changedPolicies = [...new Set([...adopted.keys(), ...current.keys()])].sort()
+    .filter((name) => adopted.get(name) !== current.get(name));
+  const charterMatches = adoption.charter.sha256 === digests.charter;
+  return { matchesAdoptedRevision: charterMatches && changedPolicies.length === 0, charterMatches, changedPolicies };
+}
+
+async function readRecords(cityPath, name, validator, cityId, optional = false) {
+  const location = path.join(cityPath, name);
+  if (optional && !(await inspect(location))) return { records: new Map(), identity: null };
+  const identity = await directory(location, `City ${name}`);
+  const names = await entries(location, `City ${name}`);
+  const records = new Map();
+  for (const filename of names) {
+    if (!filename.endsWith('.json')) {
+      fail('INVALID_RECORD', `City ${name} contains an unrecognized record file. Inspect and repair it; no files are silently skipped.`);
+    }
+    const source = await readRegular(path.join(location, filename), `City ${name} record`);
+    const record = validator(parseJSON(source.bytes, `City ${name} record`), cityId);
+    if (`${record.id}.json` !== filename || records.has(record.id)) {
+      fail('INVALID_RECORD', `City ${name} record filename must match its unique safe ID.`);
+    }
+    records.set(record.id, { value: record, bytes: source.bytes });
+  }
+  await assertIdentity(location, identity, `City ${name}`);
+  if (JSON.stringify(await entries(location, `City ${name}`)) !== JSON.stringify(names)) {
+    fail('CONFLICT', `City ${name} changed during validation. Inspect concurrent edits and retry.`);
+  }
+  return { records, identity };
+}
+
+export async function loadCity(root, required = true) {
+  const cityPath = path.join(root, '.city');
+  const found = await inspect(cityPath);
+  if (!found) {
+    if (required) fail('NOT_ENROLLED', 'City is not initialized. Review an init dry-run before explicitly requesting --apply.');
+    return null;
+  }
+  const identity = await directory(cityPath, 'City directory');
+  const configSource = await readRegular(path.join(cityPath, 'config.json'), 'City config');
+  const config = validateConfig(parseJSON(configSource.bytes, 'City config'));
+  const districtsSource = await readRegular(path.join(cityPath, 'districts.json'), 'City districts');
+  const districts = validateDistricts(parseJSON(districtsSource.bytes, 'City districts'));
+  const projectsPath = path.join(cityPath, 'projects.json');
+  const projectsInfo = await inspect(projectsPath);
+  const projectsSource = projectsInfo
+    ? await readRegular(projectsPath, 'City projects')
+    : null;
+  const projectsBytes = projectsSource?.bytes ?? null;
+  const projects = validateProjects(projectsSource
+    ? parseJSON(projectsSource.bytes, 'City projects')
+    : { schemaVersion: SCHEMA_VERSION, projects: [] });
+  await assertProjectPaths(root, projects);
+  await governanceLayout(cityPath);
+  const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, await governanceDigests(cityPath)) : null;
+  const orders = await readRecords(cityPath, 'work-orders', validateWorkOrder, config.cityId);
+  const decisions = await readRecords(cityPath, 'decisions', validateDecision, config.cityId);
+  const recordsRequests = await readRecords(
+    cityPath, 'records-requests', validateRecordsRequest, config.cityId, true,
+  );
+  const workforce = await readWorkforceRecords(root, cityPath, config.cityId, orders.records);
+  const projectIds = new Set(projects.projects.map((project) => project.id));
+  for (const { value: order } of orders.records.values()) {
+    if (order.projectIds?.some((id) => !projectIds.has(id))) {
+      fail('INVALID_RECORD', 'City work order references a missing project. Restore or repair its local references.');
+    }
+  }
+  for (const { value: decision } of decisions.records.values()) {
+    if (decision.workOrderIds.some((id) => !orders.records.has(id))) {
+      fail('INVALID_RECORD', 'City decision references a missing work order. Restore or repair its local references.');
+    }
+  }
+  for (const { value: request } of recordsRequests.records.values()) {
+    if (request.relatedWorkOrderId && !orders.records.has(request.relatedWorkOrderId)) {
+      fail('INVALID_RECORD', 'City records request references a missing work order. Restore or repair its local references.');
+    }
+  }
+  checkDecisionLinkage(orders.records, decisions.records);
+  await assertIdentity(cityPath, identity, 'City directory');
+  await assertIdentity(path.join(cityPath, 'config.json'), configSource.info, 'City config');
+  await assertIdentity(path.join(cityPath, 'districts.json'), districtsSource.info, 'City districts');
+  if (projectsSource) await assertIdentity(projectsPath, projectsSource.info, 'City projects');
+  return {
+    root, path: cityPath, identity, config, configBytes: configSource.bytes,
+    districts, districtsBytes: districtsSource.bytes, projects, projectsBytes, drift,
+    workOrders: orders.records,
+    decisions: decisions.records,
+    recordsRequests: recordsRequests.records,
+    workforce,
+    directoryIdentities: {
+      'work-orders': orders.identity, decisions: decisions.identity,
+      'records-requests': recordsRequests.identity,
+      ...workforce.directoryIdentities,
+    },
+  };
+}
+
+async function assertProjectPaths(root, projects) {
+  for (const project of projects.projects) {
+    let current = root;
+    for (const segment of project.path.split('/')) {
+      current = path.join(current, segment);
+      const info = await inspect(current);
+      if (!info) break;
+      if (info.isSymbolicLink()) {
+        fail('UNSAFE_PATH', 'City project directories and their existing parents must not be symlinks.');
+      }
+      if (!info.isDirectory()) {
+        fail('INVALID_RECORD', 'An existing city project path component is not a directory.');
+      }
+    }
+  }
+}
+
+const DECISION_FROM = Object.freeze({
+  authorize: 'awaiting-approval', reject: 'awaiting-approval', return: 'awaiting-approval', accept: 'awaiting-merge',
+});
+const LINKED_ENTRIES = Object.freeze({ authorized: 'authorize', completed: 'accept' });
+const linkKey = (orderId, timestamp, state) => `${orderId}\n${timestamp}\n${state}`;
+
+// Delivery decisions and work-order history must corroborate each other; neither can be forged alone.
+function checkDecisionLinkage(orders, decisions) {
+  const links = new Set();
+  for (const { value: decision } of decisions.values()) {
+    if (decision.schemaVersion !== DELIVERY_DECISION_SCHEMA_VERSION) continue;
+    const order = orders.get(decision.workOrderIds[0]).value;
+    const state = OUTCOME_STATES[decision.outcome];
+    if (state === null) {
+      const awaiting = order.history.some((entry, index) => entry.to === 'awaiting-approval'
+        && entry.timestamp <= decision.createdAt
+        && (index + 1 === order.history.length || order.history[index + 1].timestamp >= decision.createdAt));
+      if (!awaiting) {
+        fail('INVALID_RECORD', 'City referral decision does not match a period when its work order was awaiting approval. Restore or repair the linked records.');
+      }
+      continue;
+    }
+    const matches = order.history.filter((entry) => entry.from === DECISION_FROM[decision.outcome]
+      && entry.to === state && entry.timestamp === decision.createdAt);
+    const key = linkKey(order.id, decision.createdAt, state);
+    if (matches.length !== 1 || links.has(key)) {
+      fail('INVALID_RECORD', 'City delivery decision does not match exactly one work-order history entry with the same timestamp and outcome. Restore or repair the linked records.');
+    }
+    links.add(key);
+  }
+  for (const { value: order } of orders.values()) {
+    for (const entry of order.history) {
+      if (Object.hasOwn(LINKED_ENTRIES, entry.to) && !links.has(linkKey(order.id, entry.timestamp, entry.to))) {
+        fail('INVALID_RECORD', 'City work-order history enters authorized or completed without a matching decision record. Restore or repair the linked records.');
+      }
+    }
+  }
+}
+
+function deliveryDecisions(city, orderId) {
+  return [...city.decisions.values()].map(({ value }) => value)
+    .filter((decision) => decision.schemaVersion === DELIVERY_DECISION_SCHEMA_VERSION && decision.workOrderIds[0] === orderId)
+    .sort((first, second) => first.createdAt.localeCompare(second.createdAt) || first.id.localeCompare(second.id));
+}
+
+function councilSummary(city) {
+  const adopted = city.config.governance === 'adopted';
+  const governanceCurrent = adopted && city.drift.matchesAdoptedRevision;
+  const delegationPolicyAdopted = adopted && city.config.adoption.policies.some((policy) => policy.path === DELEGATION_POLICY);
+  return {
+    delegationAvailable: governanceCurrent && delegationPolicyAdopted,
+    delegationPolicy: `.city/${DELEGATION_POLICY}`,
+    delegationPolicyAdopted,
+    governanceCurrent,
+    residentDecisionsAvailable: governanceCurrent,
+  };
+}
+
+function citySummary(city) {
+  const summary = {
+    cityId: city.config.cityId,
+    name: city.config.name,
+    schemaVersion: city.config.schemaVersion,
+    governance: city.config.governance,
+    migrationAvailable: city.config.schemaVersion === LEGACY_CONFIG_SCHEMA_VERSION,
+  };
+  if (city.config.governance === 'adopted') {
+    summary.adoption = { ...city.config.adoption, drift: city.drift };
+  }
+  return summary;
+}
+
+export function statusOutput(root, city, command = 'status') {
+  if (!city) return { command, root, enrolled: false, notice: DRAFT_NOTICE };
+  const assignments = currentAssignments(city);
+  const byStatus = Object.fromEntries(STATUSES.map((status) => [status, 0]));
+  const projectCounts = new Map(city.projects.projects.map((project) => [
+    project.id, { projectId: project.id, name: project.name, total: 0, byStatus: Object.fromEntries(STATUSES.map((status) => [status, 0])) },
+  ]));
+  const unassigned = { total: 0, byStatus: Object.fromEntries(STATUSES.map((status) => [status, 0])) };
+  const awaitingResidentDecision = [];
+  const readyForDelivery = [];
+  for (const { value } of city.workOrders.values()) {
+    byStatus[value.status] += 1;
+    const assignedProjects = value.projectIds?.map((id) => projectCounts.get(id)) ?? [];
+    if (assignedProjects.length === 0) {
+      unassigned.total += 1;
+      unassigned.byStatus[value.status] += 1;
+    }
+    for (const project of assignedProjects) {
+      project.total += 1;
+      project.byStatus[value.status] += 1;
+    }
+    const latest = deliveryDecisions(city, value.id).filter((decision) => decision.kind === 'authorization').at(-1);
+    if (value.status === 'authorized') {
+      readyForDelivery.push({
+        id: value.id, title: value.title, projectIds: value.projectIds ?? [],
+        authorizedBy: latest.id, decidedBy: latest.decidedBy,
+        assignedTo: assignments.get(value.id)?.staffId ?? null,
+      });
+    }
+    const enteredAwaiting = value.history.findLast((entry) => entry.to === 'awaiting-approval')?.timestamp;
+    // A referral from an earlier awaiting-approval period is stale once the order re-enters the queue.
+    if (value.status === 'awaiting-approval' && latest?.outcome === 'refer' && latest.createdAt >= enteredAwaiting) {
+      awaitingResidentDecision.push({
+        id: value.id, title: value.title, referredBy: latest.id, reservedMatters: latest.reservedMatters,
+      });
+    }
+  }
+  const byKind = { proposal: 0, authorization: 0, acceptance: 0 };
+  const byOutcome = Object.fromEntries([...AUTHORIZATION_OUTCOMES, 'accept'].map((outcome) => [outcome, 0]));
+  for (const { value } of city.decisions.values()) {
+    byKind[value.kind] += 1;
+    if (value.schemaVersion === DELIVERY_DECISION_SCHEMA_VERSION) byOutcome[value.outcome] += 1;
+  }
+  const recordsRequestCounts = { open: 0, resolved: 0, cancelled: 0 };
+  const openRecordsRequests = [];
+  for (const { value } of city.recordsRequests.values()) {
+    recordsRequestCounts[value.status] += 1;
+    if (value.status === 'open') {
+      openRecordsRequests.push({
+        id: value.id,
+        requestedBy: value.requestedBy,
+        sourceOffice: value.sourceOffice,
+        purpose: value.purpose,
+        relatedWorkOrderId: value.relatedWorkOrderId,
+        itemCount: value.items.length,
+        createdAt: value.createdAt,
+      });
+    }
+  }
+  const deliveryWithoutAssignment = [...city.workOrders.values()]
+    .map(({ value }) => value)
+    .filter((value) => ['in-progress', 'inspection'].includes(value.status)
+      && !assignments.has(value.id))
+    .map((value) => ({ id: value.id, title: value.title }))
+    .sort((first, second) => first.id.localeCompare(second.id));
+  return {
+    command, root, enrolled: true, governance: city.config.governance, city: citySummary(city),
+    council: councilSummary(city),
+    projects: city.projects.projects,
+    workOrders: {
+      total: city.workOrders.size,
+      byStatus,
+      byProject: [...projectCounts.values()].sort((first, second) => first.projectId.localeCompare(second.projectId)),
+      unassigned,
+      awaitingResidentDecision: awaitingResidentDecision.sort((first, second) => first.id.localeCompare(second.id)),
+      readyForDelivery: readyForDelivery.sort((first, second) => first.id.localeCompare(second.id)),
+      deliveryWithoutAssignment,
+    },
+    decisions: { total: city.decisions.size, proposed: byKind.proposal, byKind, byOutcome },
+    recordsRequests: {
+      total: city.recordsRequests.size,
+      ...recordsRequestCounts,
+      openRequests: openRecordsRequests.sort((first, second) => first.createdAt.localeCompare(second.createdAt)
+        || first.id.localeCompare(second.id)),
+    },
+    workforce: workforceStatus(city),
+    notice: governanceNotice(city.config.governance),
+  };
+}
+
+export async function status(root) {
+  return statusOutput(root, await loadCity(root, false));
+}
+
+const requestOutcomes = new Set(['found', 'not-found', 'withheld', 'unavailable']);
+
+function requestJSON(value, label) {
+  return parseJSON(Buffer.from(value, 'utf8'), label);
+}
+
+function recordItem(type, id, relativePath, bytes, data, status = null, relatedRecords = [], label = null) {
+  return {
+    meta: {
+      type, id, path: relativePath, status, sha256: sha256(bytes),
+      relatedRecords: relatedRecords.sort((first, second) => first.type.localeCompare(second.type)
+        || first.id.localeCompare(second.id)),
+      ...(label ? { label } : {}),
+    },
+    bytes,
+    data,
+  };
+}
+
+async function canonicalRecords(city) {
+  const records = [];
+  const decisionsByOrder = new Map();
+  for (const { value } of city.decisions.values()) {
+    for (const orderId of value.workOrderIds) {
+      const related = decisionsByOrder.get(orderId) ?? [];
+      related.push({ type: 'decision', id: value.id });
+      decisionsByOrder.set(orderId, related);
+    }
+  }
+  const requestsByOrder = new Map();
+  for (const { value } of city.recordsRequests.values()) {
+    if (value.relatedWorkOrderId) {
+      const related = requestsByOrder.get(value.relatedWorkOrderId) ?? [];
+      related.push({ type: 'records-request', id: value.id });
+      requestsByOrder.set(value.relatedWorkOrderId, related);
+    }
+  }
+  const workforceByOrder = new Map();
+  for (const { value } of city.workforce.requisitions.values()) {
+    const related = workforceByOrder.get(value.workOrderId) ?? [];
+    related.push({ type: 'requisition', id: value.id });
+    workforceByOrder.set(value.workOrderId, related);
+  }
+  for (const { value } of city.workforce.assignments.values()) {
+    const related = workforceByOrder.get(value.workOrderId) ?? [];
+    related.push({ type: 'assignment', id: value.id });
+    workforceByOrder.set(value.workOrderId, related);
+  }
+  for (const { value, bytes } of city.workOrders.values()) {
+    records.push(recordItem('work-order', value.id, `.city/work-orders/${value.id}.json`, bytes, value,
+      value.status, [
+        ...(decisionsByOrder.get(value.id) ?? []),
+        ...(requestsByOrder.get(value.id) ?? []),
+        ...(workforceByOrder.get(value.id) ?? []),
+      ], value.title));
+  }
+  for (const { value, bytes } of city.decisions.values()) {
+    records.push(recordItem('decision', value.id, `.city/decisions/${value.id}.json`, bytes, value,
+      value.status ?? value.outcome, value.workOrderIds.map((id) => ({ type: 'work-order', id })),
+      value.title ?? value.reason));
+  }
+  for (const { value, bytes } of city.recordsRequests.values()) {
+    records.push(recordItem('records-request', value.id, `.city/records-requests/${value.id}.json`,
+      bytes, value, value.status,
+      value.relatedWorkOrderId ? [{ type: 'work-order', id: value.relatedWorkOrderId }] : [],
+      value.purpose));
+  }
+  for (const { value, bytes } of city.workforce.requisitions.values()) {
+    records.push(recordItem('requisition', value.id, `.city/workforce/requisitions/${value.id}.json`,
+      bytes, value, value.status, [{ type: 'work-order', id: value.workOrderId }], value.title));
+  }
+  for (const { value, bytes } of city.workforce.staff.values()) {
+    const requisition = city.workforce.requisitions.get(value.requisitionId)?.value;
+    records.push(recordItem('staff', value.id, `.city/workforce/staff/${value.id}.json`,
+      bytes, value, value.status, [
+        { type: 'requisition', id: value.requisitionId },
+        { type: 'work-order', id: requisition.workOrderId },
+      ], value.title));
+  }
+  for (const { value, bytes } of city.workforce.assignments.values()) {
+    records.push(recordItem('assignment', value.id, `.city/workforce/assignments/${value.id}.json`,
+      bytes, value, null, [
+        { type: 'work-order', id: value.workOrderId },
+        ...(value.staffId === 'municipal-software-engineer' ? [] : [{ type: 'staff', id: value.staffId }]),
+      ]));
+  }
+  records.push(recordItem('config', 'config', '.city/config.json', city.configBytes, city.config,
+    city.config.governance, [], city.config.name));
+  for (const district of city.districts.districts) {
+    records.push(recordItem('district', district.id, '.city/districts.json', city.districtsBytes,
+      district, null, [], district.name));
+  }
+  if (city.projectsBytes) {
+    for (const project of city.projects.projects) {
+      records.push(recordItem('project', project.id, '.city/projects.json', city.projectsBytes,
+        project, null, [], project.name));
+    }
+  }
+  const charterPath = path.join(city.path, 'charter.md');
+  const charter = await readRegular(charterPath, 'City charter');
+  records.push(recordItem('charter', 'charter', '.city/charter.md', charter.bytes,
+    charter.bytes.toString('utf8'), null, [], 'City charter'));
+  const policyDirectory = path.join(city.path, 'policies');
+  for (const filename of await entries(policyDirectory, 'City policies')) {
+    const policy = await readRegular(path.join(policyDirectory, filename), 'City policy');
+    records.push(recordItem('policy', `policy:${filename}`, `.city/policies/${filename}`,
+      policy.bytes, policy.bytes.toString('utf8'), null, [], filename));
+  }
+  return records.sort((first, second) => first.meta.type.localeCompare(second.meta.type)
+    || first.meta.id.localeCompare(second.meta.id));
+}
+
+function validateAnyRecordId(id) {
+  if (typeof id !== 'string' || id.includes('/') || id.includes('\\')) {
+    fail('INVALID_ARGUMENT', 'Record ID must be an exact canonical identifier, not a path.');
+  }
+  for (const type of ['project', 'district']) {
+    const prefix = `${type}:`;
+    if (id.startsWith(prefix)) {
+      const value = id.slice(prefix.length);
+      validateRecordId(type, value);
+      return { type, id: value };
+    }
+  }
+  if (/^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'work-order', id };
+  }
+  if (/^DEC-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'decision', id };
+  }
+  if (/^RR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'records-request', id };
+  }
+  if (/^REQ-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'requisition', id };
+  }
+  if (/^ASN-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'assignment', id };
+  }
+  if (/^[a-z][a-z0-9-]{1,40}$/u.test(id)) return { type: 'staff', id };
+  if (id === 'config' || id === 'charter') return { type: id, id };
+  if (/^policy:[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.md$/u.test(id)) {
+    return { type: 'policy', id };
+  }
+  if (/^[a-z][a-z0-9-]{0,63}$/u.test(id)) return { type: null, id };
+  fail('INVALID_ARGUMENT', 'Record ID must be a supported canonical identifier.');
+}
+
+function validateRecordFilters(options) {
+  if (options.type !== undefined && !CANONICAL_RECORD_TYPES.includes(options.type)) {
+    fail('INVALID_ARGUMENT', `--type must be one of ${CANONICAL_RECORD_TYPES.join(', ')}.`);
+  }
+  const selector = options.id === undefined ? null : validateAnyRecordId(options.id);
+  if (options['work-order'] !== undefined) validateOrderId(options['work-order']);
+  if (options.project !== undefined && !/^[a-z][a-z0-9-]{0,63}$/u.test(options.project)) {
+    fail('INVALID_ARGUMENT', '--project must be a registered project ID.');
+  }
+  if (options.status !== undefined && ![
+    ...STATUSES, 'open', 'resolved', 'cancelled', 'draft', 'adopted', 'proposed',
+  ].includes(options.status)) {
+    fail('INVALID_ARGUMENT', '--status must be a supported record status.');
+  }
+  const limit = options.limit === undefined ? LIMITS.recordPage : Number(options.limit);
+  const offset = options.offset === undefined ? 0 : Number(options.offset);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > LIMITS.recordPage
+    || !Number.isSafeInteger(offset) || offset < 0 || offset > LIMITS.records) {
+    fail('INVALID_ARGUMENT', `--limit must be 1-${LIMITS.recordPage}; --offset must be 0-${LIMITS.records}.`);
+  }
+  return { limit, offset, selector };
+}
+
+export async function recordsList(root, options) {
+  const { limit, offset, selector } = validateRecordFilters(options);
+  const city = await loadCity(root);
+  const all = await canonicalRecords(city);
+  const matching = all.filter(({ meta, data }) => {
+    if (options.type && meta.type !== options.type) return false;
+    if (selector && (meta.id !== selector.id || (selector.type && meta.type !== selector.type))) return false;
+    if (options['work-order']
+      && meta.id !== options['work-order']
+      && !meta.relatedRecords.some((related) => related.type === 'work-order'
+        && related.id === options['work-order'])) return false;
+    if (options.project) {
+      if (meta.type === 'project' && meta.id === options.project) {
+        return !options.status || meta.status === options.status;
+      }
+      let workOrder = data;
+      if (meta.type === 'decision') {
+        workOrder = city.workOrders.get(data.workOrderIds[0])?.value;
+      } else if (meta.type !== 'work-order') {
+        workOrder = meta.relatedRecords.map((related) => city.workOrders.get(related.id)?.value)
+          .find(Boolean);
+      }
+      if (!workOrder?.projectIds?.includes(options.project)) return false;
+    }
+    return !options.status || meta.status === options.status;
+  });
+  return {
+    command: 'records-list', root, total: matching.length, limit, offset,
+    nextOffset: offset + limit < matching.length ? offset + limit : null,
+    records: matching.slice(offset, offset + limit).map(({ meta }) => meta),
+  };
+}
+
+export async function recordsGet(root, options) {
+  if (!Array.isArray(options.ids) || options.ids.length === 0 || options.ids.length > LIMITS.recordBatch) {
+    fail('INVALID_ARGUMENT', `Supply 1-${LIMITS.recordBatch} exact --id values.`);
+  }
+  if (new Set(options.ids).size !== options.ids.length) {
+    fail('INVALID_ARGUMENT', 'A record ID may be requested only once per batch.');
+  }
+  const selectors = options.ids.map(validateAnyRecordId);
+  const city = await loadCity(root);
+  const all = await canonicalRecords(city);
+  const index = new Map(all.map((record) => [`${record.meta.type}\n${record.meta.id}`, record]));
+  const requested = selectors.map((selector) => {
+    const matches = all.filter((record) => record.meta.id === selector.id
+      && (!selector.type || record.meta.type === selector.type));
+    if (matches.length === 0) fail('NOT_FOUND', `Canonical record ${selector.type ? `${selector.type}:` : ''}${selector.id} does not exist in this repository.`);
+    if (matches.length > 1) fail('INVALID_ARGUMENT', `Record ID ${selector.id} is ambiguous; use project:<id> or district:<id>.`);
+    return matches[0];
+  });
+  const response = requested.map((record) => {
+    const linked = options.linked
+      ? record.meta.relatedRecords.map((related) => index.get(`${related.type}\n${related.id}`)).filter(Boolean)
+      : [];
+    if (linked.length > LIMITS.recordBatch) {
+      fail('SIZE_LIMIT', 'Linked record set exceeds the supported batch size; fetch the requested record without --linked.');
+    }
+    return {
+      type: record.meta.type, id: record.meta.id, path: record.meta.path,
+      status: record.meta.status, sha256: record.meta.sha256, record: record.data,
+      linked: linked.map(({ meta, data }) => ({ ...meta, record: data })),
+    };
+  });
+  const output = {
+    command: 'records-get', root, retrievedAt: new Date().toISOString(), records: response,
+  };
+  if (Buffer.byteLength(encodeJSON(output)) > LIMITS.hookBytes) {
+    fail('SIZE_LIMIT', 'Record batch exceeds the supported response size; request fewer records or omit --linked.');
+  }
+  return output;
+}
+
+function requestItem(value) {
+  const item = requestJSON(value, 'Records request item');
+  if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+    fail('INVALID_ARGUMENT', '--item must be a JSON object with type, id, and description.');
+  }
+  if (!RECORD_EXCHANGE_TYPES.includes(item.type) || item.type === 'records-request') {
+    fail('INVALID_ARGUMENT', '--item type must identify a supported canonical record type.');
+  }
+  validateRecordId(item.type, item.id, '--item id');
+  text(item.description, '--item description', 1000);
+  if (Object.keys(item).length !== 3 || !['type', 'id', 'description'].every((key) => Object.hasOwn(item, key))) {
+    fail('INVALID_ARGUMENT', '--item accepts only type, id, and description.');
+  }
+  return item;
+}
+
+function requestResponse(value, items, recordIndex) {
+  const response = requestJSON(value, 'Records request response');
+  if (response === null || typeof response !== 'object' || Array.isArray(response)
+    || Object.keys(response).length !== 4
+    || !['item', 'outcome', 'references', 'explanation'].every((key) => Object.hasOwn(response, key))) {
+    fail('INVALID_ARGUMENT', '--response must be a JSON object with item, outcome, references, and explanation.');
+  }
+  if (!Number.isInteger(response.item) || response.item < 0 || response.item >= items.length
+    || !requestOutcomes.has(response.outcome) || !Array.isArray(response.references)) {
+    fail('INVALID_ARGUMENT', '--response has an invalid item index, outcome, or references array.');
+  }
+  text(response.explanation, '--response explanation', 4000);
+  if (response.references.length > LIMITS.recordBatch) {
+    fail('INVALID_ARGUMENT', `A response may reference at most ${LIMITS.recordBatch} records.`);
+  }
+  const references = response.references.map((reference) => {
+    if (reference === null || typeof reference !== 'object' || Array.isArray(reference)
+      || Object.keys(reference).length !== 4
+      || !['type', 'id', 'path', 'sha256'].every((key) => Object.hasOwn(reference, key))) {
+      fail('INVALID_ARGUMENT', 'Each response reference must include type, id, path, and sha256.');
+    }
+    const key = `${reference.type}\n${reference.id}`;
+    const actual = recordIndex.get(key);
+    if (!actual || actual.meta.path !== reference.path || actual.meta.sha256 !== reference.sha256) {
+      fail('STALE_REFERENCE', 'A response reference is missing or no longer matches the current canonical record. Fetch it again and retry.');
+    }
+    return {
+      type: actual.meta.type, id: actual.meta.id, path: actual.meta.path, sha256: actual.meta.sha256,
+    };
+  });
+  if (response.outcome === 'found' && references.length === 0) {
+    fail('INVALID_ARGUMENT', 'A found response must cite at least one current canonical record.');
+  }
+  if (response.outcome === 'found'
+    && !references.some((reference) => reference.type === items[response.item].type
+      && reference.id === items[response.item].id)) {
+    fail('INVALID_ARGUMENT', 'A found response must cite the exact record requested for that item.');
+  }
+  if (response.outcome !== 'found' && references.length > 0) {
+    fail('INVALID_ARGUMENT', 'Only a found response may cite canonical record references.');
+  }
+  return { ...response, references };
+}
+
+function checkRecordsRequestsUnchanged(before, after) {
+  if (before.recordsRequests.size !== after.recordsRequests.size) {
+    fail('CONFLICT', 'City records requests changed since validation. Inspect concurrent edits and retry.');
+  }
+  for (const [id, record] of before.recordsRequests) {
+    if (!after.recordsRequests.get(id)?.bytes.equals(record.bytes)) {
+      fail('CONFLICT', 'City records requests changed since validation. Inspect concurrent edits and retry.');
+    }
+  }
+}
+
+async function ensureRecordsRequestDirectory(root) {
+  const location = path.join(root, '.city', 'records-requests');
+  try {
+    await mkdir(location, { mode: 0o700 });
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+  }
+  await directory(location, 'City records requests');
+}
+
+export async function recordsRequest(root, options) {
+  text(options['requested-by'], '--requested-by', 200);
+  text(options.purpose, '--purpose', 4000);
+  if (!Array.isArray(options.items) || options.items.length === 0 || options.items.length > LIMITS.criteria) {
+    fail('INVALID_ARGUMENT', `Supply 1-${LIMITS.criteria} repeated --item JSON values.`);
+  }
+  const items = options.items.map(requestItem);
+  const city = await loadCity(root);
+  if (options['related-work-order'] !== undefined) {
+    validateOrderId(options['related-work-order']);
+    if (!city.workOrders.has(options['related-work-order'])) {
+      fail('NOT_FOUND', 'Related work order does not exist in this repository.');
+    }
+  }
+  if (options['source-office'] !== undefined) text(options['source-office'], '--source-office', 200);
+  const now = new Date(Math.max(Date.now(), Date.parse(city.config.createdAt))).toISOString();
+  const record = validateRecordsRequest({
+    schemaVersion: RECORDS_REQUEST_SCHEMA_VERSION,
+    id: `RR-${randomUUID()}`,
+    cityId: city.config.cityId,
+    requestedBy: options['requested-by'],
+    sourceOffice: options['source-office'] ?? null,
+    purpose: options.purpose,
+    relatedWorkOrderId: options['related-work-order'] ?? null,
+    items,
+    status: 'open',
+    createdAt: now,
+    updatedAt: now,
+    history: [{
+      from: null, to: 'open', actor: options['requested-by'],
+      reason: 'Records request submitted.', timestamp: now,
+    }],
+    responses: [],
+    provenance: provenance(),
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(record)) > LIMITS.fileBytes) {
+    fail('SIZE_LIMIT', 'Records request exceeds the supported record size.');
+  }
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      let current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkRecordsRequestsUnchanged(city, current);
+      if (record.relatedWorkOrderId && !current.workOrders.has(record.relatedWorkOrderId)) {
+        fail('CONFLICT', 'The related work order changed before the request was written. Review the current register and retry.');
+      }
+      if (current.recordsRequests.size >= LIMITS.records) {
+        fail('SIZE_LIMIT', 'City has reached the supported records request count.');
+      }
+      if (!current.directoryIdentities['records-requests']) {
+        await ensureRecordsRequestDirectory(root);
+        current = await loadCity(root);
+      }
+      await atomicRecord(current, 'records-requests', `${record.id}.json`, record);
+    });
+  }
+  return {
+    command: 'records-request', root, governance: city.config.governance,
+    dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    recordsRequest: record, notice: governanceNotice(city.config.governance),
+  };
+}
+
+async function mutateRecordsRequest(root, options, terminalStatus) {
+  validateRecordId('records-request', options.id);
+  const actorFlag = terminalStatus === 'resolved' ? 'resolved-by' : 'cancelled-by';
+  text(options[actorFlag], `--${actorFlag}`, 200);
+  text(options.reason, '--reason', 4000);
+  const city = await loadCity(root);
+  const original = city.recordsRequests.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City records request does not exist in this repository.');
+  if (original.value.status !== 'open') {
+    fail('INVALID_TRANSITION', `Only open records requests can become ${terminalStatus}.`);
+  }
+  let responses = [];
+  if (terminalStatus === 'resolved') {
+    if (!Array.isArray(options.responses) || options.responses.length !== original.value.items.length) {
+      fail('INVALID_ARGUMENT', 'Resolve every requested item with exactly one --response JSON value.');
+    }
+    const canonical = await canonicalRecords(city);
+    const index = new Map(canonical.map((record) => [`${record.meta.type}\n${record.meta.id}`, record]));
+    responses = options.responses.map((value) => requestResponse(value, original.value.items, index));
+    if (new Set(responses.map((response) => response.item)).size !== original.value.items.length) {
+      fail('INVALID_ARGUMENT', 'Responses must account for each requested item exactly once.');
+    }
+    responses.sort((first, second) => first.item - second.item);
+  }
+  const timestampValue = new Date(Math.max(
+    Date.now(), Date.parse(original.value.updatedAt) + 1,
+  )).toISOString();
+  const updated = validateRecordsRequest({
+    ...original.value,
+    status: terminalStatus,
+    updatedAt: timestampValue,
+    history: [
+      ...original.value.history,
+      {
+        from: 'open', to: terminalStatus, actor: options[actorFlag], reason: options.reason,
+        timestamp: timestampValue,
+      },
+    ],
+    responses,
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(updated)) > LIMITS.fileBytes) {
+    fail('SIZE_LIMIT', 'Resolved records request exceeds the supported record size.');
+  }
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const latest = current.recordsRequests.get(options.id);
+      if (!latest || !latest.bytes.equals(original.bytes)) {
+        fail('CONFLICT', 'City records request changed since validation. Inspect the concurrent edit and retry.');
+      }
+      if (terminalStatus === 'resolved') {
+        const canonical = await canonicalRecords(current);
+        const index = new Map(canonical.map((record) => [`${record.meta.type}\n${record.meta.id}`, record]));
+        for (const response of responses) {
+          for (const reference of response.references) {
+            const actual = index.get(`${reference.type}\n${reference.id}`);
+            if (!actual || actual.meta.path !== reference.path || actual.meta.sha256 !== reference.sha256) {
+              fail('STALE_REFERENCE', 'A response reference changed before write. Fetch it again and retry.');
+            }
+          }
+        }
+      }
+      await atomicRecord(
+        current, 'records-requests', `${updated.id}.json`, updated, original.bytes,
+      );
+    });
+  }
+  return {
+    command: terminalStatus === 'resolved' ? 'records-resolve' : 'records-cancel',
+    root, governance: city.config.governance,
+    dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    recordsRequest: updated, notice: governanceNotice(city.config.governance),
+  };
+}
+
+export async function recordsResolve(root, options) {
+  return mutateRecordsRequest(root, options, 'resolved');
+}
+
+export async function recordsCancel(root, options) {
+  return mutateRecordsRequest(root, options, 'cancelled');
+}
+
+export async function validate(root) {
+  const city = await loadCity(root);
+  return {
+    command: 'validate', root, enrolled: true, governance: city.config.governance, valid: true,
+    city: citySummary(city),
+    records: {
+      projects: city.projects.projects.length,
+      workOrders: city.workOrders.size,
+      decisions: city.decisions.size,
+      recordsRequests: city.recordsRequests.size,
+      requisitions: city.workforce.requisitions.size,
+      staff: city.workforce.staff.size,
+      assignments: city.workforce.assignments.size,
+    },
+    workforce: { drift: city.workforce.drift },
+    notice: governanceNotice(city.config.governance),
+  };
+}
+
+async function templateFiles(templateRoot) {
+  await directory(templateRoot, 'Installed city templates');
+  const files = new Map();
+  const names = await entries(templateRoot, 'Installed city templates');
+  const allowed = [
+    'charter.md', 'instruction-fragment.md', 'policies', 'districts.json', 'projects.json',
+    'work-orders', 'decisions', 'records-requests',
+  ];
+  if (names.some((name) => !allowed.includes(name))) {
+    fail('INVALID_TEMPLATE', 'Installed city templates contain unexpected assets; restore the blank draft template package.');
+  }
+  for (const name of ['charter.md', 'instruction-fragment.md']) {
+    files.set(name, (await readRegular(path.join(templateRoot, name), 'Installed city governance template')).bytes);
+  }
+  const policiesPath = path.join(templateRoot, 'policies');
+  const policies = await entries(policiesPath, 'Installed city policy templates');
+  if (policies.length === 0) fail('INVALID_TEMPLATE', 'Installed city templates must include draft policies.');
+  for (const name of policies) {
+    if (!name.endsWith('.md')) fail('INVALID_TEMPLATE', 'Installed policy templates must be regular Markdown files.');
+    files.set(`policies/${name}`, (await readRegular(path.join(policiesPath, name), 'Installed city policy template')).bytes);
+  }
+  if (names.includes('districts.json')) {
+    const source = await readRegular(path.join(templateRoot, 'districts.json'), 'Installed district template');
+    validateDistricts(parseJSON(source.bytes, 'Installed district template'));
+    files.set('districts.json', source.bytes);
+  }
+  if (names.includes('projects.json')) {
+    const source = await readRegular(path.join(templateRoot, 'projects.json'), 'Installed projects template');
+    validateProjects(parseJSON(source.bytes, 'Installed projects template'));
+    files.set('projects.json', source.bytes);
+  }
+  for (const name of ['work-orders', 'decisions', 'records-requests']) {
+    if (names.includes(name) && (await entries(path.join(templateRoot, name), 'Blank template records')).length !== 0) {
+      fail('INVALID_TEMPLATE', 'Installed city templates must never contain an actual city record.');
+    }
+  }
+  return files;
+}
+
+export async function init(root, options, templateRoot) {
+  if (options.name !== undefined) text(options.name, 'City name', 200);
+  const existing = await loadCity(root, false);
+  if (existing) {
+    return {
+      ...statusOutput(root, existing, 'init'),
+      existing: true, dryRun: !options.apply, changed: false, wouldWrite: false,
+    };
+  }
+  const config = validateConfig({
+    schemaVersion: CONFIG_SCHEMA_VERSION,
+    plugin: { ...PLUGIN },
+    cityId: randomUUID(),
+    name: options.name ?? path.basename(root),
+    createdAt: new Date().toISOString(),
+    governance: 'draft',
+    adoption: null,
+  });
+  const files = await templateFiles(templateRoot);
+  files.set('config.json', encodeJSON(config));
+  if (!files.has('districts.json')) {
+    files.set('districts.json', encodeJSON(validateDistricts({
+      schemaVersion: SCHEMA_VERSION,
+      districts: [{
+        id: 'repository',
+        name: 'Repository',
+        path: '.',
+        description: 'Default district covering this repository.',
+      }],
+    })));
+  }
+  if (!files.has('projects.json')) {
+    files.set('projects.json', encodeJSON(validateProjects({ schemaVersion: SCHEMA_VERSION, projects: [] })));
+  }
+  if (options.apply) {
+    await publishCity(root, files);
+    await loadCity(root);
+  }
+  return {
+    command: 'init', root, enrolled: Boolean(options.apply), governance: 'draft',
+    existing: false, dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    config,
+    plan: {
+      create: [...files.keys(), 'work-orders/', 'decisions/', 'records-requests/']
+        .map((name) => `.city/${name}`),
+    },
+    notice: DRAFT_NOTICE,
+  };
+}
+
+function mutationOutput(command, root, apply, workOrder, governance) {
+  return {
+    command, root, governance, dryRun: !apply, changed: Boolean(apply),
+    wouldWrite: true, workOrder, notice: governanceNotice(governance),
+  };
+}
+
+// Exported for regression tests: a write prepared from `before` must fail if the order or its decisions changed.
+export function checkOrderUnchanged(before, after, original) {
+  const id = original.value.id;
+  const decisionIds = (city) => deliveryDecisions(city, id).map((decision) => decision.id).join();
+  const latest = after.workOrders.get(id);
+  if (!latest || !latest.bytes.equals(original.bytes) || decisionIds(after) !== decisionIds(before)) {
+    fail('CONFLICT', 'City work order or its decisions changed since validation. Inspect concurrent edits and retry.');
+  }
+}
+
+function checkCityUnchanged(before, after) {
+  const sameProjects = before.projectsBytes === null
+    ? after.projectsBytes === null
+    : after.projectsBytes !== null && before.projectsBytes.equals(after.projectsBytes);
+  if (!before.configBytes.equals(after.configBytes) || !sameProjects) {
+    fail('CONFLICT', 'City config or project register changed since validation. Inspect the concurrent edit and retry.');
+  }
+}
+
+export async function projectAdd(root, options) {
+  text(options.id, 'Project ID', 64);
+  text(options.name, 'Project name', 200);
+  text(options.path, 'Project path', 500);
+  text(options.description, 'Project description', 2000);
+  const city = await loadCity(root);
+  const projects = validateProjects({
+    ...city.projects,
+    projects: [...city.projects.projects, {
+      id: options.id, name: options.name, path: options.path, description: options.description,
+    }],
+  });
+  await assertProjectPaths(root, projects);
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const currentProjects = validateProjects({
+        ...current.projects,
+        projects: [...current.projects.projects, {
+          id: options.id, name: options.name, path: options.path, description: options.description,
+        }],
+      });
+      await assertProjectPaths(root, currentProjects);
+      await atomicCityFile(current, 'projects.json', currentProjects, city.projectsBytes);
+    });
+  }
+  return {
+    command: 'project-add', root, governance: city.config.governance,
+    dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    project: projects.projects.at(-1), projects: projects.projects,
+    notice: governanceNotice(city.config.governance),
+  };
+}
+
+export async function petition(root, options) {
+  text(options.title, 'Petition title', 500);
+  text(options.request, 'Petition request', 20000);
+  if (!Array.isArray(options.projects) || options.projects.length === 0 || options.projects.length > 100) {
+    fail('PROJECT_REQUIRED', 'Select one or more registered projects with repeated --project flags before creating a work order.');
+  }
+  if (new Set(options.projects).size !== options.projects.length) {
+    fail('INVALID_ARGUMENT', 'A project may be selected only once per work order.');
+  }
+  if (!Array.isArray(options.criteria) || options.criteria.length > LIMITS.criteria) {
+    fail('INVALID_ARGUMENT', `At most ${LIMITS.criteria} acceptance criteria may be supplied.`);
+  }
+  options.criteria.forEach((value) => text(value, 'Petition criterion', 2000));
+  const city = await loadCity(root);
+  const registeredProjects = new Set(city.projects.projects.map((project) => project.id));
+  if (options.projects.some((id) => !registeredProjects.has(id))) {
+    fail('NOT_FOUND', 'Every selected project must be registered in this repository.');
+  }
+  if (city.workOrders.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported draft work-order count.');
+  const now = new Date().toISOString();
+  const workOrder = validateWorkOrder({
+    schemaVersion: WORK_ORDER_SCHEMA_VERSION,
+    id: `WO-${randomUUID()}`,
+    cityId: city.config.cityId,
+    title: options.title,
+    request: options.request,
+    acceptanceCriteria: options.criteria,
+    projectIds: options.projects,
+    status: 'received',
+    createdAt: now,
+    updatedAt: now,
+    history: [{ from: null, to: 'received', reason: 'Petition received as draft intake, not delivery authorization.', timestamp: now }],
+    provenance: provenance(),
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      if (current.workOrders.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported draft work-order count.');
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder);
+    });
+  }
+  return mutationOutput('petition', root, options.apply, workOrder, city.config.governance);
+}
+
+export async function transition(root, options) {
+  validateOrderId(options.id);
+  validateState(options.to);
+  if (Object.hasOwn(COMMAND_ONLY_STATES, options.to)) {
+    fail('AUTHORIZATION_REQUIRED', 'Authorized and completed are entered only through the authorize and complete commands, which record a linked decision. A transition is never authorization or acceptance.');
+  }
+  text(options.reason, 'Transition reason', 4000);
+  const city = await loadCity(root);
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  checkTransition(
+    original.value.status, options.to, original.value.acceptanceCriteria, authorizationCurrent(original.value.history),
+  );
+  // Never record history before a linked decision (such as a referral) that left the order bytes unchanged.
+  const latestDecision = deliveryDecisions(city, original.value.id).at(-1);
+  const now = new Date(Math.max(
+    Date.now(), Date.parse(original.value.updatedAt), latestDecision ? Date.parse(latestDecision.createdAt) : 0,
+  )).toISOString();
+  const workOrder = validateWorkOrder({
+    ...original.value,
+    status: options.to,
+    updatedAt: now,
+    history: [
+      ...original.value.history,
+      { from: original.value.status, to: options.to, reason: options.reason, timestamp: now },
+    ],
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkOrderUnchanged(city, current, original);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+    });
+  }
+  return mutationOutput('transition', root, options.apply, workOrder, city.config.governance);
+}
+
+async function deliveryContext(root, id) {
+  const city = await loadCity(root);
+  if (city.config.governance !== 'adopted') {
+    fail('NOT_ADOPTED', 'City governance is still draft. A resident must adopt the charter and policies before delivery decisions can be recorded.');
+  }
+  if (!city.drift.matchesAdoptedRevision) {
+    fail('GOVERNANCE_DRIFT', 'The charter or policies differ from the adopted revision. Record the revision with amend, or restore the adopted text, before recording delivery decisions.');
+  }
+  const original = city.workOrders.get(id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  const digests = await governanceDigests(city.path);
+  return { city, original, digests };
+}
+
+function decisionTimestamp(city, order) {
+  const previous = deliveryDecisions(city, order.id).at(-1);
+  return new Date(Math.max(
+    Date.now(), Date.parse(order.updatedAt) + 1, previous ? Date.parse(previous.createdAt) + 1 : 0,
+  )).toISOString();
+}
+
+function deliveryRecords(context, fields, historyReason) {
+  const { city, original, digests } = context;
+  const createdAt = decisionTimestamp(city, original.value);
+  const decision = validateDecision({
+    schemaVersion: DELIVERY_DECISION_SCHEMA_VERSION,
+    id: `DEC-${randomUUID()}`,
+    cityId: city.config.cityId,
+    kind: fields.kind,
+    workOrderIds: [original.value.id],
+    outcome: fields.outcome,
+    decidedBy: fields.decidedBy,
+    basis: fields.basis,
+    routineClass: fields.routineClass,
+    reservedMatters: fields.reservedMatters,
+    reason: fields.reason,
+    subject: {
+      workOrderSha256: sha256(original.bytes),
+      charterSha256: digests.charter,
+      delegationPolicySha256: digests.policies.find((policy) => policy.path === DELEGATION_POLICY)?.sha256 ?? null,
+    },
+    evidence: { declaredBy: fields.declaredBy, reference: fields.reference, authenticated: false },
+    createdAt,
+    provenance: provenance(),
+  }, city.config.cityId);
+  const state = OUTCOME_STATES[fields.outcome];
+  const workOrder = state === null ? original.value : validateWorkOrder({
+    ...original.value,
+    status: state,
+    updatedAt: createdAt,
+    history: [
+      ...original.value.history,
+      { from: original.value.status, to: state, reason: historyReason(decision.id), timestamp: createdAt },
+    ],
+  }, city.config.cityId);
+  for (const record of [decision, workOrder]) {
+    if (Buffer.byteLength(encodeJSON(record)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city record exceeds the supported local file size.');
+  }
+  if (city.decisions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported decision count.');
+  return { decision, workOrder, changesOrder: state !== null };
+}
+
+async function writeDeliveryRecords(root, context, records) {
+  const { city, original, digests } = context;
+  const { decision, workOrder, changesOrder } = records;
+  await withMutationLock(city.path, city.identity, async () => {
+    const current = await loadCity(root);
+    checkCityUnchanged(city, current);
+    checkOrderUnchanged(city, current, original);
+    if (JSON.stringify(await governanceDigests(current.path)) !== JSON.stringify(digests)) {
+      fail('CONFLICT', 'The charter or policies changed since this decision was prepared. Review the current text and retry.');
+    }
+    if (current.decisions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported decision count.');
+    await atomicRecord(current, 'decisions', `${decision.id}.json`, decision);
+    if (!changesOrder) return;
+    try {
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+    } catch (error) {
+      const cause = error instanceof CityError ? error.code : 'FILESYSTEM_ERROR';
+      fail('PARTIAL_WRITE', `Decision .city/decisions/${decision.id}.json was written but work order .city/work-orders/${workOrder.id}.json was not updated (${cause}). The city will not validate until you remove that decision file or restore both records from backup; then run validate.`);
+    }
+  });
+  await loadCity(root);
+}
+
+// Routing hint for coordinators; it grants no authority and is null for acceptance decisions.
+const NEXT_STEPS = Object.freeze({
+  authorize: { actor: 'engineering-manager', action: 'assign-engineer' },
+  return: { actor: 'chief-planner', action: 'revise-proposal' },
+  refer: { actor: 'resident', action: 'decide-referral' },
+  reject: { actor: null, action: 'none' },
+});
+
+function deliveryOutput(command, root, apply, context, records) {
+  return {
+    command, root, governance: context.city.config.governance, dryRun: !apply, changed: Boolean(apply),
+    wouldWrite: true, decision: records.decision, workOrder: records.workOrder,
+    plan: {
+      create: [`.city/decisions/${records.decision.id}.json`],
+      replace: records.changesOrder ? [`.city/work-orders/${records.workOrder.id}.json`] : [],
+    },
+    next: NEXT_STEPS[records.decision.outcome] ?? null,
+    notice: governanceNotice(context.city.config.governance),
+  };
+}
+
+const HISTORY_REASONS = Object.freeze({
+  authorize: 'Delivery authorized',
+  reject: 'Rejected at the authorization checkpoint',
+  return: 'Returned to proposed at the authorization checkpoint',
+});
+
+export async function authorize(root, options) {
+  validateOrderId(options.id);
+  const decidedBy = options['decided-by'];
+  if (!DECIDERS.includes(decidedBy)) fail('INVALID_ARGUMENT', '--decided-by must be city-council or resident.');
+  if (!AUTHORIZATION_OUTCOMES.includes(options.outcome)) {
+    fail('INVALID_ARGUMENT', '--outcome must be authorize, reject, return or refer.');
+  }
+  const reservedMatters = parseReserved(options.reserved);
+  text(options.reason, '--reason', 4000);
+  const routineClass = options['routine-class'] ?? null;
+  if (routineClass !== null) {
+    if (!ROUTINE_CLASSES.includes(routineClass)) {
+      fail('INVALID_ARGUMENT', `--routine-class must be one of: ${ROUTINE_CLASSES.join(', ')}.`);
+    }
+    if (decidedBy !== 'city-council' || options.outcome !== 'authorize') {
+      fail('INVALID_ARGUMENT', '--routine-class applies only to a city-council authorize outcome under the routine-policy basis.');
+    }
+  }
+  if (decidedBy === 'city-council') {
+    if (options['declared-by'] !== undefined || options.evidence !== undefined) {
+      fail('INVALID_ARGUMENT', 'City Council decisions do not carry resident declarations; omit --declared-by and --evidence.');
+    }
+  } else {
+    if (options['declared-by'] === undefined || options.evidence === undefined) {
+      fail('RESIDENT_EVIDENCE_REQUIRED', 'A resident decision requires --declared-by and --evidence describing the resident declaration.');
+    }
+    text(options['declared-by'], '--declared-by', 200);
+    text(options.evidence, '--evidence', 4000);
+  }
+  const context = await deliveryContext(root, options.id);
+  const { city, original } = context;
+  if (decidedBy === 'city-council' && !city.config.adoption.policies.some((policy) => policy.path === DELEGATION_POLICY)) {
+    fail('NO_DELEGATION', `The adopted policies do not include ${DELEGATION_POLICY}. Without an adopted council delegation only the resident can decide; adopt or amend the policy first.`);
+  }
+  if (original.value.status !== 'awaiting-approval') {
+    fail('INVALID_TRANSITION', 'Only a work order awaiting approval can receive an authorization decision.');
+  }
+  if (original.value.acceptanceCriteria.length === 0) {
+    fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before an authorization decision.');
+  }
+  if (reservedMatters.length !== 0 && (routineClass !== null || (decidedBy === 'city-council' && options.outcome === 'authorize'))) {
+    fail('RESERVED_MATTER', 'Reserved matters cannot be authorized by the City Council or under a routine class. The council must refer them to the resident.');
+  }
+  const records = deliveryRecords(context, {
+    kind: 'authorization',
+    outcome: options.outcome,
+    decidedBy,
+    basis: decidedBy === 'resident' ? 'resident-decision' : routineClass === null ? 'council-delegation' : 'routine-policy',
+    routineClass,
+    reservedMatters,
+    reason: options.reason,
+    declaredBy: options['declared-by'] ?? null,
+    reference: options.evidence ?? null,
+  }, (id) => `${HISTORY_REASONS[options.outcome] ?? 'Decision recorded'} by ${decidedBy} in ${id}; recorded, not authenticated.`);
+  if (options.apply) await writeDeliveryRecords(root, context, records);
+  return deliveryOutput('authorize', root, options.apply, context, records);
+}
+
+export async function complete(root, options) {
+  validateOrderId(options.id);
+  text(options['declared-by'], '--declared-by', 200);
+  text(options.evidence, '--evidence', 4000);
+  text(options.reason, '--reason', 4000);
+  const context = await deliveryContext(root, options.id);
+  const { original } = context;
+  if (original.value.status !== 'awaiting-merge') {
+    fail('INVALID_TRANSITION', 'Only a work order awaiting merge can be accepted as completed by the resident.');
+  }
+  if (original.value.acceptanceCriteria.length === 0) {
+    fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before completion.');
+  }
+  const records = deliveryRecords(context, {
+    kind: 'acceptance',
+    outcome: 'accept',
+    decidedBy: 'resident',
+    basis: 'resident-decision',
+    routineClass: null,
+    reservedMatters: [],
+    reason: options.reason,
+    declaredBy: options['declared-by'],
+    reference: options.evidence,
+  }, (id) => `Completion accepted by the resident in ${id}; recorded, not authenticated.`);
+  if (options.apply) await writeDeliveryRecords(root, context, records);
+  return deliveryOutput('complete', root, options.apply, context, records);
+}
+
+function preserved(city) {
+  return {
+    'work-orders': [...city.workOrders.keys()].sort(),
+    decisions: [...city.decisions.keys()].sort(),
+    unchanged: ['districts.json', 'charter.md', 'instruction-fragment.md', 'policies/', 'work-orders/', 'decisions/']
+      .map((name) => `.city/${name}`),
+  };
+}
+
+async function replaceConfig(root, city, config, guard) {
+  await withMutationLock(city.path, city.identity, async () => {
+    const current = await loadCity(root);
+    checkCityUnchanged(city, current);
+    if (guard) await guard(current);
+    await atomicConfig(current, config, city.configBytes);
+  });
+  await loadCity(root);
+}
+
+export async function migrate(root, options) {
+  const city = await loadCity(root);
+  const before = city.config;
+  if (before.schemaVersion === CONFIG_SCHEMA_VERSION) {
+    return {
+      command: 'migrate', root, governance: before.governance, dryRun: !options.apply,
+      changed: false, wouldWrite: false, from: before.schemaVersion, to: CONFIG_SCHEMA_VERSION,
+      config: before, notice: governanceNotice(before.governance),
+    };
+  }
+  const config = validateConfig({ ...before, schemaVersion: CONFIG_SCHEMA_VERSION, adoption: null });
+  if (options.apply) await replaceConfig(root, city, config);
+  return {
+    command: 'migrate', root, governance: config.governance, dryRun: !options.apply,
+    changed: Boolean(options.apply), wouldWrite: true,
+    from: before.schemaVersion, to: CONFIG_SCHEMA_VERSION, before, config,
+    plan: { replace: ['.city/config.json'], preserve: preserved(city) },
+    notice: governanceNotice(config.governance),
+  };
+}
+
+export async function adopt(root, options) {
+  calendarDate(options['adopted-on'], '--adopted-on');
+  text(options['declared-by'], '--declared-by', 200);
+  text(options.evidence, '--evidence', 4000);
+  if (options['charter-version'] !== undefined) text(options['charter-version'], '--charter-version', 100);
+  const city = await loadCity(root);
+  if (city.config.schemaVersion !== CONFIG_SCHEMA_VERSION) {
+    fail('MIGRATION_REQUIRED', 'City config uses schemaVersion 1. Run migrate --apply first; it preserves all city records.');
+  }
+  if (city.config.governance === 'adopted') {
+    fail('ALREADY_ADOPTED', 'City governance is already adopted. Use amend, not adopt, to record a charter or policy revision.');
+  }
+  const digests = await governanceDigests(city.path);
+  const config = validateConfig({
+    ...city.config,
+    governance: 'adopted',
+    adoption: {
+      adoptedOn: options['adopted-on'],
+      recordedAt: new Date(Math.max(Date.now(), Date.parse(city.config.createdAt))).toISOString(),
+      charter: { path: 'charter.md', sha256: digests.charter, version: options['charter-version'] ?? null },
+      policies: digests.policies,
+      evidence: {
+        rule: EVIDENCE_RULE,
+        declaredBy: options['declared-by'],
+        reference: options.evidence,
+        authenticated: false,
+      },
+    },
+  });
+  if (options.apply) {
+    await replaceConfig(root, city, config, async (current) => {
+      if (JSON.stringify(await governanceDigests(current.path)) !== JSON.stringify(digests)) {
+        fail('CONFLICT', 'The charter or policies changed since this adoption was prepared. Review the current text and retry.');
+      }
+    });
+  }
+  return {
+    command: 'adopt', root, governance: 'adopted', dryRun: !options.apply,
+    changed: Boolean(options.apply), wouldWrite: true, config,
+    plan: { replace: ['.city/config.json'], preserve: preserved(city) },
+    notice: governanceNotice('adopted'),
+  };
+}
+
+function adoptionChanges(previous, digests) {
+  const previousPolicies = new Map(previous.policies.map((policy) => [policy.path, policy.sha256]));
+  const currentPolicies = new Map(digests.policies.map((policy) => [policy.path, policy.sha256]));
+  return {
+    charter: previous.charter.sha256 !== digests.charter,
+    policies: {
+      added: [...currentPolicies.keys()].filter((name) => !previousPolicies.has(name)).sort(),
+      removed: [...previousPolicies.keys()].filter((name) => !currentPolicies.has(name)).sort(),
+      modified: [...currentPolicies.keys()]
+        .filter((name) => previousPolicies.has(name) && previousPolicies.get(name) !== currentPolicies.get(name))
+        .sort(),
+    },
+  };
+}
+
+export async function amend(root, options) {
+  calendarDate(options['adopted-on'], '--adopted-on');
+  text(options['declared-by'], '--declared-by', 200);
+  text(options.evidence, '--evidence', 4000);
+  text(options.summary, '--summary', 4000);
+  if (options['charter-version'] !== undefined) text(options['charter-version'], '--charter-version', 100);
+  const city = await loadCity(root);
+  if (city.config.schemaVersion !== CONFIG_SCHEMA_VERSION) {
+    fail('MIGRATION_REQUIRED', 'City config uses schemaVersion 1. Run migrate --apply first; it preserves all city records.');
+  }
+  if (city.config.governance !== 'adopted') {
+    fail('NOT_ADOPTED', 'City governance is still draft. Use adopt, not amend, before any charter revision has been adopted.');
+  }
+  if (city.drift.matchesAdoptedRevision) {
+    fail('NO_DRIFT', 'The charter and policies match the currently adopted revision; there is nothing to amend.');
+  }
+  const digests = await governanceDigests(city.path);
+  const previous = city.config.adoption;
+  const changes = adoptionChanges(previous, digests);
+  const recordedAt = new Date(Math.max(
+    Date.now(), Date.parse(city.config.createdAt), Date.parse(previous.recordedAt) + 1,
+  )).toISOString();
+  const { history: previousHistory, ...supersededAdoption } = previous;
+  const supersededEntry = { ...supersededAdoption, supersededAt: recordedAt, summary: options.summary };
+  const config = validateConfig({
+    ...city.config,
+    governance: 'adopted',
+    adoption: {
+      adoptedOn: options['adopted-on'],
+      recordedAt,
+      charter: { path: 'charter.md', sha256: digests.charter, version: options['charter-version'] ?? null },
+      policies: digests.policies,
+      evidence: {
+        rule: EVIDENCE_RULE,
+        declaredBy: options['declared-by'],
+        reference: options.evidence,
+        authenticated: false,
+      },
+      history: [...(previousHistory ?? []), supersededEntry],
+    },
+  });
+  if (options.apply) {
+    await replaceConfig(root, city, config, async (current) => {
+      if (JSON.stringify(await governanceDigests(current.path)) !== JSON.stringify(digests)) {
+        fail('CONFLICT', 'The charter or policies changed since this amendment was prepared. Review the current text and retry.');
+      }
+    });
+  }
+  return {
+    command: 'amend', root, governance: 'adopted', dryRun: !options.apply,
+    changed: Boolean(options.apply), wouldWrite: true,
+    changes, before: previous, config,
+    plan: { replace: ['.city/config.json'], preserve: preserved(city) },
+    notice: governanceNotice('adopted'),
+  };
+}
+
+export async function discoverCity(cwd) {
+  let current = await rootDirectory(cwd);
+  while (true) {
+    const city = await inspect(path.join(current, '.city'));
+    const git = await inspect(path.join(current, '.git'));
+    if (git && (git.isSymbolicLink() || (!git.isDirectory() && !git.isFile()))) {
+      fail('UNSAFE_PATH', 'City repository boundary is not a regular .git directory or file. Repair the boundary before retrying.');
+    }
+    if (city) return loadCity(current);
+    if (git) return null;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}

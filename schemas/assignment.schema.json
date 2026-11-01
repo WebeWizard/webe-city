@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City engineering assignment, version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "cityId", "workOrderId", "staffId", "assignedBy", "reason",
+    "createdAt", "provenance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^ASN-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "cityId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "workOrderId": { "type": "string", "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "staffId": { "type": "string", "pattern": "^(municipal-software-engineer|[a-z][a-z0-9-]{1,40})$" },
+    "assignedBy": { "const": "engineering-manager" },
+    "reason": { "$ref": "requisition.schema.json#/$defs/text", "maxLength": 4000 },
+    "createdAt": { "$ref": "requisition.schema.json#/$defs/timestamp" },
+    "provenance": { "$ref": "requisition.schema.json#/$defs/provenance" }
+  }
+}

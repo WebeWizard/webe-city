@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City records request, version 1",
+  "description": "A repository-local request for specific canonical records. Responses account for every requested item and cite observed record paths and SHA-256 digests; hashes and office names are not authenticated identity or access controls.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "cityId",
+    "requestedBy",
+    "sourceOffice",
+    "purpose",
+    "relatedWorkOrderId",
+    "items",
+    "status",
+    "createdAt",
+    "updatedAt",
+    "history",
+    "responses",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^RR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "cityId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "requestedBy": { "$ref": "#/$defs/text", "maxLength": 200 },
+    "sourceOffice": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/text", "maxLength": 200 }
+      ]
+    },
+    "purpose": { "$ref": "#/$defs/text", "maxLength": 4000 },
+    "relatedWorkOrderId": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }
+      ]
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "id", "description"],
+        "properties": {
+          "type": {
+            "enum": ["work-order", "decision", "config", "project", "district", "charter", "policy"]
+          },
+          "id": { "$ref": "#/$defs/text", "maxLength": 300 },
+          "description": { "$ref": "#/$defs/text", "maxLength": 1000 }
+        }
+      }
+    },
+    "status": { "enum": ["open", "resolved", "cancelled"] },
+    "createdAt": { "$ref": "#/$defs/timestamp" },
+    "updatedAt": { "$ref": "#/$defs/timestamp" },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "actor", "reason", "timestamp"],
+        "properties": {
+          "from": { "type": ["null", "string"], "enum": [null, "open"] },
+          "to": { "enum": ["open", "resolved", "cancelled"] },
+          "actor": { "$ref": "#/$defs/text", "maxLength": 200 },
+          "reason": { "$ref": "#/$defs/text", "maxLength": 4000 },
+          "timestamp": { "$ref": "#/$defs/timestamp" }
+        }
+      }
+    },
+    "responses": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item", "outcome", "references", "explanation"],
+        "properties": {
+          "item": { "type": "integer", "minimum": 0, "maximum": 49 },
+          "outcome": { "enum": ["found", "not-found", "withheld", "unavailable"] },
+          "references": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "id", "path", "sha256"],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "work-order", "decision", "records-request", "config", "project",
+                    "district", "charter", "policy"
+                  ]
+                },
+                "id": { "$ref": "#/$defs/text", "maxLength": 300 },
+                "path": { "$ref": "#/$defs/text", "maxLength": 500 },
+                "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+              }
+            }
+          },
+          "explanation": { "$ref": "#/$defs/text", "maxLength": 4000 }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "plugin"],
+      "properties": {
+        "source": { "const": "local-draft" },
+        "plugin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "const": "repository-city" },
+            "version": { "enum": ["0.1.0", "0.2.0", "0.3.0"] }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "not": { "pattern": "[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]" }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    }
+  }
+}

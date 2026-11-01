@@ -1,0 +1,18 @@
+{
+  "name": "repository-city-local",
+  "owner": {
+    "name": "Repository City local development"
+  },
+  "metadata": {
+    "description": "A private development marketplace for the Repository City pilot.",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "repository-city",
+      "description": "Municipal offices, professional skills, and durable repository records.",
+      "version": "0.3.0",
+      "source": "./"
+    }
+  ]
+}

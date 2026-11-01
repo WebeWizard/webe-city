@@ -1,0 +1,74 @@
+---
+name: city-records-management
+description: "Use when organizing municipal records, preserving provenance, correcting decision history, classifying case evidence, preparing recovery, or applying records-only privacy controls."
+user-invocable: false
+---
+
+# Records Management
+
+## Competency and application
+
+Municipal records management preserves authentic context, findability, and
+accountability across a record's lifecycle. Repository City keeps canonical case
+and proposal records in the target repository, not the installed plugin cache.
+
+## Triggers and inputs
+
+- Use for record creation/review, corrections, broken references, handoffs, or recovery.
+- Require explicit root, record IDs, source artifacts, requested action, applicable
+  record schema, retention/access policy, and any hold or privacy concern.
+- Inventory `.city/config.json` (including any `adoption.history` of
+  amendments, oldest first), `.city/districts.json`, charter, policies, work
+  orders, and decisions. Proposal decisions are drafts; authorization and
+  acceptance decisions are written only by the CLI with their work-order history.
+
+## Procedure
+
+1. Identify each record's purpose, stable ID, provenance, relationships, version,
+   location, status, and known gaps using the existing schema.
+2. Use `records-list` for bounded metadata discovery, then `records-get` with exact
+   canonical IDs for content. Request first-degree links only when they help the
+   task; do not create a request for records already available through retrieval.
+3. If an exact needed record is missing or requires a source-office response, ask
+   the City Manager to route a records request with the purpose, exact item list,
+   optional source office, and related work order. The Records Officer reports
+   each item as `found`, `not-found`, `withheld`, or `unavailable`; a `found`
+   response cites the requested record's current canonical path and digest.
+4. Re-fetch cited records before use and compare their current digest to the
+   response. A mismatch means the source changed; assess the current version rather
+   than treating the earlier digest as immutable proof.
+5. Preserve relevant source references, including who/what supplied evidence and
+   whether identity or integrity was actually established.
+6. Keep canonical records repository-local. Link external presentations such as
+   issues without maintaining a competing independent source of truth.
+7. Minimize personal data, secrets, and duplicated raw logs in city records.
+   Apply authorized access rules without claiming control of all application data.
+8. Make only explicitly requested, schema-compatible edits. Never add unsupported
+   approval/adoption fields or hand-edit state to bypass CLI validation. A charter
+   or policy revision after adoption is recorded only through `amend`, never by
+   hand-editing `adoption` or its `history`.
+9. Preserve adverse findings and uncertainty. Use attributed corrections or
+   superseding records; do not silently rewrite history or erase a dispute.
+10. Inventory backup/recovery prerequisites and references. Distinguish an available
+   backup from a tested restore, and a supplied digest from verified integrity.
+11. Pass retention/disposition questions to records appraisal. Unknown policy,
+   unresolved holds, or unclear ownership means preserve and escalate.
+
+## Structured result and evidence
+
+Return a record register: ID, type, path, source, version/status, related records,
+privacy classification, retention/hold reference, integrity evidence, and gaps.
+For edits, list exact paths, requested purpose, correction links, and validation
+performed or still needed. Do not invent timestamps, hashes, or execution results.
+
+## Escalation and limits
+
+- Records Officer/Clerk may edit within their role, but have no terminal access.
+  Supply a validation request rather than claiming a CLI check was run.
+- This skill grants no tools, deletion rights, authority, or access privileges.
+  Hashes and local provenance are not authenticated human consent.
+- A records request is not an access grant. Do not copy restricted content into a
+  request or response; office labels and file digests are not authentication or
+  immutable custody.
+- `--apply` is write confirmation only. Authorization and acceptance decisions are
+  written only by `authorize` and `complete`, recorded with `authenticated: false`.

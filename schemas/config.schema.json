@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City configuration, version 2",
+  "description": "City configuration. governance \"adopted\" records a resident declaration under the charter rule that repository access is the source of authority; the plugin does not authenticate it. Adoption never authorizes a work order by itself; delivery authorization and acceptance are separate schemaVersion 2 decision records. Legacy version 1 configs are described by config.v1.schema.json and upgraded with the migrate command.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "plugin",
+    "cityId",
+    "name",
+    "createdAt",
+    "governance",
+    "adoption"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "const": "repository-city"
+        },
+        "version": {
+          "enum": ["0.1.0", "0.2.0", "0.3.0"]
+        }
+      }
+    },
+    "cityId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "not": {
+        "pattern": "[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]"
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "governance": {
+      "enum": [
+        "draft",
+        "adopted"
+      ]
+    },
+    "adoption": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adoptedOn",
+            "recordedAt",
+            "charter",
+            "policies",
+            "evidence"
+          ],
+          "properties": {
+            "adoptedOn": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "format": "date",
+              "description": "Civil date of the resident declaration."
+            },
+            "recordedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+            },
+            "charter": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256",
+                "version"
+              ],
+              "properties": {
+                "path": {
+                  "const": "charter.md"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "Exact adopted charter revision."
+                },
+                "version": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                    }
+                  ]
+                }
+              }
+            },
+            "policies": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^policies/[A-Za-z0-9][A-Za-z0-9._-]{0,199}\\.md$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rule",
+                "declaredBy",
+                "reference",
+                "authenticated"
+              ],
+              "properties": {
+                "rule": {
+                  "const": "resident-declaration"
+                },
+                "declaredBy": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                },
+                "reference": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                },
+                "authenticated": {
+                  "const": false
+                }
+              }
+            },
+            "history": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1000,
+              "description": "Superseded adoption revisions, oldest first, appended only by amend.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "adoptedOn",
+                  "recordedAt",
+                  "charter",
+                  "policies",
+                  "evidence",
+                  "supersededAt",
+                  "summary"
+                ],
+                "properties": {
+                  "adoptedOn": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                    "format": "date",
+                    "description": "Civil date of this superseded revision's resident declaration."
+                  },
+                  "recordedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+                  },
+                  "charter": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "sha256",
+                      "version"
+                    ],
+                    "properties": {
+                      "path": {
+                        "const": "charter.md"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$",
+                        "description": "Superseded charter revision."
+                      },
+                      "version": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "policies": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "path",
+                        "sha256"
+                      ],
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "pattern": "^policies/[A-Za-z0-9][A-Za-z0-9._-]{0,199}\\.md$"
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        }
+                      }
+                    }
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "rule",
+                      "declaredBy",
+                      "reference",
+                      "authenticated"
+                    ],
+                    "properties": {
+                      "rule": {
+                        "const": "resident-declaration"
+                      },
+                      "declaredBy": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                      },
+                      "reference": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000,
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                      },
+                      "authenticated": {
+                        "const": false
+                      }
+                    }
+                  },
+                  "supersededAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+                    "description": "Timestamp of the amendment that superseded this revision; equals the next revision's recordedAt."
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "description": "Why this revision was superseded, supplied via amend --summary."
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "governance": {
+            "const": "draft"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adoption": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "governance": {
+            "const": "adopted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adoption": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

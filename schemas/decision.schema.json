@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City decision, version 1 (proposal) or version 2 (delivery)",
+  "description": "schemaVersion 1 records are proposals only, never adoption or authorization. schemaVersion 2 records are written only by the authorize and complete commands: an authorization (authorize -> authorized, reject -> rejected, return -> proposed, refer -> no state change) or a resident acceptance (accept -> completed). Runtime validation also checks that references exist in the same city and that each delivery decision matches exactly one work-order history entry with the same timestamp and outcome (and vice versa). Decisions are recorded, not authenticated; local provenance is not trusted consent.",
+  "type": "object",
+  "required": [
+    "schemaVersion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/proposal"
+    },
+    {
+      "$ref": "#/$defs/delivery"
+    }
+  ],
+  "$defs": {
+    "proposal": {
+      "title": "Proposal-only decision (schemaVersion 1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "cityId",
+        "kind",
+        "status",
+        "title",
+        "proposal",
+        "workOrderIds",
+        "createdAt",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^DEC-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "cityId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "kind": {
+          "const": "proposal"
+        },
+        "status": {
+          "const": "proposed"
+        },
+        "title": {
+          "$ref": "#/$defs/text",
+          "maxLength": 500
+        },
+        "proposal": {
+          "$ref": "#/$defs/text",
+          "maxLength": 20000
+        },
+        "workOrderIds": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          }
+        },
+        "createdAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    },
+    "delivery": {
+      "title": "Delivery decision: authorization or acceptance (schemaVersion 2)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "cityId",
+        "kind",
+        "workOrderIds",
+        "outcome",
+        "decidedBy",
+        "basis",
+        "routineClass",
+        "reservedMatters",
+        "reason",
+        "subject",
+        "evidence",
+        "createdAt",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 2
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^DEC-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "cityId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "kind": {
+          "enum": [
+            "authorization",
+            "acceptance"
+          ]
+        },
+        "workOrderIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          }
+        },
+        "outcome": {
+          "enum": [
+            "authorize",
+            "reject",
+            "return",
+            "refer",
+            "accept"
+          ]
+        },
+        "decidedBy": {
+          "enum": [
+            "city-council",
+            "resident"
+          ]
+        },
+        "basis": {
+          "enum": [
+            "council-delegation",
+            "routine-policy",
+            "resident-decision"
+          ]
+        },
+        "routineClass": {
+          "enum": [
+            "documentation",
+            "tests",
+            "in-scope-fix",
+            "dependency-patch",
+            null
+          ]
+        },
+        "reservedMatters": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 6,
+          "items": {
+            "enum": [
+              "governance",
+              "security",
+              "deletion",
+              "deployment",
+              "publication",
+              "expenditure"
+            ]
+          },
+          "description": "Unique reserved matters in the canonical order governance, security, deletion, deployment, publication, expenditure."
+        },
+        "reason": {
+          "$ref": "#/$defs/text",
+          "maxLength": 4000
+        },
+        "subject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workOrderSha256",
+            "charterSha256",
+            "delegationPolicySha256"
+          ],
+          "description": "SHA-256 digests of the work-order file bytes immediately before the decision, the current charter, and policies/council-delegation.md. delegationPolicySha256 is null only for a resident decision when that policy file is absent.",
+          "properties": {
+            "workOrderSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "charterSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "delegationPolicySha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declaredBy",
+            "reference",
+            "authenticated"
+          ],
+          "description": "Resident decisions record the declaration; council decisions record null for both. Never authenticated.",
+          "properties": {
+            "declaredBy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/text",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/text",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "authenticated": {
+              "const": false
+            }
+          }
+        },
+        "createdAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "authorization"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "authorize",
+                  "reject",
+                  "return",
+                  "refer"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "outcome": {
+                "const": "accept"
+              },
+              "decidedBy": {
+                "const": "resident"
+              },
+              "basis": {
+                "const": "resident-decision"
+              },
+              "routineClass": {
+                "const": null
+              },
+              "reservedMatters": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decidedBy": {
+                "const": "resident"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "resident-decision"
+              },
+              "evidence": {
+                "properties": {
+                  "declaredBy": {
+                    "type": "string"
+                  },
+                  "reference": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "basis": {
+                "enum": [
+                  "council-delegation",
+                  "routine-policy"
+                ]
+              },
+              "subject": {
+                "properties": {
+                  "delegationPolicySha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "evidence": {
+                "properties": {
+                  "declaredBy": {
+                    "type": "null"
+                  },
+                  "reference": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "routine-policy"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "routineClass": {
+                "type": "string"
+              },
+              "outcome": {
+                "const": "authorize"
+              },
+              "reservedMatters": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "routineClass": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decidedBy": {
+                "const": "city-council"
+              },
+              "outcome": {
+                "const": "authorize"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reservedMatters": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "not": {
+        "pattern": "[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]"
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "plugin"
+      ],
+      "properties": {
+        "source": {
+          "const": "local-draft"
+        },
+        "plugin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "repository-city"
+            },
+            "version": {
+              "enum": [
+                "0.1.0",
+                "0.2.0",
+                "0.3.0"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

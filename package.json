@@ -1,0 +1,32 @@
+{
+  "name": "repository-city",
+  "version": "0.3.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "An installable Copilot city-government pilot for repository management.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --test tests/plugin.test.mjs",
+    "city": "node scripts/city.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "files": [
+    "plugin.json",
+    "marketplace.json",
+    "com.github.copilot/",
+    "skills/",
+    "scripts/",
+    "schemas/",
+    "templates/",
+    "docs/",
+    "README.md",
+    "PLAN.md"
+  ],
+  "devDependencies": {
+    "yaml": "^2.8.1"
+  }
+}
