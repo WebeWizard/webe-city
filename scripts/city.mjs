@@ -6,7 +6,7 @@ import {
 } from './lib/constants.mjs';
 import {
   adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
-  recordsList, recordsRequest, recordsResolve, status, transition, validate,
+  recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -37,6 +37,10 @@ const commands = {
   'records-cancel': {
     allowed: ['root', 'id', 'cancelled-by', 'reason', 'apply'],
     required: ['root', 'id', 'cancelled-by', 'reason'],
+  },
+  'review-record': {
+    allowed: ['root', 'conducted-by', 'summary', 'recommendation', 'apply'],
+    required: ['root', 'conducted-by', 'summary'],
   },
   transition: { allowed: ['root', 'id', 'to', 'reason', 'apply'], required: ['root', 'id', 'to', 'reason'] },
   migrate: { allowed: ['root', 'apply'], required: ['root'] },
@@ -99,6 +103,7 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-resolve --root ABS --id RR-ID --resolved-by OFFICE --response JSON [--response JSON repeated] --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-cancel --root ABS --id RR-ID --cancelled-by OFFICE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs review-record --root ABS --conducted-by OFFICE --summary TEXT [--recommendation JSON repeated] [--apply]',
       'node <installed-plugin>/scripts/city.mjs migrate --root ABS [--apply]',
       'node <installed-plugin>/scripts/city.mjs adopt --root ABS --adopted-on YYYY-MM-DD --declared-by TEXT --evidence TEXT [--charter-version TEXT] [--apply]',
       'node <installed-plugin>/scripts/city.mjs amend --root ABS --adopted-on YYYY-MM-DD --declared-by TEXT --evidence TEXT --summary TEXT [--charter-version TEXT] [--apply]',
@@ -139,6 +144,8 @@ function help() {
       'records-request, records-resolve, and records-cancel use dry-runs by default and write append-only request history under .city/records-requests with --apply. --source-office is optional routing context only. Resolution accounts for every item and found references must match the requested record, canonical path and current SHA-256.',
       'Workforce mutators require adopted, drift-free governance with policies/workforce-delegation.md among the adopted policies (NO_DELEGATION). They preview by default; appointments are unauthenticated records and generated files are never overwritten.',
       'Workforce lifecycle: requisition -> human-resources review-requisition -> engineering-manager appoint -> human-resources hire -> engineering-manager assign. Retire preserves generated files; status and validate report file drift without enforcing it.',
+      'Institutional reviews are enabled only by current adopted governance that includes policies/institutional-review.md. status computes due triggers from local records; the City Manager routes a due review automatically. review-record is dry-run by default, refuses unless a review is due, and records recommendations without adopting or implementing them.',
+      'Institutional-review thresholds are read from the adopted policy. Residents may petition to amend the policy; invalid or missing threshold tables make review availability explicitly false.',
       'Records request office labels and local hashes are self-reported evidence, not authentication or access control. A withheld response does not disclose restricted material; unavailable and not-found are explicit outcomes.',
       'migrate upgrades a schemaVersion 1 config to schemaVersion 2 in place, keeping cityId, name, createdAt and draft governance. Work orders, decisions, districts, charter and policies are not rewritten.',
       'status and validate report adoption drift when the charter or policies no longer match the adopted digests; drift is reported, not enforced.',
@@ -165,11 +172,11 @@ function parse(args) {
   const specification = commands[command];
   const options = {
     apply: false, linked: false, criteria: [], projects: [], ids: [], items: [], responses: [],
-    competencies: [], standards: [], tools: [], checks: [], 'mcp-proposals': [],
+    competencies: [], standards: [], tools: [], checks: [], 'mcp-proposals': [], recommendations: [],
   };
   const repeated = new Set([
     'criterion', 'project', 'id', 'item', 'response', 'competency', 'standard',
-    'tool', 'check', 'mcp-proposal',
+    'tool', 'check', 'mcp-proposal', 'recommendation',
   ]);
   const seen = new Set();
   for (let index = 0; index < flags.length; index += 1) {
@@ -183,6 +190,7 @@ function parse(args) {
         || (name === 'id' && command === 'records-get')
         || (name === 'item' && command === 'records-request')
         || (name === 'response' && command === 'records-resolve')
+        || (name === 'recommendation' && command === 'review-record')
         || (['competency', 'standard', 'tool', 'check', 'mcp-proposal'].includes(name)
           && command === 'requisition'));
     if (seen.has(name) && !mayRepeat) {
@@ -208,6 +216,7 @@ function parse(args) {
     else if (name === 'id' && command === 'records-get') options.ids.push(value);
     else if (name === 'item') options.items.push(value);
     else if (name === 'response') options.responses.push(value);
+    else if (name === 'recommendation') options.recommendations.push(value);
     else options[name] = value;
   }
   if (specification.required.some((name) => !seen.has(name))) {
@@ -241,6 +250,8 @@ async function main() {
       return recordsResolve(root, options);
     case 'records-cancel':
       return recordsCancel(root, options);
+    case 'review-record':
+      return reviewRecord(root, options);
     case 'transition':
       return transition(root, options);
     case 'migrate':

@@ -9,7 +9,7 @@ user-invocable: true
 ## Purpose and inputs
 
 Provide a read-only account of repository-local governance, projects, work orders,
-and decisions.
+decisions, workforce, and due institutional reviews.
 Require the explicit absolute repository root and any case or district filter.
 Do not infer enrollment, approval, or completion from the installed plugin inventory.
 
@@ -53,15 +53,22 @@ Do not infer enrollment, approval, or completion from the installed plugin inven
    not proof that a specialist agent was or was not invoked. Specialist
    appointments require the adopted workforce delegation policy and the recorded
    HR-review/Engineering-Manager-appointment sequence.
-6. List orders awaiting the resident first: Council referrals of reserved matters
+6. Report `status.institutionalReview` exactly: whether the feature is available,
+   any policy error, review window, last review, observed counts, thresholds, and
+   due triggers.    At the start of city coordination, the Manager dispatches the Performance and
+   Innovation Officer to check `status` and conduct a due review in the same
+   run; residents need not invoke that office. The CLI has no background
+   scheduler, so do not claim the trigger was evaluated while the plugin was
+   inactive.
+7. List orders awaiting the resident first: Council referrals of reserved matters
    (still `awaiting-approval`) and `awaiting-merge` orders ready for `complete`.
    Keep `awaiting-approval` distinct from authorized and `awaiting-merge` distinct
    from `completed`.
-7. Identify stale or missing evidence and disagreements between summaries and
+8. Identify stale or missing evidence and disagreements between summaries and
    source records. Validation failure blocks assurance; it is not "no work pending."
-8. Present privacy-minimized evidence references, not raw personal data or secrets.
+9. Present privacy-minimized evidence references, not raw personal data or secrets.
    City-record privacy guidance does not secure all application data.
-9. Give a clear resident next step: clarify, consider a proposal, resolve a dispute,
+10. Give a clear resident next step: clarify, consider a proposal, resolve a dispute,
    inspect malformed state, or separately request `city-init`.
 
 ## Structured result and evidence

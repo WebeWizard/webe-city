@@ -7,7 +7,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, test } from 'node:test';
-import { checkOrderUnchanged, loadCity } from '../scripts/lib/city.mjs';
+import { checkOrderUnchanged, institutionalReviewStatus, loadCity } from '../scripts/lib/city.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const cli = path.join(project, 'scripts/city.mjs');
@@ -162,6 +162,168 @@ test('records can be listed and fetched in batches with linked provenance and ha
   assert.equal(fetched.records[0].record.status, 'triaged');
   assert.equal(fetched.records[0].sha256, listed.records[0].sha256);
   assert.deepEqual(fetched.records[0].linked, []);
+});
+
+test('institutional reviews are policy-gated, due from adopted thresholds, previewed, recorded and reset', async () => {
+  const { root } = await fixture();
+  init(root);
+  const draft = success(['status', '--root', root]).institutionalReview;
+  assert.equal(draft.available, false);
+  assert.match(draft.policyError, /not been adopted/i);
+  failure([
+    'review-record', '--root', root, '--conducted-by', 'Performance and Innovation Officer',
+    '--summary', 'Review the city structure.',
+  ], 'REVIEW_UNAVAILABLE');
+
+  success(adoptArgs(root, ['--apply']));
+  const config = await readJSON(configPath(root));
+  const adoptionTime = new Date(Date.now() - (100 * 24 * 60 * 60 * 1000)).toISOString();
+  config.createdAt = adoptionTime;
+  config.adoption.adoptedOn = adoptionTime.slice(0, 10);
+  config.adoption.recordedAt = adoptionTime;
+  await writeJSON(configPath(root), config);
+
+  const due = success(['status', '--root', root]).institutionalReview;
+  assert.equal(due.available, true);
+  assert.equal(due.due, true);
+  assert.equal(due.windowStart, adoptionTime);
+  assert.equal(due.triggers.find((trigger) => trigger.name === 'periodic-time').threshold, 90);
+  assert.equal(due.triggers.find((trigger) => trigger.name === 'periodic-time').due, true);
+
+  const args = [
+    'review-record', '--root', root, '--conducted-by', 'Performance and Innovation Officer',
+    '--summary', 'The governance and operational structure were reviewed.',
+  ];
+  const before = await snapshot(root);
+  const preview = success(args);
+  assert.equal(preview.dryRun, true);
+  assert.equal(preview.changed, false);
+  assert.deepEqual(await snapshot(root), before);
+  const reservedRecommendation = JSON.stringify({
+    title: 'Adopt a new office',
+    rationale: 'The current structure has an observed gap.',
+    precedent: 'A peer city assigns this function to a dedicated office.',
+    sources: ['Official municipal organizational chart, https://example.gov/org'],
+    route: 'council',
+    reservedMatters: ['governance'],
+  });
+  failure([...args, '--recommendation', reservedRecommendation], 'INVALID_RECORD');
+
+  const recommendation = JSON.stringify({
+    title: 'Review how recurring blocked work is coordinated',
+    rationale: 'Repeated blocked work may indicate a coordination gap.',
+    precedent: 'Peer-city practices are context and may not transfer directly.',
+    sources: ['Official municipal performance report, https://example.gov/performance'],
+    route: 'administrative',
+    reservedMatters: [],
+  });
+  const applied = success([...args, '--recommendation', recommendation, '--apply']);
+  assert.equal(applied.changed, true);
+  assert.match(applied.institutionalReview.id, /^IR-/);
+  assert.equal(applied.institutionalReview.recommendations.length, 1);
+  const listed = success(['records-list', '--root', root, '--type', 'institutional-review']);
+  assert.equal(listed.total, 1);
+  assert.equal(listed.records[0].id, applied.institutionalReview.id);
+  const retrieved = success(['records-get', '--root', root, '--id', applied.institutionalReview.id]);
+  assert.equal(retrieved.records[0].record.id, applied.institutionalReview.id);
+  assert.equal(retrieved.records[0].record.recommendations[0].route, 'administrative');
+  const after = success(['status', '--root', root]).institutionalReview;
+  assert.equal(after.due, false);
+  assert.equal(after.lastReview.id, applied.institutionalReview.id);
+  assert.equal(after.triggers.find((trigger) => trigger.name === 'periodic-time').observed, 0);
+  assert.equal(success(['validate', '--root', root]).records.institutionalReviews, 1);
+  failure(args, 'REVIEW_NOT_DUE');
+});
+
+test('institutional-review thresholds are read from adopted policy and malformed policy is unavailable', async () => {
+  const { root } = await fixture();
+  init(root);
+  const policyPath = path.join(root, '.city/policies/institutional-review.md');
+  const policy = await readFile(policyPath, 'utf8');
+  await writeFile(policyPath, policy.replace(
+    '| periodic-time | 90 | elapsed days |',
+    '| periodic-time | 120 | elapsed days |',
+  ));
+  success(adoptArgs(root, ['--apply']));
+  const status = success(['status', '--root', root]).institutionalReview;
+  assert.equal(status.available, true);
+  assert.equal(status.triggers.find((trigger) => trigger.name === 'periodic-time').threshold, 120);
+
+  const malformed = await fixture();
+  init(malformed.root);
+  await writeFile(path.join(malformed.root, '.city/policies/institutional-review.md'), '# No threshold table\n');
+  success(adoptArgs(malformed.root, ['--apply']));
+  const unavailable = success(['status', '--root', malformed.root]).institutionalReview;
+  assert.equal(unavailable.available, false);
+  assert.match(unavailable.policyError, /threshold table is missing/i);
+});
+
+test('institutional-review status counts every canonical trigger only within its review window', async () => {
+  const policy = await readFile(
+    path.join(project, 'templates/repository/.city/policies/institutional-review.md'), 'utf8',
+  );
+  const windowStart = '2025-01-01T00:00:00.000Z';
+  const now = new Date('2025-05-01T00:00:00.000Z');
+  const inWindow = '2025-04-15T00:00:00.000Z';
+  const beforeWindow = '2024-12-31T23:59:59.999Z';
+  const afterNow = '2025-05-02T00:00:00.000Z';
+  const order = (id, history) => [id, { value: { id, status: 'triaged', projectIds: [], title: id, history } }];
+  const historyEvent = (from, to, timestamp) => ({ from, to, timestamp });
+  const orders = new Map([
+    ...Array.from({ length: 10 }, (_, index) => order(`completed-${index}`, [
+      historyEvent('awaiting-merge', 'completed', inWindow),
+    ])),
+    order('completed-before', [historyEvent('awaiting-merge', 'completed', beforeWindow)]),
+    order('completed-after', [historyEvent('awaiting-merge', 'completed', afterNow)]),
+    ...Array.from({ length: 3 }, (_, index) => order(`inspection-${index}`, [
+      historyEvent('inspection', 'in-progress', inWindow),
+    ])),
+    order('inspection-after', [historyEvent('inspection', 'in-progress', afterNow)]),
+    ...Array.from({ length: 3 }, (_, index) => order(`blocked-${index}`, [
+      historyEvent('triaged', 'blocked', inWindow),
+    ])),
+    order('blocked-before', [historyEvent('triaged', 'blocked', beforeWindow)]),
+  ]);
+  const outcomes = [
+    'return', 'return', 'reject', 'reject',
+    'refer', 'refer', 'refer', 'refer', 'return', 'refer',
+  ];
+  const decisions = new Map(outcomes.map((outcome, index) => [
+    `decision-${index}`,
+    { value: {
+      schemaVersion: 2, id: `decision-${index}`, kind: 'authorization', outcome,
+      decidedBy: index >= 8 ? 'resident' : 'city-council',
+      createdAt: index === 3 ? beforeWindow : (index === 7 ? afterNow : inWindow),
+    } },
+  ]));
+  const city = {
+    config: {
+      governance: 'adopted',
+      adoption: {
+        recordedAt: windowStart,
+        policies: [{ path: 'policies/institutional-review.md' }],
+      },
+    },
+    drift: { matchesAdoptedRevision: true },
+    institutionalReviewPolicy: policy,
+    institutionalReviews: new Map(),
+    workOrders: orders,
+    decisions,
+  };
+  const result = institutionalReviewStatus(city, now);
+  assert.equal(result.available, true);
+  assert.equal(result.windowStart, windowStart);
+  assert.equal(result.due, true);
+  assert.deepEqual(Object.fromEntries(result.triggers.map(({ name, observed, threshold, due }) => [
+    name, { observed, threshold, due },
+  ])), {
+    'periodic-volume': { observed: 10, threshold: 10, due: true },
+    'periodic-time': { observed: 120, threshold: 90, due: true },
+    'returned-or-rejected': { observed: 3, threshold: 3, due: true },
+    'inspection-failures': { observed: 3, threshold: 3, due: true },
+    referrals: { observed: 3, threshold: 3, due: true },
+    blocked: { observed: 3, threshold: 3, due: true },
+  });
 });
 
 test('records requests are previewed, persisted, resolved per item, visible, and retrievable', async () => {
@@ -1902,7 +2064,7 @@ test('workforce records are optional and status exposes the bundled general engi
   const validated = success(['validate', '--root', root]);
   assert.deepEqual(validated.records, {
     projects: 0, workOrders: 0, decisions: 0, recordsRequests: 0,
-    requisitions: 0, staff: 0, assignments: 0,
+    requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0,
   });
   assert.deepEqual(validated.workforce.drift, []);
   await assert.rejects(lstat(path.join(root, '.city/workforce')), { code: 'ENOENT' });
@@ -1976,7 +2138,7 @@ test('HR declines and appointment declines are terminal history transitions', as
   assert.equal(appointmentDeclined.record.appointment, null);
   assert.deepEqual(success(['validate', '--root', root]).records, {
     projects: 1, workOrders: 1, decisions: 0, recordsRequests: 0,
-    requisitions: 2, staff: 0, assignments: 0,
+    requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0,
   });
   assert.equal(success(['status', '--root', root]).workforce.requisitions.byStatus.declined, 2);
 });

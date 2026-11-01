@@ -275,7 +275,7 @@ export async function publishCity(root, files) {
       await mkdir(path.dirname(path.join(stage, relative)), { recursive: true, mode: 0o700 });
       await exclusiveFile(path.join(stage, relative), content);
     }
-    for (const name of ['work-orders', 'decisions', 'records-requests']) {
+    for (const name of ['work-orders', 'decisions', 'records-requests', 'institutional-reviews']) {
       await mkdir(path.join(stage, name), { mode: 0o700 });
     }
     try {

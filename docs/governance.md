@@ -4,7 +4,7 @@
 
 ## What is provided, and what is not
 
-The [charter template](../templates/repository/.city/charter.md) proposes resident sovereignty, limited jurisdiction, proportional administration, independent inspection/audit, privacy, and appeals. It defines a default roster of eleven pilot offices, including the Engineering Manager and Human Resources Officer, appointed to the bundled agent definitions only upon valid adoption of that exact charter. The initial resident's identity remains unverified: the charter treats repository access as the source of authority. These appointments grant no actual tool permissions; delivery authority arises only from a recorded authorization decision for a specific work order.
+The [charter template](../templates/repository/.city/charter.md) proposes resident sovereignty, limited jurisdiction, proportional administration, independent inspection/audit, privacy, and appeals. It defines a default roster of twelve pilot offices, including the Engineering Manager, Human Resources Officer, and Performance and Innovation Officer, appointed to the bundled agent definitions only upon valid adoption of that exact charter. The initial resident's identity remains unverified: the charter treats repository access as the source of authority. These appointments grant no actual tool permissions; delivery authority arises only from a recorded authorization decision for a specific work order.
 
 | Proposed foundation | Template |
 |---|---|
@@ -15,6 +15,7 @@ The [charter template](../templates/repository/.city/charter.md) proposes reside
 | HR review and delegated specialist-engineer appointments | [Workforce delegation](../templates/repository/.city/policies/workforce-delegation.md) |
 | Bounded emergencies, backups/recovery, ethics, independent audit, verified learning | [Continuity and accountability](../templates/repository/.city/policies/continuity-and-accountability.md) |
 | Council delegation of delivery authorization, routine classes, reserved matters | [Council delegation](../templates/repository/.city/policies/council-delegation.md) |
+| Periodic and event-driven institutional review, recommendation routing, and evidence | [Institutional review](../templates/repository/.city/policies/institutional-review.md) |
 
 The City Manager coordinates functions whose specialists are not installed, with explicit competence limits. A missing specialist, independent reviewer, resource limit, or authorization is a reason to pause affected work, not to manufacture expertise or consent.
 
@@ -46,6 +47,7 @@ The first-slice runtime is a Node.js 22, zero-third-party-dependency local CLI. 
 | `assign` / `retire` | Assign an authorized order to an active engineer, or have HR record retirement and handover without deleting generated files |
 | `records-list` | Read bounded metadata for supported canonical local records, optionally filtered by type, exact ID, work order, project, or status |
 | `records-get` | Read a batch of exact canonical record IDs and optionally their first-degree links; never searches arbitrary repository paths or external stores |
+| `review-record` | Preview or record a due institutional review and its cited recommendations; it refuses unless current adopted policy enables a trigger and does not approve any recommendation |
 | `records-request` | Preview or record a specific cross-office request for missing/ambiguous records under `.city/records-requests/` |
 | `records-resolve` / `records-cancel` | Resolve every request item with an explicit outcome and current record references, or cancel an open request; writes require preview plus `--apply` |
 

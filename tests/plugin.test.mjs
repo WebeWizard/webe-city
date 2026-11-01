@@ -18,6 +18,7 @@ const agentIds = [
   'engineering-manager',
   'human-resources-officer',
   'municipal-software-engineer',
+  'performance-and-innovation-officer',
   'records-officer',
   'resident-services-officer',
 ];
@@ -39,6 +40,7 @@ const professionalSkills = [
   'software-development',
   'strategic-planning',
   'systems-integration',
+  'institutional-review',
   'workforce-planning',
   'recruitment-and-onboarding',
 ].map((name) => `city-${name}`);
@@ -56,6 +58,7 @@ const policyTemplates = [
   'records-and-privacy',
   'resources-and-workforce',
   'workforce-delegation',
+  'institutional-review',
   'continuity-and-accountability',
 ];
 const residentSkills = [
@@ -135,7 +138,7 @@ test('the local development marketplace points to the same versioned plugin', as
   assert.equal(path.resolve(root, entry.source), root.replace(/\/$/, ''));
 });
 
-test('the eleven pilot offices have distinct identities and explicit least-tool contracts', async () => {
+test('the twelve pilot offices have distinct identities and explicit least-tool contracts', async () => {
   const files = (await readdir(agentsPath)).filter((name) => name.endsWith('.agent.md')).sort();
   assert.deepEqual(files, agentIds.map((name) => `${name}.agent.md`));
   const identities = new Set();
@@ -170,6 +173,8 @@ test('the eleven pilot offices have distinct identities and explicit least-tool 
     } else if (filename !== 'city-manager.agent.md') assert.deepEqual(metadata.agents, [], filename);
   }
   assert.ok(manager.agents.includes('City: City Council'), 'Manager routes approvals to the council');
+  assert.ok(manager.agents.includes('City: Performance and Innovation Officer'));
+  assert.match(await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8'), /check for institutional reviews automatically/i);
   for (const filename of ['building-inspector.agent.md', 'city-auditor.agent.md', 'city-council.agent.md']) {
     assert.ok(!definitions.get(filename).tools.includes('edit'), filename);
   }
@@ -181,6 +186,9 @@ test('the eleven pilot offices have distinct identities and explicit least-tool 
   assert.ok(engineer.tools.includes('edit') && engineer.tools.includes('execute'));
   const records = definitions.get('records-officer.agent.md');
   assert.ok(records.tools.includes('execute'), 'Records Officer runs the scoped records CLI workflow');
+  const improvement = definitions.get('performance-and-innovation-officer.agent.md');
+  assert.deepEqual(improvement.tools, ['read', 'search', 'execute']);
+  assert.deepEqual(improvement.agents, []);
   const hr = definitions.get('human-resources-officer.agent.md');
   assert.deepEqual(hr.tools, ['read', 'search', 'execute']);
   const engineeringManager = definitions.get('engineering-manager.agent.md');
@@ -273,6 +281,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
     ['City Inspector', 'building-inspector.agent.md'],
     ['Records Officer', 'records-officer.agent.md'],
     ['City Auditor', 'city-auditor.agent.md'],
+    ['Performance and Innovation Officer', 'performance-and-innovation-officer.agent.md'],
   ];
 
   assert.match(charter, /default appointed pilot roster/i);
@@ -281,7 +290,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   for (const [office, definition] of roster) {
     assert.ok(charter.includes(`| ${office} | \`${definition}\` |`), `Missing default appointment: ${office}`);
   }
-  assert.match(charter, /eleven pilot offices/);
+  assert.match(charter, /twelve pilot offices/);
   assert.match(charter, /\(policies\/council-delegation\.md\)/);
   assert.match(charter, /resident remains sovereign/i);
   assert.match(charter, /final acceptance/i);
@@ -289,7 +298,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-four skills are discoverable, substantive, and correctly scoped', async () => {
+test('all twenty-five skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -307,6 +316,9 @@ test('all twenty-four skills are discoverable, substantive, and correctly scoped
   }
   const init = await customization(path.join(root, 'skills/city-init/SKILL.md'));
   assert.equal(init.metadata['disable-model-invocation'], true);
+  const improvement = await customization(path.join(root, 'skills/city-institutional-review/SKILL.md'));
+  assert.equal(improvement.metadata['user-invocable'], false);
+  assert.match(improvement.body, /recommendations only/i);
 });
 
 test('bundled hooks use the native Copilot contract and an installation-relative script', async () => {
@@ -352,6 +364,13 @@ test('project data contracts keep project directories distinct from districts', 
     'items', 'status', 'createdAt', 'updatedAt', 'history', 'responses', 'provenance',
   ]);
   assert.deepEqual(requestSchema.properties.status.enum, ['open', 'resolved', 'cancelled']);
+  const reviewSchema = await json('schemas/institutional-review.schema.json');
+  assert.equal(reviewSchema.additionalProperties, false);
+  assert.ok(reviewSchema.required.includes('triggers'));
+  assert.ok(reviewSchema.required.includes('recommendations'));
+  assert.deepEqual(reviewSchema.properties.recommendations.items.properties.route.enum, [
+    'administrative', 'council', 'resident',
+  ]);
 });
 
 test('all bundled customization resource links resolve within the package', async () => {
@@ -410,6 +429,7 @@ test('the distributable contains runtime resources but no development profile or
     'schemas/requisition.schema.json',
     'schemas/staff.schema.json',
     'schemas/assignment.schema.json',
+    'schemas/institutional-review.schema.json',
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
     'templates/repository/.city/projects.json',
