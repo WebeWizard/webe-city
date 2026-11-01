@@ -47,6 +47,15 @@ export const RESERVED_MATTERS = Object.freeze([
 ]);
 export const DELEGATION_POLICY = 'policies/council-delegation.md';
 export const WORKFORCE_DELEGATION_POLICY = 'policies/workforce-delegation.md';
+export const INSTITUTIONAL_REVIEW_POLICY = 'policies/institutional-review.md';
+export const INSTITUTIONAL_REVIEW_TRIGGERS = Object.freeze([
+  'periodic-volume',
+  'periodic-time',
+  'returned-or-rejected',
+  'inspection-failures',
+  'referrals',
+  'blocked',
+]);
 export const WORKFORCE_TOOLS = Object.freeze(['read', 'search', 'edit', 'execute']);
 export const GENERAL_ENGINEER_ID = 'municipal-software-engineer';
 export const LIMITS = Object.freeze({

@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import {
   AUTHORIZATION_OUTCOMES, COMMAND_ONLY_STATES, CONFIG_SCHEMA_VERSION, DECIDERS, DELEGATION_POLICY,
   DELIVERY_DECISION_SCHEMA_VERSION, DRAFT_NOTICE, EVIDENCE_RULE, LEGACY_CONFIG_SCHEMA_VERSION, LIMITS,
+  INSTITUTIONAL_REVIEW_POLICY, INSTITUTIONAL_REVIEW_TRIGGERS,
   OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
   WORK_ORDER_SCHEMA_VERSION,
   governanceNotice, provenance,
@@ -16,12 +17,21 @@ import {
 import {
   authorizationCurrent, calendarDate, CANONICAL_RECORD_TYPES, checkTransition, parseJSON, parseReserved,
   RECORD_EXCHANGE_TYPES, text,
-  validateConfig, validateDecision, validateDistricts, validateOrderId, validateProjects, validateRecordId,
-  validateRecordsRequest, validateState, validateWorkOrder,
+  validateConfig, validateDecision, validateDistricts, validateInstitutionalReview, validateOrderId,
+  validateProjects, validateRecordId, validateRecordsRequest, validateState, validateWorkOrder,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const dayMilliseconds = 24 * 60 * 60 * 1000;
+const institutionalReviewUnits = Object.freeze({
+  'periodic-volume': 'completed work orders',
+  'periodic-time': 'elapsed days',
+  'returned-or-rejected': 'council returns or rejections',
+  'inspection-failures': 'inspection returns to in-progress',
+  referrals: 'council referrals',
+  blocked: 'work orders entering blocked',
+});
 
 async function governanceLayout(cityPath) {
   await regularFile(path.join(cityPath, 'charter.md'), 'City draft charter');
@@ -111,6 +121,13 @@ export async function loadCity(root, required = true) {
   const recordsRequests = await readRecords(
     cityPath, 'records-requests', validateRecordsRequest, config.cityId, true,
   );
+  const institutionalReviews = await readRecords(
+    cityPath, 'institutional-reviews', validateInstitutionalReview, config.cityId, true,
+  );
+  const institutionalReviewPolicyPath = path.join(cityPath, INSTITUTIONAL_REVIEW_POLICY);
+  const institutionalReviewPolicy = await inspect(institutionalReviewPolicyPath)
+    ? (await readRegular(institutionalReviewPolicyPath, 'Institutional review policy')).bytes.toString('utf8')
+    : null;
   const workforce = await readWorkforceRecords(root, cityPath, config.cityId, orders.records);
   const projectIds = new Set(projects.projects.map((project) => project.id));
   for (const { value: order } of orders.records.values()) {
@@ -139,10 +156,13 @@ export async function loadCity(root, required = true) {
     workOrders: orders.records,
     decisions: decisions.records,
     recordsRequests: recordsRequests.records,
+    institutionalReviews: institutionalReviews.records,
+    institutionalReviewPolicy,
     workforce,
     directoryIdentities: {
       'work-orders': orders.identity, decisions: decisions.identity,
       'records-requests': recordsRequests.identity,
+      'institutional-reviews': institutionalReviews.identity,
       ...workforce.directoryIdentities,
     },
   };
@@ -237,6 +257,96 @@ function citySummary(city) {
   return summary;
 }
 
+function policyThresholds(policy) {
+  const lines = policy.split(/\r?\n/u);
+  const heading = lines.findIndex((line) => line.trim() === '## Trigger thresholds');
+  if (heading < 0) return { error: 'The trigger-threshold table is missing.' };
+  const table = [];
+  for (const line of lines.slice(heading + 1)) {
+    if (/^#{1,6}\s/u.test(line)) break;
+    if (line.trim().startsWith('|')) table.push(line.trim());
+  }
+  const rows = table.map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+  const header = rows.find((row) => row[0] === 'Trigger');
+  if (!header || header.length !== 3 || header[1] !== 'Threshold' || header[2] !== 'Unit') {
+    return { error: 'The trigger-threshold table header is invalid.' };
+  }
+  const values = new Map();
+  for (const row of rows) {
+    if (row === header || row.every((cell) => /^:?-{3,}:?$/u.test(cell))) continue;
+    if (row.length !== 3 || !INSTITUTIONAL_REVIEW_TRIGGERS.includes(row[0])
+      || !/^[1-9][0-9]{0,8}$/u.test(row[1])
+      || row[2] !== institutionalReviewUnits[row[0]] || values.has(row[0])) {
+      return { error: 'The trigger-threshold table has an invalid or duplicate row.' };
+    }
+    values.set(row[0], Number(row[1]));
+  }
+  if (values.size !== INSTITUTIONAL_REVIEW_TRIGGERS.length
+    || INSTITUTIONAL_REVIEW_TRIGGERS.some((name) => !values.has(name))) {
+    return { error: 'The trigger-threshold table does not define every supported trigger.' };
+  }
+  return { values };
+}
+
+export function institutionalReviewStatus(city, now = new Date()) {
+  const policyPath = `.city/${INSTITUTIONAL_REVIEW_POLICY}`;
+  const unavailable = (policyError) => ({
+    available: false, policy: policyPath, policyError, due: false, windowStart: null, triggers: [], lastReview: null,
+  });
+  if (city.config.governance !== 'adopted') return unavailable('Governance has not been adopted.');
+  if (!city.config.adoption.policies.some((policy) => policy.path === INSTITUTIONAL_REVIEW_POLICY)) {
+    return unavailable('The institutional-review policy is not part of the adopted revision.');
+  }
+  if (!city.drift.matchesAdoptedRevision) return unavailable('The adopted charter or policy revision has drifted.');
+  if (city.institutionalReviewPolicy === null) return unavailable('The adopted institutional-review policy is missing.');
+  const parsed = policyThresholds(city.institutionalReviewPolicy);
+  if (parsed.error) return unavailable(parsed.error);
+
+  const last = [...city.institutionalReviews.values()]
+    .map(({ value }) => value)
+    .sort((first, second) => first.coversThrough.localeCompare(second.coversThrough)
+      || first.id.localeCompare(second.id)).at(-1) ?? null;
+  const windowStart = last?.coversThrough ?? city.config.adoption.recordedAt;
+  const start = Date.parse(windowStart);
+  const end = now.getTime();
+  const occurredInWindow = (timestamp) => Date.parse(timestamp) > start && Date.parse(timestamp) <= end;
+  const completed = [...city.workOrders.values()].reduce((count, { value }) => count
+    + value.history.filter((entry) => entry.to === 'completed' && occurredInWindow(entry.timestamp)).length, 0);
+  const returnedOrRejected = [...city.decisions.values()].reduce((count, { value }) => count
+    + (value.schemaVersion === DELIVERY_DECISION_SCHEMA_VERSION
+      && value.decidedBy === 'city-council'
+      && ['return', 'reject'].includes(value.outcome) && occurredInWindow(value.createdAt) ? 1 : 0), 0);
+  const inspectionFailures = [...city.workOrders.values()].reduce((count, { value }) => count
+    + value.history.filter((entry) => entry.from === 'inspection' && entry.to === 'in-progress'
+      && occurredInWindow(entry.timestamp)).length, 0);
+  const referrals = [...city.decisions.values()].reduce((count, { value }) => count
+    + (value.schemaVersion === DELIVERY_DECISION_SCHEMA_VERSION
+      && value.decidedBy === 'city-council'
+      && value.outcome === 'refer' && occurredInWindow(value.createdAt) ? 1 : 0), 0);
+  const blocked = [...city.workOrders.values()].reduce((count, { value }) => count
+    + value.history.filter((entry) => entry.to === 'blocked' && occurredInWindow(entry.timestamp)).length, 0);
+  const observed = {
+    'periodic-volume': completed,
+    'periodic-time': Math.max(0, Math.floor((end - start) / dayMilliseconds)),
+    'returned-or-rejected': returnedOrRejected,
+    'inspection-failures': inspectionFailures,
+    referrals,
+    blocked,
+  };
+  const triggers = INSTITUTIONAL_REVIEW_TRIGGERS.map((name) => ({
+    name, observed: observed[name], threshold: parsed.values.get(name),
+    due: observed[name] >= parsed.values.get(name),
+  }));
+  return {
+    available: true, policy: policyPath, policyError: null, windowStart,
+    due: triggers.some((trigger) => trigger.due), triggers,
+    lastReview: last ? {
+      id: last.id, coversThrough: last.coversThrough, summary: last.summary,
+      recommendationCount: last.recommendations.length,
+    } : null,
+  };
+}
+
 export function statusOutput(root, city, command = 'status') {
   if (!city) return { command, root, enrolled: false, notice: DRAFT_NOTICE };
   const assignments = currentAssignments(city);
@@ -322,6 +432,7 @@ export function statusOutput(root, city, command = 'status') {
       openRequests: openRecordsRequests.sort((first, second) => first.createdAt.localeCompare(second.createdAt)
         || first.id.localeCompare(second.id)),
     },
+    institutionalReview: institutionalReviewStatus(city),
     workforce: workforceStatus(city),
     notice: governanceNotice(city.config.governance),
   };
@@ -329,6 +440,85 @@ export function statusOutput(root, city, command = 'status') {
 
 export async function status(root) {
   return statusOutput(root, await loadCity(root, false));
+}
+
+async function ensureInstitutionalReviewDirectory(city) {
+  const location = path.join(city.path, 'institutional-reviews');
+  if (!city.directoryIdentities['institutional-reviews']) {
+    try {
+      await mkdir(location, { mode: 0o700 });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+    city.directoryIdentities['institutional-reviews'] = await directory(
+      location, 'City institutional reviews',
+    );
+  }
+}
+
+function parseRecommendations(values) {
+  if (!Array.isArray(values) || values.length > LIMITS.criteria) {
+    fail('INVALID_ARGUMENT', `At most ${LIMITS.criteria} recommendations may be supplied.`);
+  }
+  return values.map((value) => parseJSON(Buffer.from(value, 'utf8'), 'Institutional review recommendation'));
+}
+
+function makeInstitutionalReview(city, options, status) {
+  const createdAt = new Date(Math.max(Date.now(), Date.parse(status.windowStart) + 1)).toISOString();
+  const record = validateInstitutionalReview({
+    schemaVersion: SCHEMA_VERSION,
+    id: `IR-${randomUUID()}`,
+    cityId: city.config.cityId,
+    conductedBy: options['conducted-by'],
+    summary: options.summary,
+    windowStart: status.windowStart,
+    coversThrough: createdAt,
+    triggers: status.triggers,
+    recommendations: options.parsedRecommendations,
+    createdAt,
+    provenance: provenance(),
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(record)) > LIMITS.fileBytes) {
+    fail('SIZE_LIMIT', 'The institutional review exceeds the supported local file size.');
+  }
+  return record;
+}
+
+export async function reviewRecord(root, options) {
+  text(options['conducted-by'], '--conducted-by', 200);
+  text(options.summary, '--summary', 4000);
+  options.parsedRecommendations = parseRecommendations(options.recommendations);
+  const city = await loadCity(root);
+  const reviewStatus = institutionalReviewStatus(city);
+  if (!reviewStatus.available) fail('REVIEW_UNAVAILABLE', reviewStatus.policyError);
+  if (!reviewStatus.due) fail('REVIEW_NOT_DUE', 'No institutional review trigger currently meets its adopted threshold.');
+  if (city.institutionalReviews.size >= LIMITS.records) {
+    fail('SIZE_LIMIT', 'City has reached the supported institutional-review record count.');
+  }
+  let review = makeInstitutionalReview(city, options, reviewStatus);
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const currentStatus = institutionalReviewStatus(current);
+      if (!currentStatus.available) fail('REVIEW_UNAVAILABLE', currentStatus.policyError);
+      if (!currentStatus.due) {
+        fail('REVIEW_NOT_DUE', 'Another review was recorded or the trigger no longer meets its adopted threshold.');
+      }
+      if (current.institutionalReviews.size >= LIMITS.records) {
+        fail('SIZE_LIMIT', 'City has reached the supported institutional-review record count.');
+      }
+      review = makeInstitutionalReview(current, options, currentStatus);
+      await ensureInstitutionalReviewDirectory(current);
+      await atomicRecord(current, 'institutional-reviews', `${review.id}.json`, review);
+    });
+  }
+  return {
+    command: 'review-record', root, governance: city.config.governance,
+    dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    institutionalReview: review,
+    notice: governanceNotice(city.config.governance),
+  };
 }
 
 const requestOutcomes = new Set(['found', 'not-found', 'withheld', 'unavailable']);
@@ -398,6 +588,10 @@ async function canonicalRecords(city) {
       value.relatedWorkOrderId ? [{ type: 'work-order', id: value.relatedWorkOrderId }] : [],
       value.purpose));
   }
+  for (const { value, bytes } of city.institutionalReviews.values()) {
+    records.push(recordItem('institutional-review', value.id,
+      `.city/institutional-reviews/${value.id}.json`, bytes, value, null, [], value.summary));
+  }
   for (const { value, bytes } of city.workforce.requisitions.values()) {
     records.push(recordItem('requisition', value.id, `.city/workforce/requisitions/${value.id}.json`,
       bytes, value, value.status, [{ type: 'work-order', id: value.workOrderId }], value.title));
@@ -463,6 +657,9 @@ function validateAnyRecordId(id) {
   }
   if (/^RR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'records-request', id };
+  }
+  if (/^IR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'institutional-review', id };
   }
   if (/^REQ-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'requisition', id };
@@ -816,7 +1013,9 @@ export async function validate(root) {
       requisitions: city.workforce.requisitions.size,
       staff: city.workforce.staff.size,
       assignments: city.workforce.assignments.size,
+      institutionalReviews: city.institutionalReviews.size,
     },
+    institutionalReview: institutionalReviewStatus(city),
     workforce: { drift: city.workforce.drift },
     notice: governanceNotice(city.config.governance),
   };

@@ -39,8 +39,9 @@ try {
   const first = path.join(temporary, 'Harbour City');
   const second = path.join(temporary, 'Garden City');
   const third = path.join(temporary, 'Council City');
+  const reviewCity = path.join(temporary, 'Institutional Review City');
   const unrelated = path.join(temporary, 'Unenrolled workspace');
-  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(unrelated)]);
+  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(reviewCity), mkdir(unrelated)]);
   await mkdir(path.join(first, '.github'));
   const instructions = '# Existing contributor instructions\n\nPreserve this content.\n';
   await writeFile(path.join(first, '.github/copilot-instructions.md'), instructions);
@@ -295,7 +296,50 @@ try {
   assert.equal(deliveryStatus.workOrders.byStatus.completed, 1);
   assert.deepEqual(deliveryStatus.decisions.byKind, { proposal: 0, authorization: 1, acceptance: 1 });
   assert.deepEqual(command(hook, [], { input: hookInput(third) }), {});
+
+  command(cli, ['init', '--root', reviewCity, '--name', 'Institutional Review City', '--apply']);
+  const reviewPolicyPath = path.join(reviewCity, '.city/policies/institutional-review.md');
+  const reviewPolicy = await readFile(reviewPolicyPath, 'utf8');
+  await writeFile(reviewPolicyPath, reviewPolicy.replace(
+    '| periodic-time | 90 | elapsed days |',
+    '| periodic-time | 1 | elapsed days |',
+  ));
+  command(cli, [
+    'adopt', '--root', reviewCity, '--adopted-on', adoptedOn,
+    '--declared-by', 'Smoke resident', '--evidence', 'Institutional review policy adopted.',
+    '--apply',
+  ]);
+  const reviewConfigPath = path.join(reviewCity, '.city/config.json');
+  const reviewConfig = JSON.parse(await readFile(reviewConfigPath, 'utf8'));
+  const reviewStart = new Date(Date.now() - (2 * 24 * 60 * 60 * 1000)).toISOString();
+  reviewConfig.createdAt = reviewStart;
+  reviewConfig.adoption.adoptedOn = reviewStart.slice(0, 10);
+  reviewConfig.adoption.recordedAt = reviewStart;
+  await writeFile(reviewConfigPath, `${JSON.stringify(reviewConfig, null, 2)}\n`);
+  const reviewStatus = command(cli, ['status', '--root', reviewCity]).institutionalReview;
+  assert.equal(reviewStatus.available, true);
+  assert.equal(reviewStatus.due, true);
+  const reviewArgs = [
+    'review-record', '--root', reviewCity,
+    '--conducted-by', 'Performance and Innovation Officer',
+    '--summary', 'The scheduled institutional review was completed.',
+    '--recommendation', JSON.stringify({
+      title: 'Clarify the review reporting route',
+      rationale: 'Make the evidence handoff explicit.',
+      precedent: 'A peer city assigns a management analyst to recurring performance reviews.',
+      sources: ['Official municipal performance office page, https://example.gov/performance'],
+      route: 'administrative',
+      reservedMatters: [],
+    }),
+  ];
+  assert.equal(command(cli, reviewArgs).dryRun, true);
+  const institutionalReview = command(cli, [...reviewArgs, '--apply']).institutionalReview;
+  assert.match(institutionalReview.id, /^IR-/);
+  assert.equal(command(cli, ['records-get', '--root', reviewCity, '--id', institutionalReview.id])
+    .records[0].record.id, institutionalReview.id);
+  assert.equal(command(cli, ['status', '--root', reviewCity]).institutionalReview.due, false);
   command(cli, ['validate', '--root', first]);
+  command(cli, ['validate', '--root', reviewCity]);
 
   console.log(JSON.stringify({
     result: 'passed',
@@ -312,6 +356,7 @@ try {
       'adopt then amend a drifted charter, recording superseded history',
       'website specialist requisition, appointment, toolkit check and assignment',
       'adopted council delegation: routine authorization, delivery, inspection, awaiting merge and resident completion',
+      'policy-enabled institutional review trigger, dry-run, canonical record and reset',
     ],
     boundary: 'Delivery decisions were recorded, not authenticated. No git operation, merge, push or deployment was performed.',
   }, null, 2));

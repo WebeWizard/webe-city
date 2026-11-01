@@ -40,6 +40,15 @@ assignments, and generated-file drift are recorded in the target repository;
 MCP tools are proposed only and never installed. This is a delegated,
 unauthenticated workflow, not a host security boundary.
 
+The 0.3.0 institutional-review capability adds the Performance and Innovation
+Officer, a policy-enabled review workflow, and canonical review records. `status`
+evaluates adopted-policy thresholds against existing local work orders and
+decisions; the City Manager dispatches the Officer during city coordination
+when a review is due. Recommendations require cited municipal precedents and
+are routed to the Manager, Council, or resident without automatically changing
+governance. The CLI has no background scheduler; triggers are checked when
+`status` runs.
+
 Still future work: authenticated identity, protected merge integration,
 expenditure and budget controls, and a published release.
 
@@ -55,7 +64,7 @@ Implementation refinements:
   delegations: the Council authorizes delivery; the Engineering Manager may
   appoint HR-endorsed specialist engineers under the adopted workforce policy.
   The Human Resources Officer performs personnel administration. The current
-  bundled pilot roster has eleven offices.
+  bundled pilot roster has twelve offices.
 - Licensing remains undecided. The development package is private and
   unlicensed; publication is not authorized by implementing this plan.
 - Copilot CLI 1.0.105 accepts direct local installs but warns they are deprecated.
@@ -142,6 +151,7 @@ The eight roles marked "Yes" in the Pilot column form the initial administration
 | City Manager | Yes | Coordinate departments, commission authorized work, manage capacity, and escalate blockers | strategic-planning; interdepartmental-coordination |
 | Resident Services Officer | Yes | Receive requests, clarify needs, route cases, and communicate status | case-management; complaint-triage |
 | Human Resources Officer | Yes | Review specialist engineering requisitions, generate approved hires, maintain personnel records, and manage handovers | recruitment-and-onboarding |
+| Performance and Innovation Officer | Yes | Review policy-enabled institutional triggers, compare applicable municipal practices, and recommend evidence-backed structural or procedural improvements | institutional-review |
 
 ### Finance, law, and procurement
 
@@ -212,6 +222,7 @@ These are shared operating requirements, not reasons to create a new agent for e
 | Ethics and conflicts of interest | Define disclosure, recusal, reviewer substitution, and handling of disputed findings. | Ombudsperson; City Auditor |
 | Information access and privacy | Classify access, minimize personal data, define redaction and correction, and protect restricted records. | Records Officer; Data Steward |
 | Performance and institutional learning | Track missed commitments, recurring defects, recovery performance, resident feedback, and verified corrective actions. | City Manager; City Auditor |
+| Institutional effectiveness review | Evaluate policy-enabled triggers against local records; compare relevant municipal practices and route recommendations without self-adoption. | Performance and Innovation Officer; City Manager |
 
 Budget constraints concern real effort, execution limits, and operating costs. Do not invent taxation, revenue, or a fictional currency merely to strengthen the metaphor.
 

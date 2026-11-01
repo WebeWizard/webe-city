@@ -17,10 +17,11 @@ An open-source license and publisher have not been selected.
 
 ## What is included
 
-- Eleven offices: City Manager, City Council, Resident Services Officer, City
+- Twelve offices: City Manager, City Council, Resident Services Officer, City
   Clerk, Chief Planner, Engineering Manager, Human Resources Officer, Municipal
-  Software Engineer, Building Inspector, Records Officer, and City Auditor.
-- Nineteen professional skills drawn from real municipal competencies,
+-  Software Engineer, Building Inspector, Records Officer, City Auditor, and
+  Performance and Innovation Officer.
+- Twenty professional skills drawn from real municipal competencies,
   including delivery authorization.
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
@@ -30,7 +31,8 @@ An open-source license and publisher have not been selected.
 - Dependency-free Node.js tooling for initialization, intake, lifecycle
   transitions, project registration, adoption, delivery authorization,
   acceptance, workforce requisitions, HR review, delegated appointments, local
-  specialist generation, assignment, retirement, and validation.
+  specialist generation, assignment, retirement, institutional-review trigger
+  evaluation and review-record persistence, and validation.
 - A guarded Copilot hook that leaves unrelated repositories alone and reports
   malformed or incompatible city records.
 
@@ -321,6 +323,42 @@ authorization. Separation of duties (the council never edits code, the
 Engineer never authorizes, the resident merges and accepts) is set by agent
 definitions and tool lists, not enforced by the runtime.
 
+## Automatic institutional review
+
+The adopted [institutional-review policy](./templates/repository/.city/policies/institutional-review.md)
+defines thresholds for recurring completed work, elapsed time, repeated Council
+returns/rejections, failed inspections, referrals, and blocked work. `status`
+evaluates those signals from canonical local records and reports
+`institutionalReview.due`. At the start of each city-coordination run, the City
+Manager dispatches the Performance and Innovation Officer to check `status` and
+conduct a due review in the same run; residents do not need to invoke the
+Officer. The CLI has no background scheduler, so checks happen during city
+activity, not while the plugin is inactive.
+
+The Officer compares applicable real-city practices, cites identifiable sources,
+and recommends changes only. Administrative recommendations go to the Manager,
+bounded work proposals go to Council, and reserved matters such as policy or
+roster changes go to the resident. No recommendation is adopted or implemented
+automatically. Thresholds come from the adopted policy; residents may petition
+to change them and record a policy amendment.
+
+The officer records a due review only after a dry-run:
+
+```sh
+node /absolute/path/to/city/scripts/city.mjs status \
+  --root /absolute/path/to/target-repository
+node /absolute/path/to/city/scripts/city.mjs review-record \
+  --root /absolute/path/to/target-repository \
+  --conducted-by "Performance and Innovation Officer" \
+  --summary "Summarize the review window and evidence."
+```
+
+`review-record` refuses unless current adopted governance includes the policy
+and at least one threshold is met. It is a dry-run by default; add `--apply` only
+after reviewing the preview. Recommendations may be supplied as repeated
+`--recommendation JSON` arguments and require cited sources. The resulting local
+record documents a review, not the actor's identity or approval of its findings.
+
 ## Upgrading and recording charter adoption
 
 Cities created before config schema version 2 stay valid (draft only), so the
@@ -365,10 +403,16 @@ governance is still draft). `status` reports council availability under
 `council`.
 
 To enable specialist hiring, also copy `policies/workforce-delegation.md` and
-the updated charter, review the eleven-office roster and delegated appointment
+the updated charter, review the twelve-office roster and delegated appointment
 authority, and record the revision with `amend` (or `adopt` while draft).
 Workforce commands remain unavailable until this policy is adopted with no
 governance drift.
+
+To enable automatic institutional reviews in an existing city, copy the updated
+`charter.md` and `policies/institutional-review.md` from the plugin templates,
+review the twelve-office roster and trigger thresholds, then record the
+resident-approved revision with `amend` (or `adopt` while governance is draft).
+Until that policy is adopted, status reports institutional review as unavailable.
 
 ## Amending an adopted charter
 

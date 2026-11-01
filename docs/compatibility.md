@@ -22,7 +22,7 @@ rather than testing it with text matching alone.
 
 ## Verification scope
 
-Plugin 0.3.0 ships eleven offices, 24 skills, explicit project registration,
+Plugin 0.3.0 ships twelve offices, 25 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
 `city-delivery-authorization`. The 0.3.0 workforce process separates line
@@ -32,7 +32,10 @@ the recorded approval sequence. Automated package/runtime tests and the
 packaged smoke scenario cover the recorded delivery lifecycle, project
 registration/scoping, and specialist hiring/assignment. These records and
 office separations do not authenticate the agent that invoked a command, and
-the feature does not add a hook guard. The host observations below were made
+the feature does not add a hook guard. Institutional review thresholds are
+evaluated from the adopted policy and local records when the City Manager
+coordinates work; no background scheduler runs while the plugin is inactive.
+The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
 repeated for 0.2.0 or 0.3.0.
 

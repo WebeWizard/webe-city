@@ -2,7 +2,7 @@ import { isAbsolute, posix } from 'node:path';
 import {
   AUTHORIZATION_OUTCOMES, AUTHORIZATION_VOIDING_STATES, COMPATIBLE_PLUGIN_VERSIONS, CONFIG_SCHEMA_VERSION,
   DELIVERY_DECISION_SCHEMA_VERSION, EVIDENCE_RULE, GOVERNANCE, LEGACY_CONFIG_SCHEMA_VERSION,
-  LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
+  INSTITUTIONAL_REVIEW_TRIGGERS, LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
   SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_SCHEMA_VERSION, WORKFORCE_SCHEMA_VERSION,
   WORKFORCE_TOOLS, GENERAL_ENGINEER_ID,
 } from './constants.mjs';
@@ -13,19 +13,20 @@ const uuidPattern = new RegExp(`^${uuid}$`);
 const orderPattern = new RegExp(`^WO-${uuid}$`);
 const decisionPattern = new RegExp(`^DEC-${uuid}$`);
 const recordsRequestPattern = new RegExp(`^RR-${uuid}$`);
+const institutionalReviewPattern = new RegExp(`^IR-${uuid}$`);
 const requisitionPattern = new RegExp(`^REQ-${uuid}$`);
 const assignmentPattern = new RegExp(`^ASN-${uuid}$`);
 const staffIdPattern = /^[a-z][a-z0-9-]{1,40}$/u;
 const own = (value, key) => Object.hasOwn(value, key);
 
 export const RECORD_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'config', 'project', 'district', 'charter', 'policy',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'config', 'project', 'district', 'charter', 'policy',
 ]);
 export const CANONICAL_RECORD_TYPES = Object.freeze([
   ...RECORD_TYPES, 'requisition', 'staff', 'assignment',
 ]);
 export const RECORD_EXCHANGE_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'config', 'project', 'district', 'charter', 'policy',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'config', 'project', 'district', 'charter', 'policy',
 ]);
 export const RECORD_REQUEST_OUTCOMES = Object.freeze(['found', 'not-found', 'withheld', 'unavailable']);
 
@@ -40,6 +41,9 @@ export function validateRecordId(type, id, label = 'Record ID') {
       break;
     case 'records-request':
       if (!recordsRequestPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be a records-request ID.`);
+      break;
+    case 'institutional-review':
+      if (!institutionalReviewPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an institutional-review ID.`);
       break;
     case 'requisition':
       if (!requisitionPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be a requisition ID.`);
@@ -564,6 +568,72 @@ export function validateRecordsRequest(value, expectedCityId) {
   if (value.status === 'cancelled' && value.responses.length !== 0) {
     fail('INVALID_RECORD', 'A cancelled records request cannot contain final responses.');
   }
+  return value;
+}
+
+export function validateInstitutionalReview(value, expectedCityId) {
+  version(value, 'City institutional review');
+  fields(value, [
+    'schemaVersion', 'id', 'cityId', 'conductedBy', 'summary', 'windowStart', 'coversThrough',
+    'triggers', 'recommendations', 'createdAt', 'provenance',
+  ], 'City institutional review');
+  if (typeof value.id !== 'string' || !institutionalReviewPattern.test(value.id)) {
+    fail('INVALID_RECORD', 'City institutional review ID must be IR- followed by a UUID.');
+  }
+  cityId(value.cityId, 'City institutional review cityId', expectedCityId);
+  text(value.conductedBy, 'Institutional review conductedBy', 200);
+  text(value.summary, 'Institutional review summary', 4000);
+  timestamp(value.windowStart, 'Institutional review windowStart');
+  timestamp(value.coversThrough, 'Institutional review coversThrough');
+  timestamp(value.createdAt, 'Institutional review createdAt');
+  if (value.windowStart > value.coversThrough || value.coversThrough !== value.createdAt) {
+    fail('INVALID_RECORD', 'Institutional review window must end at its creation timestamp.');
+  }
+  if (!Array.isArray(value.triggers) || value.triggers.length !== INSTITUTIONAL_REVIEW_TRIGGERS.length) {
+    fail('INVALID_RECORD', 'Institutional review must snapshot each supported trigger exactly once.');
+  }
+  const triggerNames = new Set();
+  for (const trigger of value.triggers) {
+    fields(trigger, ['name', 'observed', 'threshold', 'due'], 'Institutional review trigger');
+    if (!INSTITUTIONAL_REVIEW_TRIGGERS.includes(trigger.name) || triggerNames.has(trigger.name)
+      || !Number.isSafeInteger(trigger.observed) || trigger.observed < 0
+      || !Number.isSafeInteger(trigger.threshold) || trigger.threshold < 1
+      || typeof trigger.due !== 'boolean' || trigger.due !== (trigger.observed >= trigger.threshold)) {
+      fail('INVALID_RECORD', 'Institutional review trigger snapshot is invalid.');
+    }
+    triggerNames.add(trigger.name);
+  }
+  if (INSTITUTIONAL_REVIEW_TRIGGERS.some((name) => !triggerNames.has(name))) {
+    fail('INVALID_RECORD', 'Institutional review trigger snapshot is incomplete.');
+  }
+  if (!Array.isArray(value.recommendations) || value.recommendations.length > LIMITS.criteria) {
+    fail('INVALID_RECORD', `Institutional review recommendations must be an array of at most ${LIMITS.criteria} entries.`);
+  }
+  for (const recommendation of value.recommendations) {
+    fields(recommendation, [
+      'title', 'rationale', 'precedent', 'sources', 'route', 'reservedMatters',
+    ], 'Institutional review recommendation');
+    text(recommendation.title, 'Institutional review recommendation title', 500);
+    text(recommendation.rationale, 'Institutional review recommendation rationale', 4000);
+    text(recommendation.precedent, 'Institutional review recommendation precedent', 4000);
+    if (!Array.isArray(recommendation.sources) || recommendation.sources.length === 0
+      || recommendation.sources.length > 10) {
+      fail('INVALID_RECORD', 'Institutional review recommendations require 1-10 cited sources.');
+    }
+    recommendation.sources.forEach((source) => text(source, 'Institutional review source', 1000));
+    if (!['administrative', 'council', 'resident'].includes(recommendation.route)) {
+      fail('INVALID_RECORD', 'Institutional review recommendation route is unsupported.');
+    }
+    if (!Array.isArray(recommendation.reservedMatters)
+      || recommendation.reservedMatters.some((matter) => !RESERVED_MATTERS.includes(matter))
+      || new Set(recommendation.reservedMatters).size !== recommendation.reservedMatters.length) {
+      fail('INVALID_RECORD', 'Institutional review recommendation reserved matters are invalid.');
+    }
+    if (recommendation.reservedMatters.length > 0 && recommendation.route !== 'resident') {
+      fail('INVALID_RECORD', 'Recommendations involving reserved matters must be routed to the resident.');
+    }
+  }
+  provenance(value.provenance, 'Institutional review provenance');
   return value;
 }
 
