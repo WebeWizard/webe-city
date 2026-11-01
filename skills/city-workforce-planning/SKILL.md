@@ -34,9 +34,14 @@ engineer is a new post created only through a merit-based, recorded route.
    `municipal-software-engineer`; exclude retired staff and staff with drift
    that has not been reviewed.
 3. **Gap analysis.** For each needed competency, mark covered, partly covered, or
-   missing, with evidence. Prefer assignment or redeployment of an existing fit.
-   A missing competency that the general engineer can reasonably handle with
-   existing checks is not a gap. Workload alone does not justify a new post.
+   missing, with evidence. Prefer assignment or redeployment of an existing
+   specialist whose competencies match the required technology or domain. Use the
+   general engineer for ordinary work that does not require a defined specialty.
+   If a work order requires specialized expertise and no active specialist has
+   it, that is a gap even if the general engineer could produce a basic
+   implementation. For example, a React website requires React expertise;
+   requisition a React specialist unless one is already active. Workload alone
+   does not justify a new post.
 4. **Job analysis.** For a genuine gap, write a job description: a specific title,
    the purpose tied to the work order, duties (what the post does and does not
    do), observable competencies, applicable standards, and the minimum tools.

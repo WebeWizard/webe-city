@@ -30,8 +30,11 @@ recorded handover. Apply these practices to specialist engineers in Repository C
    adopted with the workforce delegation policy.
 2. **Merit review.** Test each criterion and record a finding:
    - need: a specific, documented demand that the work order supports;
-   - no existing fit: no active engineer, including the general
-     `municipal-software-engineer`, can reasonably deliver it;
+   - no existing specialist fit: no active engineer has the required
+     technology or domain expertise. General capability alone does not count
+     as a fit when the work order requires specialist expertise (for example,
+     React expertise to build a React website); ordinary work without a defined
+     specialty should use `municipal-software-engineer`;
    - job description: duties bounded, competencies observable, standards real;
    - least privilege: only the tools the duties require; never `agent`;
    - checks: existing project commands as argument arrays; review their side

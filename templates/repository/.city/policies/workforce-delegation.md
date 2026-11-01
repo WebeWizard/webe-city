@@ -36,16 +36,21 @@ identities and the runtime cannot verify which office invoked a command.
 Before a new post is requested, the Engineering Manager records the work-order
 need, duties, title, competencies, standards, available checks, minimum tools,
 and any proposed MCP server with its purpose. It first considers whether an
-active engineer, including the bundled general Municipal Software Engineer,
-can deliver the work competently. An existing fit should be assigned instead
-of creating a new post.
+active specialist's competencies match the required technology or domain; an
+existing matching specialist should be assigned instead of creating a redundant
+post. The bundled general Municipal Software Engineer is for ordinary work that
+does not require a defined specialty. If an order requires specialist expertise
+and no active specialist has it, that is a genuine competency gap even when the
+general engineer could produce a basic implementation. For example, building a
+React website requires React expertise; the manager should assign an active React
+specialist or requisition one if none is active.
 
 Human Resources independently checks that the need is genuine and tied to the
-work order; no active engineer already fits; duties and competencies are
-specific; the proposed tools are the minimum necessary; checks name existing
-commands rather than arbitrary shell text and have reviewed side effects; and
-implementation remains separate from inspection and audit. HR records
-endorsement or decline with reasons.
+work order; no active specialist already fits the required expertise; duties and
+competencies are specific; the proposed tools are the minimum necessary; checks
+name existing commands rather than arbitrary shell text and have reviewed side
+effects; and implementation remains separate from inspection and audit. HR
+records endorsement or decline with reasons.
 After endorsement, the Engineering Manager applies the merit test and records
 the appointment decision. No appointment is valid merely because an agent file
 exists.

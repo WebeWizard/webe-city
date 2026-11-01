@@ -227,15 +227,27 @@ test('offices describe the council delivery lifecycle and its honest limits', as
   const engineeringManager = await read('engineering-manager');
   for (const command of ['requisition', 'appoint', 'assign']) assert.match(engineeringManager, new RegExp(`\\b${command}\\b`));
   assert.match(engineeringManager, /Human Resources Officer/);
+  assert.match(engineeringManager, /Prefer an active specialist/i);
+  assert.match(engineeringManager, /React specialist/i);
   assert.match(engineeringManager, /agents: \["\*"\]/);
   const hr = await read('human-resources-officer');
   for (const command of ['review-requisition', 'hire', 'retire']) assert.match(hr, new RegExp(`\\b${command}\\b`));
   assert.match(hr, /authenticated: false/);
+  assert.match(hr, /general capability does not disqualify a\s+specialist requisition/i);
   assert.match(hr, /never install MCP/i);
   for (const id of agentIds) {
     const contents = await read(id);
     assert.doesNotMatch(contents, /authorization checkpoint|intake\/preapproval|not production ready|no trusted .*(?:authorization|delivery)/i, id);
   }
+});
+
+test('workforce policy favors required specialization over generalist capability', async () => {
+  const workforcePlanning = await readFile(path.join(root, 'skills/city-workforce-planning/SKILL.md'), 'utf8');
+  const recruitment = await readFile(path.join(root, 'skills/city-recruitment-and-onboarding/SKILL.md'), 'utf8');
+  const delegation = await readFile(path.join(root, 'templates/repository/.city/policies/workforce-delegation.md'), 'utf8');
+  assert.match(workforcePlanning, /if a work order requires specialized expertise and no active specialist has\s+it, that is a gap/i);
+  assert.match(recruitment, /general capability alone does not count\s+as a fit/i);
+  assert.match(delegation, /building a\s+React website requires React expertise/i);
 });
 
 test('every listed lifecycle names the full set of runtime states', async () => {

@@ -33,16 +33,23 @@ merge, or accept the work you assign, and you never create staff files.
    [interdepartmental coordination](../../skills/city-interdepartmental-coordination/SKILL.md)
    for handoffs to Human Resources and the Inspector.
 2. For an `authorized` order, compare its duties, projects, and criteria with each
-   active engineer in `status.workforce.staff`. Prefer an existing fit; the general
-   `municipal-software-engineer` fits ordinary work. Record the choice with `assign`:
+   active engineer in `status.workforce.staff`. Prefer an active specialist whose
+   competencies match the order's required technology or domain over the general
+   `municipal-software-engineer`. The general engineer fits ordinary work that
+   does not require a defined specialty. For example, a work order to build a
+   React website requires React expertise: assign an active React specialist, or
+   requisition one if none is active; do not treat general software ability alone
+   as a fit. Record an existing fit with `assign`:
 
    ```sh
    node "<installed-plugin>/scripts/city.mjs" assign --root "<absolute-repository>" --work-order "<work-order-id>" --staff "<staff-id>" --reason "<fit to duties and criteria>"
    ```
 
-3. Only when no active engineer can deliver competently, file a requisition with
-   a specific title, reason, duties, competencies, standards, the least tools
-   needed, and existing project checks. Propose MCP servers only as text:
+3. When no active engineer has the required specialty, file a requisition with a
+   specific title, reason, duties, competencies, standards, the least tools
+   needed, and existing project checks. Do not requisition a new post when an
+   active specialist already fits or for ordinary work the general engineer can
+   perform. Propose MCP servers only as text:
 
    ```sh
    node "<installed-plugin>/scripts/city.mjs" requisition --root "<absolute-repository>" --work-order "<work-order-id>" --staff-id "<staff-id>" --title "<title>" --reason "<demonstrated need, no existing fit>" --duties "<duties>" --competency "<competency>" --standard "<standard>" --tool edit --tool execute --check '["npm","test"]' [--mcp-proposal "<server and purpose>"]
@@ -50,8 +57,10 @@ merge, or accept the work you assign, and you never create staff files.
 
 4. Dispatch `City: Human Resources Officer` to review the requisition. Once it is
    `endorsed`, decide the appointment yourself. Approve only a requisition you can
-   justify against the policy: a real need, no existing fit, least-privilege tools,
-   and separation of duties. Otherwise decline with reasons:
+   justify against the policy: a real specialty need, no active specialist fit,
+   least-privilege tools, and separation of duties. Generalist capability alone
+   does not defeat a requisition for work that requires specialist expertise.
+   Otherwise decline with reasons:
 
    ```sh
    node "<installed-plugin>/scripts/city.mjs" appoint --root "<absolute-repository>" --id "<REQ-id>" --outcome "<approve|decline>" --reason "<basis under the workforce delegation policy>"

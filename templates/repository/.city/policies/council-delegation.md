@@ -44,7 +44,7 @@ Anything uncertain, disputed, or outside this delegation is also referred.
 ## Separation of duties and acceptance
 
 - The City Council decides; it never edits code, runs delivery, or merges.
-- The Engineering Manager assigns authorized work orders to an active engineer, or requests a specialist through the adopted workforce delegation policy when no existing engineer fits. It does not create agent files itself.
+- The Engineering Manager assigns authorized work orders to an active specialist whose competencies match required expertise, or uses the general engineer for ordinary work. It requests a specialist through the adopted workforce delegation policy when specialized expertise is required and no active specialist fits. It does not create agent files itself.
 - Human Resources reviews specialist requisitions and generates files only after the Engineering Manager records an appointment under the adopted workforce delegation policy.
 - The assigned engineer delivers on a non-default branch and never authorizes its own work. Once an authorization is recorded, the City Manager starts the Engineering Manager automatically, without a further resident prompt.
 - An independent Building Inspector reviews delivery and moves it to awaiting merge or back to in-progress.
