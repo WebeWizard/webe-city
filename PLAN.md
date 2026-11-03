@@ -64,7 +64,13 @@ Implementation refinements:
   delegations: the Council authorizes delivery; the Engineering Manager may
   appoint HR-endorsed specialist engineers under the adopted workforce policy.
   The Human Resources Officer performs personnel administration. The current
-  bundled pilot roster has twelve offices.
+  bundled pilot roster has thirteen offices, including the Development Advisor.
+  Development requests are professionally screened against the adopted baseline
+  and scoped refinements. Formal cases automatically receive proportionate Advisor
+  assistance and independent Planner assessment; ordinary features are not
+  automatically formal. Optional work-order revisions preserve compatibility and
+  gate subsequent authorization, not existing delivery. See
+  [development applications](docs/development-applications.md).
 - Licensing remains undecided. The development package is private and
   unlicensed; publication is not authorized by implementing this plan.
 - Copilot CLI 1.0.105 accepts direct local installs but warns they are deprecated.

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Repository City work orders, versions 1 and 2",
-  "description": "Intake, proposal and delivery lifecycle. Version 1 records remain valid without project association; version 2 records require projectIds. Runtime validation also enforces initial received history, the transition graph (blocked may resume in-progress only while authorization is current), monotonic timestamps, final-state consistency, local city identity, append-only CLI writes, and that every history entry into authorized or completed matches exactly one schemaVersion 2 decision with the same timestamp. authorized and completed are entered only via the authorize and complete commands. Provenance is self-reported, not human authorization; records from plugin 0.1.0 remain valid.",
+  "description": "Intake, proposal and delivery lifecycle. Version 1 remains valid without projects; version 2 requires projectIds. Optional development metadata is additive in either version; no migration is required. Runtime additionally validates lifecycle continuity and linked decisions, registered scope, sequential append-only development revisions, exact screening/application references, chronology and ready-packet completeness. Development timestamps do not change lifecycle updatedAt. Current adopted policy enables readiness gates for subsequent authorization, not retroactive invalidation of earlier delivery. Professional sources and evidence are unauthenticated, not semantic policy verification.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -52,6 +52,7 @@
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" }
     },
+    "development": { "$ref": "#/$defs/development" },
     "status": {
       "enum": [
         "received",
@@ -179,6 +180,139 @@
     }
   ],
   "$defs": {
+    "development": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screenings", "applications", "assessments"],
+      "properties": {
+        "screenings": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/screening" } },
+        "applications": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/application" } },
+        "assessments": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/assessment" } }
+      }
+    },
+    "revision": { "type": "integer", "minimum": 1 },
+    "evidenceText": { "$ref": "#/$defs/text", "maxLength": 4000 },
+    "safeId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "projectScope": {
+      "type": "array", "maxItems": 100, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/safeId" }
+    },
+    "questions": {
+      "type": "array", "maxItems": 50, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/text", "maxLength": 2000 }
+    },
+    "screening": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "snapshot", "route", "projectIds", "scopeEvidence", "reason", "evidence", "impacts", "questions", "policyCitations", "requirements"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "chief-planner" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "snapshot": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "route": { "enum": ["lightweight", "formal", "needs-clarification"] },
+        "projectIds": { "$ref": "#/$defs/projectScope" },
+        "scopeEvidence": { "$ref": "#/$defs/evidenceText" },
+        "reason": { "$ref": "#/$defs/evidenceText" },
+        "evidence": { "$ref": "#/$defs/evidenceText" },
+        "impacts": {
+          "type": "array", "maxItems": 10, "uniqueItems": true,
+          "items": { "enum": ["new-project", "substantial-capability", "architecture", "ownership-boundary", "public-interface", "data-migration", "security", "operations", "cost", "cross-project"] }
+        },
+        "questions": { "$ref": "#/$defs/questions" },
+        "policyCitations": {
+          "type": "array", "maxItems": 50,
+          "contains": {
+            "type": "object", "required": ["path", "projectIds"],
+            "properties": { "path": { "const": "policies/development-applications.md" }, "projectIds": { "type": "array", "maxItems": 0 } }
+          },
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["path", "section", "projectIds"],
+            "properties": {
+              "path": { "type": "string", "pattern": "^policies/[A-Za-z0-9][A-Za-z0-9._-]{0,199}\\.md$" },
+              "section": { "$ref": "#/$defs/text", "maxLength": 2000 },
+              "projectIds": { "$ref": "#/$defs/projectScope" }
+            }
+          }
+        },
+        "requirements": {
+          "type": "array", "maxItems": 25,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "kind", "description", "reason"],
+            "properties": {
+              "id": { "$ref": "#/$defs/safeId" },
+              "kind": { "enum": ["proposal", "diagram", "specification", "project-facts", "study"] },
+              "description": { "$ref": "#/$defs/text", "maxLength": 2000 },
+              "reason": { "$ref": "#/$defs/text", "maxLength": 2000 }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "route": { "const": "lightweight" } } },
+          "then": { "properties": { "impacts": { "maxItems": 0 }, "questions": { "maxItems": 0 }, "requirements": { "maxItems": 0 } } }
+        },
+        {
+          "if": { "properties": { "route": { "const": "needs-clarification" } } },
+          "then": { "properties": { "questions": { "minItems": 1 } } },
+          "else": { "properties": { "projectIds": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "route": { "const": "formal" } } },
+          "then": { "properties": { "requirements": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "application": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "screeningRevision", "reason", "evidence", "proposal", "answers", "artifacts"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "development-advisor" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "screeningRevision": { "$ref": "#/$defs/revision" },
+        "reason": { "$ref": "#/$defs/evidenceText" },
+        "evidence": { "$ref": "#/$defs/evidenceText" },
+        "proposal": { "$ref": "#/$defs/text", "maxLength": 20000 },
+        "answers": {
+          "type": "array", "maxItems": 50,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["question", "answer"],
+            "properties": { "question": { "$ref": "#/$defs/text", "maxLength": 2000 }, "answer": { "$ref": "#/$defs/evidenceText" } }
+          }
+        },
+        "artifacts": {
+          "type": "array", "maxItems": 25,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["requirementId", "disposition", "evidence"],
+            "properties": {
+              "requirementId": { "$ref": "#/$defs/text", "maxLength": 64 },
+              "disposition": { "enum": ["provided", "not-applicable"] },
+              "evidence": { "$ref": "#/$defs/evidenceText" }
+            }
+          }
+        }
+      }
+    },
+    "assessment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "applicationRevision", "outcome", "reason", "evidence"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "chief-planner" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "applicationRevision": { "$ref": "#/$defs/revision" },
+        "outcome": { "enum": ["ready", "revise"] },
+        "reason": { "$ref": "#/$defs/evidenceText" },
+        "evidence": { "$ref": "#/$defs/evidenceText" }
+      }
+    },
     "text": {
       "type": "string",
       "minLength": 1,

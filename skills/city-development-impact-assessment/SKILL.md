@@ -6,6 +6,11 @@ user-invocable: false
 
 # Development Impact Assessment
 
+Use this method when material impacts warrant it, not automatically for every
+ordinary feature. [Development screening](../city-development-applications/SKILL.md)
+specifies proportionate requirements; do not require a full impact matrix for
+every application. Static assessment is not an executed technical study.
+
 ## Competency and application
 
 Municipal impact assessment examines who benefits, who bears costs, and what

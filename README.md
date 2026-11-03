@@ -17,19 +17,20 @@ An open-source license and publisher have not been selected.
 
 ## What is included
 
-- Twelve offices: City Manager, City Council, Resident Services Officer, City
-  Clerk, Chief Planner, Engineering Manager, Human Resources Officer, Municipal
--  Software Engineer, Building Inspector, Records Officer, City Auditor, and
+- Thirteen offices: City Manager, City Council, Resident Services Officer, City
+  Clerk, Chief Planner, Development Advisor, Engineering Manager, Human Resources
+  Officer, Municipal Software Engineer, Building Inspector, Records Officer, City Auditor, and
   Performance and Innovation Officer.
-- Twenty professional skills drawn from real municipal competencies,
-  including delivery authorization.
+- Twenty-one professional skills drawn from real municipal competencies,
+  including development applications and delivery authorization (26 skills total).
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
 - Draft charter and operating procedures for authority, policy, services,
   resources, appointments, records, privacy, continuity, accountability, and
   council and workforce delegation.
 - Dependency-free Node.js tooling for initialization, intake, lifecycle
-  transitions, project registration, adoption, delivery authorization,
+  transitions, project registration, development screening/application/assessment,
+  adoption, delivery authorization,
   acceptance, workforce requisitions, HR review, delegated appointments, local
   specialist generation, assignment, retirement, institutional-review trigger
   evaluation and review-record persistence, and validation.
@@ -37,6 +38,42 @@ An open-source license and publisher have not been selected.
   malformed or incompatible city records.
 
 No RSG or rsgdev component is required.
+
+## Proportionate development applications
+
+Residents bring needs, outcomes and observations, not engineered proposals.
+Chief Planner screens against baseline materiality and adopted scoped local
+rules: `lightweight`, `formal`, or `needs-clarification` with focused resident
+questions. Ordinary new features are not automatically formal. Material new
+projects/capabilities, architecture/boundaries, interfaces/migrations and significant
+security/operational/cost/cross-project effects require formal applications.
+
+Formal screening automatically assigns **Development Advisor** through City
+Manager, without another assistance request. The Advisor develops only necessary
+proposal, diagram, specification, project and study evidence with justified
+non-applicability; Planner independently assesses the exact current packet.
+No universal master plan or full impact matrix is required. Static findings are
+not executed studies. Lightweight still requires delivery authorization.
+
+The CLI adds `screen-development`, `application-record`, `assess-application`,
+each `--root ABS --id WO-ID --data JSON [--apply]` (dry-run by default).
+Under adopted development policy, Council-ready preparation and positive resident/
+Council authorization require current screening and, when formal, complete Advisor
+packet plus ready independent assessment. `status.workOrders.development` reports
+questions, missing evidence, lifecycle state and `actionable` next actions.
+Disabled policy, current authorized delivery (including blocked delivery) and
+closed cases retain diagnostics with `actionable: false`, `next: null`. Ready
+preapproval packets first need ordinary permitted lifecycle progression through
+Manager; Council's actual decision handoff is only at `awaiting-approval`.
+Existing `records-list/get` expose
+all attached revisions. The runtime validates evidence structure and snapshots,
+not policy semantics or identities. See the [complete contract and examples](./docs/development-applications.md).
+
+New cities review the thirteen-office charter and development-applications policy
+before adoption. Existing cities must explicitly merge/review the revised charter
+appointment and policy, then `amend`; a policy-only addition is refused.
+Installation/non-destructive `init` never implicitly reappoints offices. Older
+policy sets remain valid; earlier delivery is not retroactively invalidated.
 
 ## Engineering workforce
 
@@ -268,6 +305,11 @@ governance with no charter or policy drift.
 The City Council decides orders awaiting approval under the adopted
 [council delegation policy](./templates/repository/.city/policies/council-delegation.md):
 
+When development-applications policy is adopted, first obtain current conclusive
+screening and, for formal cases, Advisor preparation and independent ready Planner
+assessment. These prerequisites apply to resident decisions too; `--routine-class`
+is not an exemption. See [the JSON inputs](./docs/development-applications.md).
+
 ```sh
 node /absolute/path/to/city/scripts/city.mjs authorize \
   --root /absolute/path/to/target-repository \
@@ -403,14 +445,14 @@ governance is still draft). `status` reports council availability under
 `council`.
 
 To enable specialist hiring, also copy `policies/workforce-delegation.md` and
-the updated charter, review the twelve-office roster and delegated appointment
+the updated charter, review the thirteen-office roster and delegated appointment
 authority, and record the revision with `amend` (or `adopt` while draft).
 Workforce commands remain unavailable until this policy is adopted with no
 governance drift.
 
 To enable automatic institutional reviews in an existing city, copy the updated
 `charter.md` and `policies/institutional-review.md` from the plugin templates,
-review the twelve-office roster and trigger thresholds, then record the
+review the thirteen-office roster and trigger thresholds, then record the
 resident-approved revision with `amend` (or `adopt` while governance is draft).
 Until that policy is adopted, status reports institutional review as unavailable.
 

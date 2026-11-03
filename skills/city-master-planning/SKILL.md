@@ -6,6 +6,11 @@ user-invocable: false
 
 # Master Planning
 
+This substantial/long-term planning method is conditional, not a prerequisite for
+every request or ordinary feature. Apply proportionately after
+[development screening](../city-development-applications/SKILL.md); an assisted
+formal application requires a master plan only when specifically justified.
+
 ## Competency and application
 
 Municipal master planning coordinates long-term development, existing assets, and

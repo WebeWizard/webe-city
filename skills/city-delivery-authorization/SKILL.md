@@ -30,6 +30,13 @@ acceptance of the pull request.
 3. The order is `awaiting-approval` with at least one observable criterion.
 4. The decider did not author the proposal. Any failure means no council decision;
    report the blocker instead of working around it.
+5. Positive authorization under adopted development-applications policy requires
+   current conclusive screening. Formal cases also require current Advisor
+   application and independent ready Planner assessment. Check
+   `status.workOrders.development`; resident decisions cannot bypass preparation.
+   `reject`, `return`, and `refer` remain available for incomplete awaiting cases.
+   Lightweight is not an authorization exemption. See
+   [development applications](../city-development-applications/SKILL.md).
 
 ## Reserved-matter checklist
 
