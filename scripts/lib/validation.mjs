@@ -5,6 +5,7 @@ import {
   INSTITUTIONAL_REVIEW_TRIGGERS, LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
   SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_SCHEMA_VERSION, WORKFORCE_SCHEMA_VERSION,
   WORKFORCE_TOOLS, GENERAL_ENGINEER_ID,
+  DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS, DEVELOPMENT_POLICY,
 } from './constants.mjs';
 import { fail } from './errors.mjs';
 
@@ -398,9 +399,9 @@ export function validateWorkOrder(value, expectedCityId) {
     'status', 'createdAt', 'updatedAt', 'history', 'provenance',
   ];
   if (value.schemaVersion === WORK_ORDER_SCHEMA_VERSION) {
-    fields(value, [...required, 'projectIds'], 'City work order');
+    fields(value, [...required, 'projectIds', ...(own(value, 'development') ? ['development'] : [])], 'City work order');
   } else {
-    fields(value, required, 'City work order');
+    fields(value, [...required, ...(own(value, 'development') ? ['development'] : [])], 'City work order');
   }
   validateOrderId(value.id);
   cityId(value.cityId, 'City work-order cityId', expectedCityId);
@@ -445,7 +446,143 @@ export function validateWorkOrder(value, expectedCityId) {
   if (previousState !== value.status || previousTimestamp !== value.updatedAt) {
     fail('INVALID_RECORD', 'Work-order status and updatedAt must match the final history entry.');
   }
+  if (own(value, 'development')) validateDevelopment(value.development, value.createdAt);
   return value;
+}
+
+function developmentList(value, label, maximum = 50) {
+  if (!Array.isArray(value) || value.length > maximum) fail('INVALID_ARGUMENT', `${label} must be a bounded array (at most ${maximum}).`);
+}
+
+function uniqueDevelopment(value, key, label) {
+  if (new Set(value.map(key)).size !== value.length) fail('INVALID_ARGUMENT', `${label} must not contain duplicates.`);
+}
+
+function positiveRevision(value) {
+  if (!Number.isSafeInteger(value) || value < 1) fail('INVALID_ARGUMENT', 'Development revision must be a positive integer.');
+}
+
+// Shared by the record validator and CLI: no unknown keys or implicit defaults.
+export function validateDevelopmentInput(kind, value) {
+  const keys = {
+    screenings: ['route', 'projectIds', 'scopeEvidence', 'reason', 'evidence', 'impacts', 'questions', 'policyCitations', 'requirements'],
+    applications: ['screeningRevision', 'reason', 'evidence', 'proposal', 'answers', 'artifacts'],
+    assessments: ['applicationRevision', 'outcome', 'reason', 'evidence'],
+  }[kind];
+  if (!keys) fail('INVALID_ARGUMENT', 'Unknown development record kind.');
+  object(value, 'Development input');
+  if (Object.keys(value).length !== keys.length || keys.some((key) => !own(value, key))) {
+    fail('INVALID_ARGUMENT', 'Development input has missing or unexpected fields.');
+  }
+  text(value.reason, 'Development reason', 4000);
+  text(value.evidence, 'Development evidence', 4000);
+  if (kind === 'screenings') {
+    if (!['lightweight', 'formal', 'needs-clarification'].includes(value.route)) fail('INVALID_ARGUMENT', 'Unknown development route.');
+    text(value.scopeEvidence, 'Development scope evidence', 4000);
+    developmentList(value.projectIds, 'Development projectIds', 100);
+    uniqueDevelopment(value.projectIds, (id) => id, 'Development projectIds');
+    if (value.projectIds.some((id) => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(id))) {
+      fail('INVALID_ARGUMENT', 'Development project IDs must be safe registered IDs.');
+    }
+    developmentList(value.impacts, 'Development impacts', DEVELOPMENT_IMPACTS.length);
+    uniqueDevelopment(value.impacts, (impact) => impact, 'Development impacts');
+    if (value.impacts.some((impact) => !DEVELOPMENT_IMPACTS.includes(impact))) fail('INVALID_ARGUMENT', 'Unknown material impact.');
+    stringArray(value.questions, 'Development questions', 50, 2000);
+    uniqueDevelopment(value.questions, (question) => question, 'Development questions');
+    developmentList(value.policyCitations, 'Development policy citations');
+    for (const citation of value.policyCitations) {
+      fields(citation, ['path', 'section', 'projectIds'], 'Development policy citation');
+      if (typeof citation.path !== 'string' || !policyPathPattern.test(citation.path)) fail('INVALID_ARGUMENT', 'Cite a local Markdown policy path.');
+      text(citation.section, 'Policy section and interpretation', 2000);
+      developmentList(citation.projectIds, 'Policy project scope', 100);
+      uniqueDevelopment(citation.projectIds, (id) => id, 'Policy project scope');
+      if (citation.projectIds.some((id) => !value.projectIds.includes(id))) fail('INVALID_ARGUMENT', 'A policy citation may only name screened projects; [] means repository-wide.');
+    }
+    if (!value.policyCitations.some((citation) => citation.path === DEVELOPMENT_POLICY && citation.projectIds.length === 0)) {
+      fail('INVALID_ARGUMENT', 'Cite the repository-wide development-applications baseline.');
+    }
+    developmentList(value.requirements, 'Application requirements', 25);
+    uniqueDevelopment(value.requirements, (item) => item?.id, 'Application requirements');
+    for (const requirement of value.requirements) {
+      fields(requirement, ['id', 'kind', 'description', 'reason'], 'Application requirement');
+      if (typeof requirement.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(requirement.id)
+        || !DEVELOPMENT_ARTIFACTS.includes(requirement.kind)) fail('INVALID_ARGUMENT', 'Invalid application requirement ID or kind.');
+      text(requirement.description, 'Requirement description', 2000);
+      text(requirement.reason, 'Requirement justification', 2000);
+    }
+    if (value.route !== 'needs-clarification' && value.projectIds.length === 0) fail('INVALID_ARGUMENT', 'Conclusive screening needs selected project scope.');
+    if (value.route === 'needs-clarification' && value.questions.length === 0) fail('INVALID_ARGUMENT', 'Uncertain screening needs concrete resident questions.');
+    if (value.route === 'lightweight' && (value.impacts.length || value.questions.length || value.requirements.length)) {
+      fail('INVALID_ARGUMENT', 'Lightweight screening cannot contain material impacts, unresolved questions or formal requirements.');
+    }
+    if (value.route === 'formal' && value.requirements.length === 0) fail('INVALID_ARGUMENT', 'Formal screening needs proportionate justified requirements.');
+  } else if (kind === 'applications') {
+    positiveRevision(value.screeningRevision);
+    text(value.proposal, 'Assisted proposal', 20000);
+    developmentList(value.answers, 'Resident answers');
+    uniqueDevelopment(value.answers, (answer) => answer?.question, 'Resident answers');
+    for (const answer of value.answers) {
+      fields(answer, ['question', 'answer'], 'Resident answer');
+      text(answer.question, 'Resident question', 2000);
+      text(answer.answer, 'Resident answer', 4000);
+    }
+    developmentList(value.artifacts, 'Application artifacts', 25);
+    uniqueDevelopment(value.artifacts, (artifact) => artifact?.requirementId, 'Application artifacts');
+    for (const artifact of value.artifacts) {
+      fields(artifact, ['requirementId', 'disposition', 'evidence'], 'Application artifact');
+      text(artifact.requirementId, 'Artifact requirement ID', 64);
+      if (!['provided', 'not-applicable'].includes(artifact.disposition)) fail('INVALID_ARGUMENT', 'Artifact disposition must be provided or not-applicable.');
+      text(artifact.evidence, 'Artifact evidence or justified non-applicability', 4000);
+    }
+  } else {
+    positiveRevision(value.applicationRevision);
+    if (!['ready', 'revise'].includes(value.outcome)) fail('INVALID_ARGUMENT', 'Assessment outcome must be ready or revise.');
+  }
+  return value;
+}
+
+export function applicationMissing(screening, application) {
+  return [
+    ...screening.questions.filter((question) => !application.answers.some((answer) => answer.question === question)),
+    ...screening.requirements.filter((requirement) => !application.artifacts.some((artifact) => artifact.requirementId === requirement.id))
+      .map((requirement) => `${requirement.id}: ${requirement.description}`),
+  ];
+}
+
+export function validateDevelopment(value, createdAt) {
+  fields(value, ['screenings', 'applications', 'assessments'], 'Work-order development');
+  const offices = { screenings: 'chief-planner', applications: 'development-advisor', assessments: 'chief-planner' };
+  for (const kind of Object.keys(offices)) {
+    developmentList(value[kind], `Development ${kind}`, LIMITS.history);
+    let previous = createdAt;
+    for (const [index, record] of value[kind].entries()) {
+      object(record, 'Development revision');
+      const { revision, recordedAt, sourceOffice, authenticated, provenance: source, snapshot, ...input } = record;
+      if (revision !== index + 1 || sourceOffice !== offices[kind] || authenticated !== false) fail('INVALID_RECORD', 'Development revision or professional source role is invalid.');
+      timestamp(recordedAt, 'Development recordedAt');
+      if (recordedAt < previous) fail('INVALID_RECORD', 'Development revisions have out-of-order timestamps.');
+      previous = recordedAt;
+      provenance(source, 'Development provenance');
+      if (kind === 'screenings') {
+        if (typeof snapshot !== 'string' || !/^[a-f0-9]{64}$/u.test(snapshot)) fail('INVALID_RECORD', 'Screening snapshot must be a SHA-256 digest.');
+      } else if (own(record, 'snapshot')) fail('INVALID_RECORD', 'Only a screening has a context snapshot.');
+      validateDevelopmentInput(kind, input);
+      if (kind === 'applications') {
+        const screening = value.screenings[input.screeningRevision - 1];
+        if (!screening || screening.route !== 'formal' || recordedAt < screening.recordedAt) fail('INVALID_RECORD', 'Application must reference an earlier formal screening.');
+        if (input.answers.some((answer) => !screening.questions.includes(answer.question))
+          || input.artifacts.some((artifact) => !screening.requirements.some((requirement) => requirement.id === artifact.requirementId))) {
+          fail('INVALID_RECORD', 'Application evidence must address its screening requirements and questions.');
+        }
+      } else if (kind === 'assessments') {
+        const application = value.applications[input.applicationRevision - 1];
+        if (!application || recordedAt < application.recordedAt) fail('INVALID_RECORD', 'Assessment must reference an earlier application.');
+        if (input.outcome === 'ready' && applicationMissing(value.screenings[application.screeningRevision - 1], application).length) {
+          fail('INVALID_RECORD', 'Ready assessment cannot omit required evidence or resident answers.');
+        }
+      }
+    }
+  }
 }
 
 export function validateDecision(value, expectedCityId) {

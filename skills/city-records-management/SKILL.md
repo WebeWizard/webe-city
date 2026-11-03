@@ -6,6 +6,13 @@ user-invocable: false
 
 # Records Management
 
+Preserve work-order-attached development screenings, assisted applications and
+independent assessments as append-only revisions. On Manager-routed professional
+commands, Records Officer may preview/apply `screen-development`,
+`application-record`, `assess-application` and intake/transition persistence using
+the packaged CLI, not hand-edited canonical JSON. Keep source roles and honest
+unauthenticated evidence; return the actual revision to RSO/Advisor/Planner.
+
 ## Competency and application
 
 Municipal records management preserves authentic context, findability, and

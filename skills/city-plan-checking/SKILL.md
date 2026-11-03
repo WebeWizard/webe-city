@@ -6,6 +6,12 @@ user-invocable: false
 
 # Plan Checking
 
+Under adopted [development applications](../city-development-applications/SKILL.md),
+Chief Planner independently assesses the exact current Advisor application revision
+against proportionate screening requirements and resident answers. An Inspector
+desk check cannot replace that assessment, nor can Advisor assess its own packet.
+Do not require every artifact kind, master plan or full impact matrix by default.
+
 ## Competency and application
 
 Municipal plan checking is a desk assessment against applicable requirements,

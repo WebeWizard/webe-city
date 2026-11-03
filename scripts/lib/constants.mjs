@@ -48,6 +48,12 @@ export const RESERVED_MATTERS = Object.freeze([
 export const DELEGATION_POLICY = 'policies/council-delegation.md';
 export const WORKFORCE_DELEGATION_POLICY = 'policies/workforce-delegation.md';
 export const INSTITUTIONAL_REVIEW_POLICY = 'policies/institutional-review.md';
+export const DEVELOPMENT_POLICY = 'policies/development-applications.md';
+export const DEVELOPMENT_IMPACTS = Object.freeze([
+  'new-project', 'substantial-capability', 'architecture', 'ownership-boundary',
+  'public-interface', 'data-migration', 'security', 'operations', 'cost', 'cross-project',
+]);
+export const DEVELOPMENT_ARTIFACTS = Object.freeze(['proposal', 'diagram', 'specification', 'project-facts', 'study']);
 export const INSTITUTIONAL_REVIEW_TRIGGERS = Object.freeze([
   'periodic-volume',
   'periodic-time',

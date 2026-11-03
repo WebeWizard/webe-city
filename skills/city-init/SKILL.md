@@ -7,6 +7,13 @@ disable-model-invocation: true
 
 # Initialize a Draft City
 
+The current draft charter has thirteen offices, including Development Advisor;
+there are 26 bundled skills. Review development-applications policy and scoped
+local refinements before adoption. Existing cities must explicitly amend both
+charter appointment and policy; installation and non-destructive `init` do not
+reappoint offices or replace customized governance. Draft preparation is not
+adoption. See [development applications](../../docs/development-applications.md).
+
 ## Purpose and inputs
 
 Prepare repository-local governance drafts only after an explicit resident request.

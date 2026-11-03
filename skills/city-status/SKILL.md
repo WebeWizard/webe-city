@@ -6,6 +6,17 @@ user-invocable: true
 
 # Explain City Status
 
+Report `workOrders.development` stages, exact questions, missing evidence and next
+actor/action, together with `status`, `authorizationCurrent` and `actionable`.
+Dispatch only `actionable: true` entries; disabled policy, current authorized
+delivery (including blocked delivery) and closed cases have `next: null`, with
+diagnostic stages retained. Formal screening automatically routes through Manager
+to Development Advisor, then independent Planner assessment; no second assistance
+request is needed. Ready preapproval packets need ordinary permitted lifecycle
+progression through Manager, not an actual Council decision before
+`awaiting-approval`. Never skip stages or auto-reopen a case. Distinguish enabled
+adopted policy from explicit draft/legacy advice.
+
 ## Purpose and inputs
 
 Provide a read-only account of repository-local governance, projects, work orders,

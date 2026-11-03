@@ -6,7 +6,7 @@ import {
 } from './lib/constants.mjs';
 import {
   adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
-  recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate,
+  recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -43,6 +43,9 @@ const commands = {
     required: ['root', 'conducted-by', 'summary'],
   },
   transition: { allowed: ['root', 'id', 'to', 'reason', 'apply'], required: ['root', 'id', 'to', 'reason'] },
+  'screen-development': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'application-record': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'assess-application': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   migrate: { allowed: ['root', 'apply'], required: ['root'] },
   adopt: {
     allowed: ['root', 'adopted-on', 'declared-by', 'evidence', 'charter-version', 'apply'],
@@ -98,6 +101,9 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs project-add --root ABS --id ID --name NAME --path RELATIVE_DIR --description TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs petition --root ABS --title TEXT --request TEXT --project ID [--project ID repeated] [--criterion TEXT repeated] [--apply]',
       'node <installed-plugin>/scripts/city.mjs transition --root ABS --id ID --to STATE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
@@ -124,6 +130,11 @@ function help() {
     delegationPolicy: `.city/${DELEGATION_POLICY}`,
     notice: DRAFT_NOTICE,
     notes: [
+      'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
+      'Development source roles are fixed: chief-planner screens/independently assesses; development-advisor prepares applications. Provenance is unauthenticated professional evidence, not semantic classification or verified identity. Routes: lightweight|formal|needs-clarification. Assessment outcomes: ready|revise.',
+      'A conclusive screening must match an assigned work order scope exactly. For a legacy unassigned v1 order, explicitly selected registered projectIds bind its scope and write v2 (scopeAssigned:true); needs-clarification may leave it unassigned. Active authorized delivery must return to proposed before new development preparation.',
+      'Adopted policies/development-applications.md enables current screening before awaiting-approval and positive authorize (resident decisions included). Formal cases additionally need a complete current Advisor application and independent ready Planner assessment. Reject/return/refer remain possible. Older policy sets remain valid; installing does not appoint the Advisor. Draft preparation does not adopt policy.',
+      'status workOrders.development reports lifecycle status, authorizationCurrent, actionable, questions, missing evidence and ready-lightweight/ready-formal. Only actionable:true entries have next actor/action; disabled policy, current authorized delivery (including blocked delivery) and closed cases retain diagnostics with next:null. Explicit draft preparation remains permitted. Ready preapproval packets point to city-manager/arrange-lifecycle-progression through ordinary permitted stages; city-council/review-authorization is only for awaiting-approval. Never auto-reopen or skip stages. Formal screening automatically routes to development-advisor through City Manager. Scope/policy changes, re-triage, reopening and return-to-proposed invalidate preparation for subsequent authorization; normal triaged->proposed does not. Prior delivery authorizations are not retroactively invalidated.',
       'All mutators default to JSON dry-runs with no writes. Installing this plugin never enrolls a repository.',
       'Register each project directory with project-add before intake. Project paths are repository-relative, normalized, disjoint directories outside .city and .git; registration does not create or move project files.',
       'New work orders require one or more registered --project IDs. Legacy work orders without projectIds remain valid and appear as unassigned; project associations are not inferred.',
@@ -254,6 +265,12 @@ async function main() {
       return reviewRecord(root, options);
     case 'transition':
       return transition(root, options);
+    case 'screen-development':
+      return developmentRecord(root, options, 'screenings');
+    case 'application-record':
+      return developmentRecord(root, options, 'applications');
+    case 'assess-application':
+      return developmentRecord(root, options, 'assessments');
     case 'migrate':
       return migrate(root, options);
     case 'adopt':

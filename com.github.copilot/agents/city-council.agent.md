@@ -38,6 +38,12 @@ build, inspect, merge, or accept the work you authorize.
    no drift, the order is `awaiting-approval`, at least one criterion exists, and
    every project ID resolves to a registered, disjoint directory. Return proposals
    with missing or overbroad project scope.
+   When development-applications policy is adopted, verify current conclusive
+   screening; formal cases require current Advisor preparation and independent
+   ready Planner assessment. `DEVELOPMENT_NOT_READY` blocks positive authorization,
+   including resident decisions, but does not prevent return/reject/refer for an
+   awaiting case. Lightweight is not an authorization exemption. Never assess
+   or author the Advisor's application yourself to bypass preparation.
 5. Check every reserved matter: governance (charter, policies, council powers),
    security (secrets, permissions), deletion, deployment, publication, and
    expenditure. Any reserved matter means outcome `refer`; never `authorize`.

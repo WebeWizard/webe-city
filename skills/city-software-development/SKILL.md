@@ -6,6 +6,12 @@ user-invocable: false
 
 # Software Development
 
+For [development applications](../city-development-applications/SKILL.md), supply
+bounded preauthorization technical investigation requested through City Manager.
+Residents supply intent/choices/unavailable facts, not city-performable research.
+Distinguish static findings from executed studies; advisory help grants no
+production, installation, paid-study or expanded execution authority.
+
 ## Competency and application
 
 Municipal software development translates public-service needs into maintainable,

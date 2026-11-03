@@ -115,6 +115,13 @@ function petition(root, criteria = ['The requested outcome is verifiable.']) {
 }
 
 function transition(root, id, to, apply = true) {
+  // Existing lifecycle scenarios use a professionally screened contained repair.
+  // Gate-specific scenarios below call the CLI directly to test missing preparation.
+  if (to === 'awaiting-approval') {
+    const status = success(['status', '--root', root]);
+    const preparation = status.workOrders.development.find((item) => item.id === id);
+    if (preparation.enabled && !preparation.ready) recordScreening(root, id);
+  }
   return success([
     'transition', '--root', root, '--id', id, '--to', to,
     '--reason', `Draft routing to ${to}.`, ...(apply ? ['--apply'] : []),
@@ -125,6 +132,455 @@ const recordPath = (root, id) => path.join(root, '.city/work-orders', `${id}.jso
 const configPath = (root) => path.join(root, '.city/config.json');
 const readJSON = async (location) => JSON.parse(await readFile(location, 'utf8'));
 const writeJSON = (location, value) => writeFile(location, `${JSON.stringify(value, null, 2)}\n`);
+
+function screening(overrides = {}) {
+  return {
+    route: 'lightweight', projectIds: ['default-project'],
+    scopeEvidence: 'The request concerns the registered default project only.',
+    reason: 'Contained repair with no material effects.', evidence: 'Inspected project interfaces and tests.',
+    impacts: [], questions: [],
+    policyCitations: [{ path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] }],
+    requirements: [], ...overrides,
+  };
+}
+
+function developmentArgs(command, root, id, data, apply = false) {
+  return [command, '--root', root, '--id', id, '--data', JSON.stringify(data), ...(apply ? ['--apply'] : [])];
+}
+
+function recordScreening(root, id, data = screening()) {
+  return success(developmentArgs('screen-development', root, id, data, true));
+}
+
+test('development screening is proportionate, dry-run, scope-aware and never delivery authority', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  transition(root, order.id, 'proposed');
+  const args = ['transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval', '--reason', 'Ready?'];
+  failure(args, 'DEVELOPMENT_NOT_READY');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'screening-required');
+  const before = await snapshot(root);
+  const preview = success(developmentArgs('screen-development', root, order.id, screening()));
+  assert.equal(preview.development.stage, 'ready-lightweight');
+  assert.deepEqual(await snapshot(root), before);
+  failure(developmentArgs('screen-development', root, order.id, screening({ impacts: ['public-interface'] })), 'INVALID_ARGUMENT');
+  failure(developmentArgs('screen-development', root, order.id, screening({ projectIds: [] })), 'INVALID_ARGUMENT');
+  failure(developmentArgs('screen-development', root, order.id, screening({ projectIds: ['missing'] })), 'NOT_FOUND');
+  failure(developmentArgs('screen-development', root, order.id, { ...screening(), unexpected: true }), 'INVALID_ARGUMENT');
+  const uncertain = recordScreening(root, order.id, screening({
+    route: 'needs-clarification', projectIds: [], questions: ['Which registered project should change?'],
+  }));
+  assert.equal(uncertain.development.next.actor, 'resident');
+  assert.deepEqual(uncertain.development.questions, ['Which registered project should change?']);
+  failure(args, 'DEVELOPMENT_NOT_READY');
+  const result = recordScreening(root, order.id);
+  assert.equal(result.workOrder.updatedAt, result.workOrder.history.at(-1).timestamp);
+  assert.equal(result.workOrder.development.screenings.length, 2);
+  success([...args, '--apply']);
+  const awaiting = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(awaiting.status, 'awaiting-approval');
+  assert.equal(awaiting.actionable, true);
+  assert.deepEqual(awaiting.next, { actor: 'city-council', action: 'review-authorization' });
+  failure(['transition', '--root', root, '--id', order.id, '--to', 'authorized', '--reason', 'No exemption'], 'AUTHORIZATION_REQUIRED');
+  success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
+  const authorized = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(authorized.stage, 'ready-lightweight');
+  assert.equal(authorized.ready, true);
+  assert.equal(authorized.authorizationCurrent, true);
+  assert.equal(authorized.actionable, false);
+  assert.equal(authorized.next, null);
+});
+
+test('ready development packets require ordinary lifecycle progression before Council handoff', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  const managerNext = { actor: 'city-manager', action: 'arrange-lifecycle-progression' };
+  const received = recordScreening(root, order.id).development;
+  assert.equal(received.status, 'received');
+  assert.equal(received.ready, true);
+  assert.equal(received.actionable, true);
+  assert.deepEqual(received.next, managerNext);
+  transition(root, order.id, 'triaged');
+  const triaged = recordScreening(root, order.id).development;
+  assert.equal(triaged.status, 'triaged');
+  assert.deepEqual(triaged.next, managerNext);
+  transition(root, order.id, 'proposed');
+  const proposed = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(proposed.ready, true);
+  assert.deepEqual(proposed.next, managerNext);
+  failure(authorizeArgs(root, order.id), 'INVALID_TRANSITION');
+  transition(root, order.id, 'awaiting-approval');
+  const awaiting = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(awaiting.status, 'awaiting-approval');
+  assert.deepEqual(awaiting.next, { actor: 'city-council', action: 'review-authorization' });
+});
+
+test('formal applications automatically route to Advisor and require exact independent ready assessment', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const formal = screening({
+    route: 'formal', impacts: ['public-interface'],
+    questions: ['Which compatibility window is acceptable?'],
+    requirements: [
+      { id: 'contract', kind: 'specification', description: 'Public API compatibility contract.', reason: 'Review consumer breakage.' },
+      { id: 'study', kind: 'study', description: 'Compatibility evidence.', reason: 'Check affected consumers.' },
+    ],
+  });
+  const screened = recordScreening(root, order.id, formal);
+  assert.equal(screened.development.next.actor, 'development-advisor');
+  transition(root, order.id, 'proposed');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'advisor-preparation');
+  const packet = {
+    screeningRevision: 1, reason: 'Resident-assisted contract proposal.', evidence: 'Source review; no runtime study performed.',
+    proposal: 'Add a versioned API without changing existing consumers.',
+    answers: [], artifacts: [{ requirementId: 'contract', disposition: 'provided', evidence: 'docs/api-contract.md, proposed v2 contract.' }],
+  };
+  const before = await snapshot(root);
+  success(developmentArgs('application-record', root, order.id, packet));
+  assert.deepEqual(await snapshot(root), before);
+  success(developmentArgs('application-record', root, order.id, packet, true));
+  const assess = { applicationRevision: 1, outcome: 'ready', reason: 'Independent plan check.', evidence: 'Reviewed application against scoped requirements.' };
+  failure(developmentArgs('assess-application', root, order.id, assess), 'DEVELOPMENT_NOT_READY');
+  const incomplete = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(incomplete.stage, 'advisor-preparation');
+  assert.match(JSON.stringify(incomplete.missing), /study|compatibility window/);
+  packet.answers = [{ question: formal.questions[0], answer: 'Keep existing consumers compatible indefinitely.' }];
+  packet.artifacts.push({ requirementId: 'study', disposition: 'not-applicable', evidence: 'No runtime compatibility claim: additive static contract; consumer runtime verification is a delivery criterion.' });
+  success(developmentArgs('application-record', root, order.id, packet, true));
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'independent-assessment');
+  failure(developmentArgs('assess-application', root, order.id, { ...assess, sourceOffice: 'development-advisor' }), 'INVALID_ARGUMENT');
+  failure(developmentArgs('assess-application', root, order.id, assess), 'STALE_DEVELOPMENT');
+  const ready = success(developmentArgs('assess-application', root, order.id, { ...assess, applicationRevision: 2 }, true));
+  assert.equal(ready.development.stage, 'ready-formal');
+  assert.equal(ready.development.actionable, true);
+  assert.deepEqual(ready.development.next, { actor: 'city-manager', action: 'arrange-lifecycle-progression' });
+  success(['transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval', '--reason', 'Independent assessment ready.', '--apply']);
+  assert.deepEqual(success(['status', '--root', root]).workOrders.development[0].next, {
+    actor: 'city-council', action: 'review-authorization',
+  });
+  success(developmentArgs('application-record', root, order.id, packet, true));
+  failure(authorizeArgs(root, order.id, { decidedBy: 'resident', extra: residentEvidence }), 'DEVELOPMENT_NOT_READY');
+  success(authorizeArgs(root, order.id, { outcome: 'refer', extra: ['--apply'] }));
+  success(authorizeArgs(root, order.id, { outcome: 'return', extra: ['--apply'] }));
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'screening-required');
+  const saved = await readJSON(recordPath(root, order.id));
+  assert.equal(saved.development.applications.length, 3);
+  assert.equal(saved.development.assessments.length, 1);
+  assert.equal(success(['records-get', '--root', root, '--id', order.id]).records[0].record.development.applications.length, 3);
+});
+
+test('screening snapshots invalidate scope, adopted policy, re-triage and reopening, but preserve legacy delivery', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  recordScreening(root, order.id);
+  transition(root, order.id, 'proposed');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].ready, true);
+  const localPolicy = path.join(root, '.city/policies/development-applications.md');
+  await writeFile(localPolicy, `${await readFile(localPolicy, 'utf8')}\n## Default project refinement\nApplies only to default-project: explain compatibility.\n`);
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'governance-drift');
+  success(amendArgs(root, ['--apply']));
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'screening-required');
+  recordScreening(root, order.id, screening({ policyCitations: [
+    { path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] },
+    { path: 'policies/development-applications.md', section: 'Default project refinement: no public contract affected.', projectIds: ['default-project'] },
+  ] }));
+  transition(root, order.id, 'triaged');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].ready, false);
+  recordScreening(root, order.id);
+  const changed = await readJSON(recordPath(root, order.id));
+  changed.request = 'Changed resident scope and outcome.';
+  await writeJSON(recordPath(root, order.id), changed);
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].ready, false);
+  recordScreening(root, order.id);
+  transition(root, order.id, 'proposed');
+  transition(root, order.id, 'awaiting-approval');
+  success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
+  await writeFile(localPolicy, `${await readFile(localPolicy, 'utf8')}\nAdditional explanation.\n`);
+  success(amendArgs(root, ['--apply']));
+  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) transition(root, order.id, state);
+  success(completeArgs(root, order.id, ['--apply']));
+  transition(root, order.id, 'reopened');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'screening-required');
+  assert.equal((await readJSON(recordPath(root, order.id))).development.screenings.length, 4);
+});
+
+test('draft preparation is not adoption and older cities require explicit charter amendment to add advisor', async () => {
+  const { root } = await fixture();
+  init(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const unscreened = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(unscreened.enabled, false);
+  assert.equal(unscreened.stage, 'screening-required');
+  assert.equal(unscreened.actionable, false);
+  assert.equal(unscreened.next, null);
+  const draft = recordScreening(root, order.id);
+  assert.equal(draft.development.enabled, false);
+  assert.equal(draft.development.ready, true);
+  assert.equal(draft.development.actionable, false);
+  assert.equal(draft.development.next, null);
+  const policyPath = path.join(root, '.city/policies/development-applications.md');
+  const policy = await readFile(policyPath);
+  await rm(policyPath);
+  success(adoptArgs(root, ['--apply']));
+  const disabled = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(disabled.enabled, false);
+  assert.equal(disabled.actionable, false);
+  assert.equal(disabled.next, null);
+  transition(root, order.id, 'proposed');
+  transition(root, order.id, 'awaiting-approval');
+  const legacy = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
+  assert.equal(legacy.workOrder.status, 'authorized');
+  await writeFile(policyPath, policy);
+  failure(amendArgs(root, ['--apply']), 'CHARTER_AMENDMENT_REQUIRED');
+  const charter = path.join(root, '.city/charter.md');
+  await writeFile(charter, `${await readFile(charter, 'utf8')}\nResident explicitly appoints the Development Advisor in this revision.\n`);
+  success(amendArgs(root, ['--apply']));
+  transition(root, order.id, 'in-progress');
+  assert.equal(success(['validate', '--root', root]).valid, true);
+  transition(root, order.id, 'proposed');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'screening-required');
+});
+
+test('development actionability excludes legacy delivery and closed cases after policy adoption', async () => {
+  const { root } = await fixture();
+  init(root);
+  const policyPath = path.join(root, '.city/policies/development-applications.md');
+  const policy = await readFile(policyPath);
+  await rm(policyPath);
+  success(adoptArgs(root, ['--apply']));
+  const authorized = awaitingOrder(root);
+  success(authorizeArgs(root, authorized.id, { extra: ['--apply'] }));
+  const blocked = awaitingOrder(root);
+  success(authorizeArgs(root, blocked.id, { extra: ['--apply'] }));
+  transition(root, blocked.id, 'blocked');
+  const completed = awaitingOrder(root);
+  success(authorizeArgs(root, completed.id, { extra: ['--apply'] }));
+  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) transition(root, completed.id, state);
+  success(completeArgs(root, completed.id, ['--apply']));
+  const rejected = petition(root);
+  transition(root, rejected.id, 'rejected');
+  const withdrawn = petition(root);
+  transition(root, withdrawn.id, 'withdrawn');
+  const orders = [authorized, blocked, completed, rejected, withdrawn];
+  const records = await Promise.all(orders.map((order) => readFile(recordPath(root, order.id))));
+  await writeFile(policyPath, policy);
+  const charter = path.join(root, '.city/charter.md');
+  await writeFile(charter, `${await readFile(charter, 'utf8')}\nResident explicitly appoints the Development Advisor in this revision.\n`);
+  success(amendArgs(root, ['--apply']));
+  const before = await snapshot(root);
+  const statuses = success(['status', '--root', root]).workOrders.development;
+  for (const [index, order] of orders.entries()) {
+    const development = statuses.find((item) => item.id === order.id);
+    assert.equal(development.enabled, true);
+    assert.equal(development.status, ['authorized', 'blocked', 'completed', 'rejected', 'withdrawn'][index]);
+    assert.equal(development.authorizationCurrent, index < 3);
+    assert.equal(development.stage, 'screening-required');
+    assert.equal(development.ready, false);
+    assert.equal(development.actionable, false);
+    assert.equal(development.next, null);
+    failure(developmentArgs('screen-development', root, order.id, screening(), true), 'INVALID_TRANSITION');
+    assert.deepEqual(await readFile(recordPath(root, order.id)), records[index]);
+  }
+  assert.deepEqual(await snapshot(root), before);
+  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) {
+    transition(root, authorized.id, state);
+    const development = success(['status', '--root', root]).workOrders.development.find((item) => item.id === authorized.id);
+    assert.equal(development.status, state);
+    assert.equal(development.authorizationCurrent, true);
+    assert.equal(development.actionable, false);
+    assert.equal(development.next, null);
+  }
+  transition(root, blocked.id, 'proposed');
+  const returned = success(['status', '--root', root]).workOrders.development.find((item) => item.id === blocked.id);
+  assert.equal(returned.authorizationCurrent, false);
+  assert.equal(returned.actionable, true);
+  assert.deepEqual(returned.next, { actor: 'chief-planner', action: 'screen-development' });
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('development screening accepts adopted project refinements using compatible policy filenames', async () => {
+  const { root } = await fixture();
+  init(root);
+  await writeFile(path.join(root, '.city/policies/Website_API.v1.md'), [
+    '# Website API refinement',
+    'Applies only to default-project. Contained documentation repairs with no public contract change remain lightweight.',
+    'Cite source review of the public interface; material interface changes still require formal assessment.',
+    '',
+  ].join('\n'));
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const input = screening({
+    policyCitations: [
+      ...screening().policyCitations,
+      { path: 'policies/Website_API.v1.md', section: 'Website API refinement: reviewed public interface; no contract change.', projectIds: ['default-project'] },
+    ],
+  });
+  const result = recordScreening(root, order.id, input);
+  assert.equal(result.development.enabled, true);
+  assert.equal(result.development.stage, 'ready-lightweight');
+  assert.deepEqual(result.workOrder.development.screenings[0].policyCitations, input.policyCitations);
+  const before = await snapshot(root);
+  for (const unsafe of ['../Website_API.v1.md', 'policies/../Website_API.v1.md', 'policies/nested/Website_API.v1.md',
+    'policies/.Website_API.v1.md', 'policies/Website_API.v1.md/escape', 'policies/Website_API.v1\\escape.md']) {
+    failure(developmentArgs('screen-development', root, order.id, screening({
+      policyCitations: [...screening().policyCitations, { path: unsafe, section: 'Unsafe', projectIds: ['default-project'] }],
+    }), true), 'INVALID_ARGUMENT');
+  }
+  assert.deepEqual(await snapshot(root), before);
+  transition(root, order.id, 'proposed');
+  transition(root, order.id, 'awaiting-approval');
+  success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('malformed development inputs fail without writes and canonical revisions remain strict', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const before = await snapshot(root);
+  for (const patch of [
+    { route: 'automatic' }, { impacts: ['unknown'] }, { impacts: ['cost', 'cost'] },
+    { route: 'needs-clarification' }, { route: 'formal' },
+    { projectIds: ['default-project', 'default-project'] },
+    { policyCitations: [] }, { requirements: [{ id: 'x', kind: 'unperformed', description: 'Study', reason: 'Missing' }] },
+    { policyCitations: [{ path: '../escape.md', section: 'Rules', projectIds: [] }] },
+    { policyCitations: [{ path: 'policies/development-applications.md', section: 'Rules', projectIds: ['other-project'] }] },
+  ]) {
+    failure(developmentArgs('screen-development', root, order.id, screening(patch), true), 'INVALID_ARGUMENT');
+  }
+  failure(['screen-development', '--root', root, '--id', order.id, '--data', '{', '--apply'], 'MALFORMED_JSON');
+  failure(['screen-development', '--root', root, '--id', order.id, '--data', '{}', '--data', '{}'], 'INVALID_ARGUMENT');
+  assert.deepEqual(await snapshot(root), before);
+  const recorded = recordScreening(root, order.id).workOrder;
+  for (const corrupt of [
+    (record) => { record.development.screenings[0].sourceOffice = 'development-advisor'; },
+    (record) => { record.development.screenings[0].authenticated = true; },
+    (record) => { record.development.screenings[0].revision = 2; },
+    (record) => { record.development.screenings[0].snapshot = 'not-a-digest'; },
+  ]) {
+    const changed = structuredClone(recorded);
+    corrupt(changed);
+    await writeJSON(recordPath(root, order.id), changed);
+    failure(['validate', '--root', root], 'INVALID_RECORD');
+  }
+  await writeJSON(recordPath(root, order.id), recorded);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('re-screening supersedes formal packets and assessments; reject stays usable without readiness', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const formal = screening({
+    route: 'formal', impacts: ['architecture'],
+    requirements: [{ id: 'diagram', kind: 'diagram', description: 'Component boundary diagram.', reason: 'Assess material boundary changes.' }],
+  });
+  recordScreening(root, order.id, formal);
+  const application = {
+    screeningRevision: 1, reason: 'Advisor proposal.', evidence: 'Static source investigation only.',
+    proposal: 'A new boundary with compatibility preserved.', answers: [],
+    artifacts: [{ requirementId: 'diagram', disposition: 'provided', evidence: 'Component diagram in the proposal.' }],
+  };
+  success(developmentArgs('application-record', root, order.id, application, true));
+  const assessment = { applicationRevision: 1, outcome: 'ready', reason: 'Independent assessment.', evidence: 'Reviewed boundary diagram and criteria.' };
+  const before = await snapshot(root);
+  success(developmentArgs('assess-application', root, order.id, assessment));
+  assert.deepEqual(await snapshot(root), before);
+  success(developmentArgs('assess-application', root, order.id, assessment, true));
+  transition(root, order.id, 'proposed');
+  success(['transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval', '--reason', 'Ready formal case.', '--apply']);
+  const originalCity = await loadCity(root);
+  recordScreening(root, order.id, formal);
+  const changedCity = await loadCity(root);
+  assert.throws(() => checkOrderUnchanged(originalCity, changedCity, originalCity.workOrders.get(order.id)), { code: 'CONFLICT' });
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'advisor-preparation');
+  failure(developmentArgs('application-record', root, order.id, application), 'STALE_DEVELOPMENT');
+  failure(developmentArgs('assess-application', root, order.id, assessment), 'STALE_DEVELOPMENT');
+  failure(authorizeArgs(root, order.id), 'DEVELOPMENT_NOT_READY');
+  success(authorizeArgs(root, order.id, { outcome: 'reject', extra: ['--apply'] }));
+  const rejected = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(rejected.stage, 'advisor-preparation');
+  assert.match(JSON.stringify(rejected.missing), /diagram/);
+  assert.equal(rejected.actionable, false);
+  assert.equal(rejected.next, null);
+  const saved = await readJSON(recordPath(root, order.id));
+  assert.equal(saved.development.screenings.length, 2);
+  assert.equal(saved.development.applications.length, 1);
+  assert.equal(saved.development.assessments.length, 1);
+});
+
+test('legacy unassigned work orders can clarify and explicitly acquire registered screening scope', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const legacy = await readJSON(recordPath(root, order.id));
+  delete legacy.projectIds;
+  legacy.schemaVersion = 1;
+  await writeJSON(recordPath(root, order.id), legacy);
+  const uncertain = recordScreening(root, order.id, screening({
+    route: 'needs-clarification', projectIds: [],
+    questions: ['Which registered project is intended?'],
+  }));
+  assert.equal(uncertain.workOrder.schemaVersion, 1);
+  assert.equal(uncertain.development.ready, false);
+  const before = await snapshot(root);
+  const preview = success(developmentArgs('screen-development', root, order.id, screening()));
+  assert.equal(preview.scopeAssigned, true);
+  assert.equal(preview.workOrder.schemaVersion, 2);
+  assert.deepEqual(await snapshot(root), before);
+  const scoped = recordScreening(root, order.id);
+  assert.equal(scoped.development.stage, 'ready-lightweight');
+  assert.equal(scoped.workOrder.updatedAt, legacy.updatedAt);
+  assert.deepEqual(scoped.workOrder.projectIds, ['default-project']);
+  assert.equal(scoped.workOrder.development.screenings.length, 2);
+  transition(root, order.id, 'proposed');
+  success(['transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval', '--reason', 'Explicit scope selected.', '--apply']);
+  success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
+});
+
+test('concurrent screening and authorization cannot authorize a superseded incomplete formal packet', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const { spawn } = await import('node:child_process');
+  const launch = (args) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cli, ...args], { cwd: project });
+    child.stdout.resume();
+    child.stderr.resume();
+    child.on('error', reject);
+    child.on('close', resolve);
+  });
+
+  for (let round = 0; round < 3; round += 1) {
+    const order = awaitingOrder(root);
+    const formal = screening({
+      route: 'formal', impacts: ['cost'],
+      requirements: [{ id: 'cost-study', kind: 'study', description: 'Operational cost study.', reason: 'Material cost risk.' }],
+    });
+    await Promise.all([
+      launch(developmentArgs('screen-development', root, order.id, formal, true)),
+      launch(authorizeArgs(root, order.id, { extra: ['--apply'] })),
+    ]);
+    assert.equal(success(['validate', '--root', root]).valid, true);
+    const saved = await readJSON(recordPath(root, order.id));
+    if (saved.status === 'authorized') assert.equal(saved.development.screenings.at(-1).route, 'lightweight');
+    else {
+      assert.equal(saved.development.screenings.at(-1).route, 'formal');
+      failure(authorizeArgs(root, order.id), 'DEVELOPMENT_NOT_READY');
+    }
+  }
+});
 
 test('help is JSON and explicitly refuses to equate apply with authority', () => {
   const output = success(['--help']);
@@ -1918,7 +2374,9 @@ test('authorize --apply fails closed on an existing mutation lock and leaves sta
 
 test('records written by plugin 0.1.0 still load and can enter the delivery lifecycle', async () => {
   const { root } = await fixture();
-  await adoptedCity(root);
+  init(root);
+  await rm(path.join(root, '.city/policies/development-applications.md'));
+  success(adoptArgs(root, ['--apply']));
   const order = awaitingOrder(root);
   const legacy = { source: 'local-draft', plugin: { name: 'repository-city', version: '0.1.0' } };
   const record = await readJSON(recordPath(root, order.id));
