@@ -278,23 +278,32 @@ export async function publishCity(root, files) {
     for (const name of ['work-orders', 'decisions', 'records-requests', 'institutional-reviews']) {
       await mkdir(path.join(stage, name), { mode: 0o700 });
     }
-    try {
-      // Reserve an absent name exclusively; rename may replace only this owned empty directory.
-      await mkdir(destination, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') fail('CONFLICT', 'City enrollment appeared concurrently; no existing city was overwritten. Inspect it and retry.');
-      throw error;
+    if (process.platform === 'win32') {
+      // Windows can replace an owned file with a directory, but cannot replace an empty directory.
+      reservation = await exclusiveFile(destination, '');
+    } else {
+      try {
+        // Reserve an absent name exclusively; rename may replace only this owned empty directory.
+        await mkdir(destination, { mode: 0o700 });
+      } catch (error) {
+        if (error.code === 'EEXIST') fail('CONFLICT', 'City enrollment appeared concurrently; no existing city was overwritten. Inspect it and retry.');
+        throw error;
+      }
+      reservation = await lstat(destination);
     }
-    reservation = await lstat(destination);
     await assertIdentity(destination, reservation, 'Reserved city directory');
     await assertIdentity(stage, stageIdentity, 'Staged city directory');
-    if ((await readdir(destination)).length !== 0) {
+    const empty = process.platform === 'win32'
+      ? (await regularFile(destination, 'Reserved city file')).size === 0
+      : (await readdir(destination)).length === 0;
+    if (!empty) {
       fail('CONFLICT', 'The reserved city directory changed; no existing content was overwritten.');
     }
     await rename(stage, destination);
     published = true;
   } finally {
     if (!published && reservation) {
+      if (process.platform === 'win32') await removeOwnedFile(destination, reservation);
       const actual = await inspect(destination);
       if (actual && actual.isDirectory() && !actual.isSymbolicLink() && sameIdentity(actual, reservation)) {
         try {

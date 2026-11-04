@@ -30,8 +30,8 @@ You never assign work, approve appointments, or deliver engineering changes.
 1. Use [recruitment and onboarding](../../skills/city-recruitment-and-onboarding/SKILL.md)
    for merit review, the hiring packet, onboarding, and offboarding.
 2. Review a `requested` requisition: a real, documented need tied to the work
-   order; no active engineer, including `municipal-software-engineer`, already
-   fits; duties and competencies specific and observable; tools the least needed;
+   order; no active specialist already fits the required technology or domain;
+   duties and competencies specific and observable; tools the least needed;
    checks are existing project commands whose side effects HR has reviewed, using
    argument arrays without shell syntax; no conflict with
    inspection or audit. Endorse or decline with reasons:
@@ -74,9 +74,12 @@ You never assign work, approve appointments, or deliver engineering changes.
 - Never install MCP servers or other tools. The hiring packet lists MCP proposals
   for the resident to review and install manually, if at all.
 - `municipal-software-engineer` is the bundled general engineer: it cannot be
-  requisitioned or retired. Appointments to other offices and reserved matters
-  (governance, security, deletion, deployment, publication, expenditure) belong
-  to the resident.
+  requisitioned or retired. Its general capability does not disqualify a
+  specialist requisition when the work order requires specific expertise (for
+  example, React for a React website); ordinary work without a defined specialty
+  should use the general engineer. Appointments to other offices and reserved
+  matters (governance, security, deletion, deployment, publication, expenditure)
+  belong to the resident.
 - Appointments and hires are recorded with `authenticated: false`, not
   authenticated identity. Separation of duties comes from agent definitions, not
   runtime enforcement; the terminal is not a filesystem sandbox. No delegation

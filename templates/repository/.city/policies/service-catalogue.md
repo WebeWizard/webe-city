@@ -1,6 +1,6 @@
-# Service catalogue and portfolio — DRAFT
+# Service catalogue and portfolio
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No service commitment, priority, delivery authorization, budget, or SLA is approved here. Delivery authorization follows the council delegation policy once adopted.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. No service commitment, priority, delivery authorization, budget, or SLA is approved here. Delivery authorization follows the council delegation policy once adopted.
 
 **Proposed owner:** Resident Services. **Accountable coordinator:** City Manager. Chief Planner maintains proposed sequencing; the Clerk records resident decisions. These titles do not appoint employees.
 
@@ -28,7 +28,7 @@ Requests outside this repository's jurisdiction are referred or declined with re
 | 2. Assess | Separate the requested outcome from the proposed solution. Identify risk, reversibility, affected owners, required specialists, dependencies, and authority gaps. | Triage recommendation; incomplete, restricted, or out-of-scope matters go to the Manager/human |
 | 3. Prioritize | Compare safety/security impact, existing obligations, defect severity, maintenance debt, resident value, deadline evidence, cost, and capacity. Disclose tradeoffs and conflicts. | Proposed priority and reason; conflicts or changes to reserved priorities require a real resident decision |
 | 4. Plan | Maintain one backlog covering defects, maintenance, features, and incidents. Each item needs an owner, state, rationale, dependencies, estimate/uncertainty, and next review. Do not assume unlimited parallel workers. | Visible proposed sequence and deferred obligations, not an authorization |
-| 5. Propose a commitment | Specify service owner, eligibility, scope, acceptance criteria, response/update expectations, intended completion window, resource limit, and escalation route. All timing/limits are **TBD by the human**, not template defaults. | Proposed commitment linked to its case; do not label it authorized without actual verified authority |
+| 5. Propose a commitment | Specify service owner, eligibility, scope, acceptance criteria, response/update expectations, intended completion window, resource limit, and escalation route. All timing/limits are **TBD by the human**, not values set here. | Proposed commitment linked to its case; do not label it authorized without actual verified authority |
 | 6. Communicate | Report observed progress and blocked dependencies. When a commitment is at risk, notify the resident, propose recovery/reprioritization, and preserve the original baseline. | Dated status/replanning history; no silent deadline reset or backlog disappearance |
 | 7. Review outcome | After authorized delivery and inspection, the resident compares actual evidence with the authorized scope and acceptance criteria; require independent inspection and complete records before closure. | Outcome, unresolved obligations, feedback, and any corrective-action links |
 

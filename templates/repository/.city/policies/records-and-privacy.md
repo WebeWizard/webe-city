@@ -1,6 +1,6 @@
-# Records, custody, access, and privacy — DRAFT
+# Records, custody, access, and privacy
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** This proposes recordkeeping duties; it does not create official decisions, approved retention periods, access grants, or completed registers.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. This policy does not create official decisions, approved retention periods, access grants, or completed registers.
 
 **Proposed owner:** Records Officer. The Clerk owns decision provenance and register links; the Auditor independently checks completeness and integrity, with only appropriately authorized access.
 

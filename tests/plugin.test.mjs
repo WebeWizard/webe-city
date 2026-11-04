@@ -232,15 +232,27 @@ test('offices describe the council delivery lifecycle and its honest limits', as
   const engineeringManager = await read('engineering-manager');
   for (const command of ['requisition', 'appoint', 'assign']) assert.match(engineeringManager, new RegExp(`\\b${command}\\b`));
   assert.match(engineeringManager, /Human Resources Officer/);
+  assert.match(engineeringManager, /Prefer an active specialist/i);
+  assert.match(engineeringManager, /React specialist/i);
   assert.match(engineeringManager, /agents: \["\*"\]/);
   const hr = await read('human-resources-officer');
   for (const command of ['review-requisition', 'hire', 'retire']) assert.match(hr, new RegExp(`\\b${command}\\b`));
   assert.match(hr, /authenticated: false/);
+  assert.match(hr, /general capability does not disqualify a\s+specialist requisition/i);
   assert.match(hr, /never install MCP/i);
   for (const id of agentIds) {
     const contents = await read(id);
     assert.doesNotMatch(contents, /authorization checkpoint|intake\/preapproval|not production ready|no trusted .*(?:authorization|delivery)/i, id);
   }
+});
+
+test('workforce policy favors required specialization over generalist capability', async () => {
+  const workforcePlanning = await readFile(path.join(root, 'skills/city-workforce-planning/SKILL.md'), 'utf8');
+  const recruitment = await readFile(path.join(root, 'skills/city-recruitment-and-onboarding/SKILL.md'), 'utf8');
+  const delegation = await readFile(path.join(root, 'templates/repository/.city/policies/workforce-delegation.md'), 'utf8');
+  assert.match(workforcePlanning, /if a work order requires specialized expertise and no active specialist has\s+it, that is a gap/i);
+  assert.match(recruitment, /general capability alone does not count\s+as a fit/i);
+  assert.match(delegation, /building a\s+React website requires React expertise/i);
 });
 
 test('every listed lifecycle names the full set of runtime states', async () => {
@@ -339,17 +351,17 @@ test('bundled hooks use the native Copilot contract and an installation-relative
   assert.ok((await stat(path.join(root, 'scripts/city-hook.mjs'))).isFile());
 });
 
-test('local templates are drafts and installation does not enroll the plugin source', async () => {
+test('founding documents remain unadopted without draft or template labels', async () => {
   assert.equal(existsSync(path.join(root, '.city')), false);
   const template = path.join(root, 'templates/repository/.city');
-  for (const file of [
-    'charter.md',
-    'instruction-fragment.md',
-    ...policyTemplates.map((name) => `policies/${name}.md`),
-  ]) {
+  for (const file of ['charter.md', 'instruction-fragment.md', ...policyTemplates.map((name) => `policies/${name}.md`)]) {
     const contents = await readFile(path.join(template, file), 'utf8');
-    assert.match(contents, /draft/i, file);
     assert.ok(contents.length > 500, `${file}: missing foundational procedure`);
+  }
+  for (const file of ['charter.md', ...policyTemplates.map((name) => `policies/${name}.md`)]) {
+    const contents = await readFile(path.join(template, file), 'utf8');
+    assert.match(contents, /Initialization status: Not adopted\./, file);
+    assert.doesNotMatch(contents, /\b(?:draft|template)\b/i, file);
   }
   assert.deepEqual(await json('templates/repository/.city/projects.json'), { schemaVersion: 1, projects: [] });
   assert.equal(existsSync(path.join(template, 'config.json')), false);

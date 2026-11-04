@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, test } from 'node:test';
 import { checkOrderUnchanged, institutionalReviewStatus, loadCity } from '../scripts/lib/city.mjs';
+import { publishCity } from '../scripts/lib/filesystem.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 const cli = path.join(project, 'scripts/city.mjs');
@@ -909,7 +910,7 @@ test('init dry-run writes nothing, including customizations and package assets',
   assert.deepEqual(await snapshot(path.join(project, 'scripts')), packageBefore);
 });
 
-test('init applies blank templates with fixed draft metadata and is exactly repeatable', async () => {
+test('init applies blank templates with fixed not-adopted metadata and is exactly repeatable', async () => {
   const { root } = await fixture();
   await mkdir(path.join(root, '.github'), { recursive: true });
   await writeFile(path.join(root, '.github/copilot-instructions.md'), 'Existing instructions.\n');
@@ -935,6 +936,15 @@ test('init applies blank templates with fixed draft metadata and is exactly repe
       await readFile(path.join(root, '.city', name), 'utf8'),
       await readFile(path.join(project, 'templates/repository/.city', name), 'utf8'),
     );
+  }
+  const governanceDocuments = [
+    'charter.md',
+    ...(await readdir(path.join(root, '.city/policies'))).map((name) => `policies/${name}`),
+  ];
+  for (const name of governanceDocuments) {
+    const contents = await readFile(path.join(root, '.city', name), 'utf8');
+    assert.match(contents, /Initialization status: Not adopted\./, name);
+    assert.doesNotMatch(contents, /\b(?:draft|template)\b/i, name);
   }
   await writeFile(path.join(root, '.city/charter.md'), '# Local draft amendment\n');
   const before = await snapshot(root);
@@ -1437,6 +1447,27 @@ test('the installed plugin works from paths with spaces and never enrolls itself
   assert.equal(success(['status', '--root', root], installedCLI).enrolled, true);
   assert.deepEqual(hookResult(payload(root), path.join(installed, 'scripts/city-hook.mjs')), {});
   assert.deepEqual(await snapshot(installed), before);
+});
+
+test('city publication preserves existing destinations and removes its staging directory', async () => {
+  for (const kind of ['file', 'empty-directory', 'nonempty-directory']) {
+    const { root } = await fixture();
+    const destination = path.join(root, '.city');
+    if (kind === 'file') await writeFile(destination, 'Existing content.\n');
+    else {
+      await mkdir(destination);
+      if (kind === 'nonempty-directory') {
+        await writeFile(path.join(destination, 'resident-record.txt'), 'Existing record.\n');
+      }
+    }
+    const before = await snapshot(root);
+    await assert.rejects(
+      publishCity(root, new Map([['config.json', '{"proposed":true}\n']])),
+      { code: 'CONFLICT' },
+      kind,
+    );
+    assert.deepEqual(await snapshot(root), before, kind);
+  }
 });
 
 test('hook is inert outside a city and for valid draft cities, with no allow override', async () => {

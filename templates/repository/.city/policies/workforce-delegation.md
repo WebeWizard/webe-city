@@ -1,10 +1,10 @@
-# Specialist engineering appointments — DRAFT
+# Specialist engineering appointments
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No appointment authority
-is delegated by this text until the resident adopts it with the charter and
-policies (`adopt`) or records it later with `amend`. Draft governance, policy
-drift, or absence of this policy from the adopted revision means no specialist
-hire may proceed.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. No appointment authority
+is delegated until the resident adopts this exact revision with the charter and
+policies (`adopt`) or records it later with `amend`. Governance that is not
+adopted, policy drift, or absence of this policy from the adopted revision
+means no specialist hire may proceed.
 
 **Delegator:** the resident. **Appointing manager:** the Engineering Manager.
 **Personnel administrator:** the Human Resources Officer. The City Clerk
@@ -36,16 +36,21 @@ identities and the runtime cannot verify which office invoked a command.
 Before a new post is requested, the Engineering Manager records the work-order
 need, duties, title, competencies, standards, available checks, minimum tools,
 and any proposed MCP server with its purpose. It first considers whether an
-active engineer, including the bundled general Municipal Software Engineer,
-can deliver the work competently. An existing fit should be assigned instead
-of creating a new post.
+active specialist's competencies match the required technology or domain; an
+existing matching specialist should be assigned instead of creating a redundant
+post. The bundled general Municipal Software Engineer is for ordinary work that
+does not require a defined specialty. If an order requires specialist expertise
+and no active specialist has it, that is a genuine competency gap even when the
+general engineer could produce a basic implementation. For example, building a
+React website requires React expertise; the manager should assign an active React
+specialist or requisition one if none is active.
 
 Human Resources independently checks that the need is genuine and tied to the
-work order; no active engineer already fits; duties and competencies are
-specific; the proposed tools are the minimum necessary; checks name existing
-commands rather than arbitrary shell text and have reviewed side effects; and
-implementation remains separate from inspection and audit. HR records
-endorsement or decline with reasons.
+work order; no active specialist already fits the required expertise; duties and
+competencies are specific; the proposed tools are the minimum necessary; checks
+name existing commands rather than arbitrary shell text and have reviewed side
+effects; and implementation remains separate from inspection and audit. HR
+records endorsement or decline with reasons.
 After endorsement, the Engineering Manager applies the merit test and records
 the appointment decision. No appointment is valid merely because an agent file
 exists.

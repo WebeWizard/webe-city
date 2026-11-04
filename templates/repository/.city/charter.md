@@ -1,6 +1,6 @@
-# Repository City charter — DRAFT
+# Repository City charter
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** This is proposed governance, not an adopted charter, appointment, authorization, or completed record. Installing the plugin or initializing `.city/` does not found a city.
+**Initialization status: Not adopted.** Initialization does not adopt this charter or grant authority. The resident must record adoption of this exact revision before it governs. Installing the plugin or initializing `.city/` does not found a city.
 
 | Founding requirement | Unresolved value |
 |---|---|
@@ -47,17 +47,17 @@ The City Manager coordinates uncovered legal, finance, procurement, security, ac
 ## Proposed operating route
 
 1. Resident Services records a minimized petition; the Clerk identifies the claimed decision-maker and missing authority evidence.
-2. The Planner screens resident needs under the [development-applications policy](policies/development-applications.md). The Manager automatically routes formal applications to Development Advisor for proportionate assistance, then to Chief Planner for independent assessment. Unknown scope or thresholds prompt focused resident questions; ordinary features do not automatically require formal applications. Lightweight work still requires authorization. The Planner and Manager propose options, priority, criteria, capacity and resources; conflicts go to the resident. RSO/Advisor/Planner draft commands go through Manager to Records Officer for persistence, not hand-edited canonical JSON.
+2. The Planner screens resident needs under the [development-applications policy](policies/development-applications.md). The Manager automatically routes formal applications to Development Advisor for proportionate assistance, then to Chief Planner for independent assessment. Unknown scope or thresholds prompt focused resident questions; ordinary features do not automatically require formal applications. Lightweight work still requires authorization. The Planner and Manager propose options, priority, criteria, capacity and resources; conflicts go to the resident. Commands proposed by RSO/Advisor/Planner go through Manager to Records Officer for persistence, not hand-edited canonical JSON.
 3. The City Council reviews each `awaiting-approval` order against this charter, adopted policies, and its acceptance criteria, then records authorize, reject, return, or refer. Reserved matters are referred to the resident, who records the decision with a declaration and evidence.
 4. Only an `authorized` order may be delivered. The Engineer works on a non-default branch; an independent Inspector moves the order to awaiting-merge or back to in-progress; the resident reviews and merges the pull request and records final acceptance (`complete`). The Clerk and Records Officer reconcile the record before closure.
-5. The Engineering Manager assigns authorized orders to an active engineer, or files a staffing requisition when no existing engineer fits. Human Resources independently reviews the requisition; the Engineering Manager may appoint an endorsed specialist only under the adopted workforce delegation policy; Human Resources generates the approved specialist's files and maintains the staff record. The Engineering Manager assigns and dispatches the new engineer. The Auditor handles challenges independently, including workforce-record linkage, with resident resolution and an independent substitute where the Auditor is conflicted.
+5. The Engineering Manager assigns authorized orders to an active specialist whose competencies match required expertise, or uses the general engineer for ordinary work. If specialized expertise is required and no active specialist fits, the Manager files a staffing requisition. Human Resources independently reviews the requisition; the Engineering Manager may appoint an endorsed specialist only under the adopted workforce delegation policy; Human Resources generates the approved specialist's files and maintains the staff record. The Engineering Manager assigns and dispatches the new engineer. The Auditor handles challenges independently, including workforce-record linkage, with resident resolution and an independent substitute where the Auditor is conflicted.
 6. At the start of city coordination, the Manager dispatches the Performance and Innovation Officer to check `status`. When an adopted, current institutional-review policy reports a due review, the Officer conducts and records it in the same run; it recommends changes only. The CLI has no background scheduler; checks occur during city coordination, not while the plugin is inactive.
 
 **Recorded, not authenticated:** adoption declarations, council decisions, and resident decisions are recorded with `authenticated: false`. Anyone with write access to this repository can run the CLI, consistent with repository access being the source of authority; the records do not prove who acted. Separation of duties is defined by the office definitions and tool lists, not enforced by the runtime. The runtime performs no merge, push, or deployment; protected-branch and review controls remain the repository's own. Do not fabricate decision files or treat terminal flags as substitutes for a decision.
 
 ## Status and supporting procedures
 
-Policy status is not case status. Charter/policy text remains **draft** until genuine adoption and its effective date; only then may the exact adopted revision be **current**. Preserve **superseded** or repealed text with successor and effective-date links. Decisions, open/closed cases, evidence, and archives are separate records, not automatically current policy.
+Policy status is not case status. The charter and policies remain **not adopted** until genuine resident adoption; adoption and effective dates determine when an exact revision may be **current**. Preserve **superseded** or repealed text with successor and effective-date links. Decisions, open/closed cases, evidence, and archives are separate records, not automatically current policy.
 
 - [Authority, deliberation, and policy lifecycle](policies/authority-and-policy.md)
 - [City Council delegation and reserved matters](policies/council-delegation.md)
@@ -69,4 +69,4 @@ Policy status is not case status. Charter/policy text remains **draft** until ge
 - [Institutional review and continuous improvement](policies/institutional-review.md)
 - [Continuity, emergencies, ethics, and accountability](policies/continuity-and-accountability.md)
 
-These policies are drafts too. Their procedures are proposed responsibilities, not proof of enforced controls.
+These policies are also not adopted. Their procedures are proposed responsibilities, not proof of enforced controls.

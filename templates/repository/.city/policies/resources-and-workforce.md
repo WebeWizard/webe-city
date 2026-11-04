@@ -1,6 +1,6 @@
-# Resources, workforce, assets, and suppliers — DRAFT
+# Resources, workforce, assets, and suppliers
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No budget, staffing appointment, tool permission, purchase, license choice, or supplier commitment is authorized.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. No budget, staffing appointment, tool permission, purchase, license choice, or supplier commitment is authorized.
 
 **Proposed owner:** City Manager. Clerk maintains authority/appointment references; Records Officer preserves resource evidence; independent Auditor reviews reconciliation and conflicts. The Engineering Manager leads engineering staffing; Human Resources administers specialist recruitment and personnel records under the separate [workforce delegation policy](workforce-delegation.md). Missing finance, legal, security, or procurement expertise must be escalated, not impersonated.
 
@@ -11,7 +11,7 @@
 | Resource stage | Required distinction |
 |---|---|
 | Proposed | Estimate of effort, compute/tokens, money, storage, or other real resources; no commitment authority |
-| Authorized | Actual resident-approved limit, scope, period, conditions, and trustworthy decision reference; absent in this template |
+| Authorized | Actual resident-approved limit, scope, period, conditions, and trustworthy decision reference; none is established here |
 | Committed | Authorized resources already promised/reserved or contractually obligated; reconcile remaining headroom before further commitments |
 | Actual | Measured consumption/cost with source and uncertainty; unknown consumption is “unknown,” not zero or an invented measurement |
 
@@ -42,7 +42,7 @@ Multiple duties may share an employee only without defeating independent inspect
 **Inputs:** repository assets/dependencies/services, purpose and criticality, owner, provenance/version, license and organizational constraints, cost/terms, maintenance/renewal dates, data exposure, and exit/recovery needs.
 
 1. Inventory only real assets and suppliers. Distinguish proposed, in-use, deprecated, and retired items; identify dependencies and responsible owners. Do not invent subscriptions or vendors.
-2. Before acquisition/adoption, review necessity, security/privacy, license compatibility, ownership, real cost, portability, and required human procurement authority. An unknown license is not permission; this template selects no project license.
+2. Before acquisition/adoption, review necessity, security/privacy, license compatibility, ownership, real cost, portability, and required human procurement authority. An unknown license is not permission; no project license is selected here.
 3. Assign maintenance, vulnerability/update review, renewal and notice responsibilities, evidence sources, and human-approved review dates (**TBD**). Renewals and scope/cost increases require actual authority, not automatic agent consent.
 4. For deprecation, expiry, supplier failure, or retirement, propose replacement/export/recovery, remove unused access through the responsible owner, reconcile commitments, and preserve required provenance and records. Verify the result before marking retirement complete.
 

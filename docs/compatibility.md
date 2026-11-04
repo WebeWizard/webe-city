@@ -20,6 +20,17 @@ The runtime requires Node.js 22 or later. No runtime npm installation is
 necessary. Development tests use the `yaml` package to parse actual frontmatter
 rather than testing it with text matching alone.
 
+The hook's Node runtime must be on the execution host's inherited PATH.
+VS Code's embedded runtime and terminal-only version-manager activation do not
+make `node` available to hook subprocesses. See the
+[hook startup troubleshooting](../README.md#if-a-hook-blocks-initialization).
+
+Initialization publishes a staged directory over an exclusively reserved,
+identity-checked empty destination, without overwriting existing enrollment.
+Windows permits a directory to replace a file but not an empty directory, so
+the reservation is a file on Windows and a directory on other platforms.
+This platform adaptation retains collision checks and identity-checked cleanup.
+
 ## Verification scope
 
 Plugin 0.3.0 ships thirteen offices, 26 skills, explicit project registration,
