@@ -1,6 +1,6 @@
-# Continuity, emergencies, ethics, and accountability — DRAFT
+# Continuity, emergencies, ethics, and accountability
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No emergency delegation, backup arrangement, recovery objective, review cadence, or completed corrective action exists by virtue of this text.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. No emergency delegation, backup arrangement, recovery objective, review cadence, or completed corrective action exists by virtue of this text.
 
 **Proposed owner:** City Manager. Records Officer coordinates custody/backups; Clerk links decisions and authority; independent City Auditor reports findings directly to the actual resident.
 
@@ -14,9 +14,9 @@
 4. Even an adopted emergency delegation cannot bypass the charter, external obligations, privacy requirements, required independent controls, or prohibitions on self-approval. It cannot grant indefinite extensions, silently spend beyond limits, authorize unrelated delivery, or remove protected merge safeguards.
 5. Record each actual authorized action and result. On expiry, revocation, or containment, stop temporary powers, reconcile permissions and obligations, hand back to ordinary procedures, and independently review the incident and necessary corrective actions.
 
-**Pilot:** none of that emergency authority is implemented. Intake may record a report and escalate it; it does not authorize containment. Engineer delivery still requires a recorded `authorize` decision, and urgency does not make a reserved matter routine. Existing human/organizational incident powers are separate from this draft.
+**Pilot:** none of that emergency authority is implemented. Intake may record a report and escalate it; it does not authorize containment. Engineer delivery still requires a recorded `authorize` decision, and urgency does not make a reserved matter routine. Existing human/organizational incident powers are separate from this unadopted policy.
 
-**Resulting records:** incident facts, actual authority references if available, action/evidence timeline, expiry/revocation, handback, review, and open obligations. No template incident is a completed record.
+**Resulting records:** incident facts, actual authority references if available, action/evidence timeline, expiry/revocation, handback, review, and open obligations. No example incident is a completed record.
 
 ## Continuity and recovery
 

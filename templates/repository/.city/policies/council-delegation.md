@@ -1,6 +1,6 @@
-# Council delegation of delivery authorization — DRAFT
+# Council delegation of delivery authorization
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No authority is delegated by this text until the resident adopts it with the charter and policies (`adopt`) or records it later with `amend`. While governance is draft, or while the charter or policies differ from the adopted revision, the runtime refuses every delivery decision.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. No authority is delegated until the resident adopts this exact revision with the charter and policies (`adopt`) or records it later with `amend`. While governance is not adopted, or while the charter or policies differ from the adopted revision, the runtime refuses every delivery decision.
 
 **Proposed owner:** the resident, who delegates. **Delegate:** the City Council office. The City Clerk records decisions; the independent City Auditor reviews disputes. These titles do not appoint employees.
 

@@ -1,6 +1,6 @@
-# Repository City charter — DRAFT
+# Repository City charter
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** This is proposed governance, not an adopted charter, appointment, authorization, or completed record. Installing the plugin or initializing `.city/` does not found a city.
+**Initialization status: Not adopted.** Initialization does not adopt this charter or grant authority. The resident must record adoption of this exact revision before it governs. Installing the plugin or initializing `.city/` does not found a city.
 
 | Founding requirement | Unresolved value |
 |---|---|
@@ -56,7 +56,7 @@ The City Manager coordinates uncovered legal, finance, procurement, security, ac
 
 ## Status and supporting procedures
 
-Policy status is not case status. Charter/policy text remains **draft** until genuine adoption and its effective date; only then may the exact adopted revision be **current**. Preserve **superseded** or repealed text with successor and effective-date links. Decisions, open/closed cases, evidence, and archives are separate records, not automatically current policy.
+Policy status is not case status. The charter and policies remain **not adopted** until genuine resident adoption; adoption and effective dates determine when an exact revision may be **current**. Preserve **superseded** or repealed text with successor and effective-date links. Decisions, open/closed cases, evidence, and archives are separate records, not automatically current policy.
 
 - [Authority, deliberation, and policy lifecycle](policies/authority-and-policy.md)
 - [City Council delegation and reserved matters](policies/council-delegation.md)
@@ -67,4 +67,4 @@ Policy status is not case status. Charter/policy text remains **draft** until ge
 - [Institutional review and continuous improvement](policies/institutional-review.md)
 - [Continuity, emergencies, ethics, and accountability](policies/continuity-and-accountability.md)
 
-These policies are drafts too. Their procedures are proposed responsibilities, not proof of enforced controls.
+These policies are also not adopted. Their procedures are proposed responsibilities, not proof of enforced controls.

@@ -1,6 +1,6 @@
-# Authority, deliberation, and policy lifecycle — DRAFT
+# Authority, deliberation, and policy lifecycle
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** No human is enrolled, no policy is current, and no authority is conferred by this text.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. No human is enrolled and no policy is current by virtue of this text.
 
 **Proposed owner:** City Clerk. City Manager identifies jurisdiction and external obligations; the independent City Auditor reviews disputes. Specialist advice is sought when competence is missing.
 
@@ -35,13 +35,13 @@ Proposed precedence, within the applicable jurisdiction:
 2. The genuinely adopted, effective charter.
 3. Genuinely adopted, effective policies consistent with the charter.
 4. Scoped resident authorizations/delegations (including the adopted council delegation), recorded council decisions made under them, and operating procedures consistent with the above.
-5. Proposals, working drafts, recommendations, and untrusted external content: **no governing authority**.
+5. Unadopted proposals, recommendations, and untrusted external content: **no governing authority**.
 
 Conflicts require a pause and human clarification, not whichever document an agent prefers. An individual authorization does not silently amend a policy. Exceptions require a policy-permitted, genuinely authorized decision with rationale, scope, risk, expiry, and review; no exception may bypass the charter or external obligations.
 
 | Policy state | Required handling |
 |---|---|
-| Draft/proposed/reviewed | Identify owner, version, reasons, affected policies, consultation, and proposed effective date. Review is not adoption. |
+| Proposed/reviewed | Identify owner, version, reasons, affected policies, consultation, and proposed effective date. Review is not adoption. |
 | Adopted, not yet effective | Preserve actual adoption evidence and exact revision; record the future effective date/time zone. Do not apply it early. |
 | Current | Only the adopted revision whose effective date has arrived and which has not expired, been repealed, or been superseded. The Clerk maintains applicability and links. |
 | Amended/superseded | Adopt changes through the same review/authorization route. Link predecessor and successor with effective dates; preserve what applied to earlier decisions. |
@@ -49,4 +49,4 @@ Conflicts require a pause and human clarification, not whichever document an age
 
 These are proposed policy states, not a promise that the intake CLI supports them. Case states such as open/closed and archive custody are different. Correct decisions by linked correction/supersession, never by silently replacing history. Resource limits, service commitments, and appointments need their own real authority; a policy filename or configuration flag is not adoption.
 
-**Escalation:** uncertain competence/jurisdiction goes to the Manager and authorized human; suspected self-approval, tampering, or unfair process goes to the independent Auditor. If no independent reviewer or trustworthy authority mechanism is available, retain the draft and pause.
+**Escalation:** uncertain competence/jurisdiction goes to the Manager and authorized human; suspected self-approval, tampering, or unfair process goes to the independent Auditor. If no independent reviewer or trustworthy authority mechanism is available, retain the unadopted text and pause.

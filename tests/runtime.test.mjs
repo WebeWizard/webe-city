@@ -454,7 +454,7 @@ test('init dry-run writes nothing, including customizations and package assets',
   assert.deepEqual(await snapshot(path.join(project, 'scripts')), packageBefore);
 });
 
-test('init applies blank templates with fixed draft metadata and is exactly repeatable', async () => {
+test('init applies blank templates with fixed not-adopted metadata and is exactly repeatable', async () => {
   const { root } = await fixture();
   await mkdir(path.join(root, '.github'), { recursive: true });
   await writeFile(path.join(root, '.github/copilot-instructions.md'), 'Existing instructions.\n');
@@ -480,6 +480,15 @@ test('init applies blank templates with fixed draft metadata and is exactly repe
       await readFile(path.join(root, '.city', name), 'utf8'),
       await readFile(path.join(project, 'templates/repository/.city', name), 'utf8'),
     );
+  }
+  const governanceDocuments = [
+    'charter.md',
+    ...(await readdir(path.join(root, '.city/policies'))).map((name) => `policies/${name}`),
+  ];
+  for (const name of governanceDocuments) {
+    const contents = await readFile(path.join(root, '.city', name), 'utf8');
+    assert.match(contents, /Initialization status: Not adopted\./, name);
+    assert.doesNotMatch(contents, /\b(?:draft|template)\b/i, name);
   }
   await writeFile(path.join(root, '.city/charter.md'), '# Local draft amendment\n');
   const before = await snapshot(root);

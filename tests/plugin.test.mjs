@@ -345,17 +345,17 @@ test('bundled hooks use the native Copilot contract and an installation-relative
   assert.ok((await stat(path.join(root, 'scripts/city-hook.mjs'))).isFile());
 });
 
-test('local templates are drafts and installation does not enroll the plugin source', async () => {
+test('founding documents remain unadopted without draft or template labels', async () => {
   assert.equal(existsSync(path.join(root, '.city')), false);
   const template = path.join(root, 'templates/repository/.city');
-  for (const file of [
-    'charter.md',
-    'instruction-fragment.md',
-    ...policyTemplates.map((name) => `policies/${name}.md`),
-  ]) {
+  for (const file of ['charter.md', 'instruction-fragment.md', ...policyTemplates.map((name) => `policies/${name}.md`)]) {
     const contents = await readFile(path.join(template, file), 'utf8');
-    assert.match(contents, /draft/i, file);
     assert.ok(contents.length > 500, `${file}: missing foundational procedure`);
+  }
+  for (const file of ['charter.md', ...policyTemplates.map((name) => `policies/${name}.md`)]) {
+    const contents = await readFile(path.join(template, file), 'utf8');
+    assert.match(contents, /Initialization status: Not adopted\./, file);
+    assert.doesNotMatch(contents, /\b(?:draft|template)\b/i, file);
   }
   assert.deepEqual(await json('templates/repository/.city/projects.json'), { schemaVersion: 1, projects: [] });
   assert.equal(existsSync(path.join(template, 'config.json')), false);

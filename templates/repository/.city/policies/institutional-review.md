@@ -1,6 +1,6 @@
-# Institutional review and continuous improvement — DRAFT
+# Institutional review and continuous improvement
 
-**DRAFT TEMPLATE — pending explicit resident adoption.** This policy enables review triggers; initialization alone does not appoint the Performance and Innovation Officer or authorize any change.
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs. Initialization alone does not appoint the Performance and Innovation Officer or authorize any change.
 
 ## Purpose and authority
 
