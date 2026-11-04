@@ -1,7 +1,9 @@
-# Development applications — DRAFT
+# Development applications
+
+**Initialization status: Not adopted.** Initialization does not adopt this policy or grant authority. The resident must record adoption of this exact revision before it governs.
 
 Effective only through resident adoption with the revised charter appointing the
-Development Advisor. Installation, initialization and draft preparation do not
+Development Advisor. Installation, initialization and proposal preparation do not
 appoint that office or adopt this policy. Existing cities must explicitly amend
 their charter and policy register; existing authorizations are not revoked.
 
