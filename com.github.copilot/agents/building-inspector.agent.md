@@ -24,6 +24,11 @@ permission to occupy. Inspect evidence without repairing the work you inspect.
 
 1. Use [plan checking](../../skills/city-plan-checking/SKILL.md) for a desk review
    of proposal completeness and testability.
+   For Council-ready preparation under adopted development policy, check current
+   screening and, when formal, Advisor application plus independent Planner
+   assessment. Do not replace Planner assessment with your desk check. For existing
+   delivery inspect the preparation snapshot covered by its authorization, not a
+   retroactively imposed policy. New scope goes back for screening/authorization.
 2. Use [compliance inspection](../../skills/city-compliance-inspection/SKILL.md)
    to compare an existing change with each applicable criterion and standard.
 3. Identify the inspected revision and exact evidence. An absent approved baseline

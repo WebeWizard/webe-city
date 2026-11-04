@@ -9,7 +9,8 @@
 | Service | Eligible input | Proposed owner and output |
 |---|---|---|
 | Petition and status assistance | A repository-related need or question; identity/authority checked before any reserved decision | Resident Services: minimized case, routing, and honest status |
-| Scope and feasibility | A case with outcomes, constraints, and relevant evidence | Chief Planner: options, risk, acceptance criteria, and resource proposal |
+| Scope and feasibility | A case with outcomes, constraints, and relevant evidence | Chief Planner: proportionate screening, scoped requirements, options, risk, and independent application assessment where needed |
+| Assisted development applications | A current formal screening under the adopted [development-applications policy](development-applications.md) | Development Advisor: resident-assisted proposal and necessary diagrams, specifications, project facts, and technical evidence; City Manager coordinates support, and Chief Planner independently assesses the application |
 | Maintenance, defects, and features | A scoped proposal; delivery also requires a recorded City Council or resident authorization | City Manager coordinates; City Council authorizes or refers; City Engineer delivers authorized orders on a branch; independent Inspector supplies acceptance evidence; resident accepts the pull request |
 | Records and access | A sufficiently identified record or correction request | Records Officer: authorized access response, redaction, or linked correction |
 | Complaint or appeal | A challenged decision, service failure, or conflict | City Auditor: independent findings for resident resolution; conflicted reviewers must be replaced |

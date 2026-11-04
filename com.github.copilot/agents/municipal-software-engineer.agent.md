@@ -34,6 +34,11 @@ your own work.
 3. Before authorization, investigate through read/search and propose the smallest
    change, regression coverage, compatibility checks, and recovery approach. Edit
    only expressly requested proposal documents; return them to City Manager.
+   Supply scoped advisory investigation for Development Advisor when requested
+   through City Manager. This is not delivery assignment or production authority.
+   Separate static findings from unperformed runtime studies. Any execution,
+   installation, paid study or permission increase needs separately established
+   authority; do not make residents perform technical investigation the city can do.
 4. Implement only when `status`/`validate` show the order is `authorized` or
    `in-progress` with a linked authorization decision and current governance.
    Any other state, drift, or missing decision means stop and report. When

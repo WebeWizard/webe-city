@@ -15,6 +15,7 @@ const agentIds = [
   'city-clerk',
   'city-council',
   'city-manager',
+  'development-advisor',
   'engineering-manager',
   'human-resources-officer',
   'municipal-software-engineer',
@@ -29,6 +30,7 @@ const professionalSkills = [
   'compliance-inspection',
   'delivery-authorization',
   'development-impact-assessment',
+  'development-applications',
   'evidence-evaluation',
   'interdepartmental-coordination',
   'master-planning',
@@ -59,6 +61,7 @@ const policyTemplates = [
   'resources-and-workforce',
   'workforce-delegation',
   'institutional-review',
+  'development-applications',
   'continuity-and-accountability',
 ];
 const residentSkills = [
@@ -138,7 +141,7 @@ test('the local development marketplace points to the same versioned plugin', as
   assert.equal(path.resolve(root, entry.source), root.replace(/\/$/, ''));
 });
 
-test('the twelve pilot offices have distinct identities and explicit least-tool contracts', async () => {
+test('the thirteen pilot offices have distinct identities and explicit least-tool contracts', async () => {
   const files = (await readdir(agentsPath)).filter((name) => name.endsWith('.agent.md')).sort();
   assert.deepEqual(files, agentIds.map((name) => `${name}.agent.md`));
   const identities = new Set();
@@ -173,6 +176,8 @@ test('the twelve pilot offices have distinct identities and explicit least-tool 
     } else if (filename !== 'city-manager.agent.md') assert.deepEqual(metadata.agents, [], filename);
   }
   assert.ok(manager.agents.includes('City: City Council'), 'Manager routes approvals to the council');
+  assert.ok(manager.agents.includes('City: Development Advisor'));
+  assert.deepEqual(definitions.get('development-advisor.agent.md').tools, ['read', 'search', 'edit']);
   assert.ok(manager.agents.includes('City: Performance and Innovation Officer'));
   assert.match(await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8'), /check for institutional reviews automatically/i);
   for (const filename of ['building-inspector.agent.md', 'city-auditor.agent.md', 'city-council.agent.md']) {
@@ -289,6 +294,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
     ['City Council', 'city-council.agent.md'],
     ['Resident Services', 'resident-services-officer.agent.md'],
     ['Chief Planner', 'chief-planner.agent.md'],
+    ['Development Advisor', 'development-advisor.agent.md'],
     ['City Engineer', 'municipal-software-engineer.agent.md'],
     ['City Inspector', 'building-inspector.agent.md'],
     ['Records Officer', 'records-officer.agent.md'],
@@ -302,7 +308,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   for (const [office, definition] of roster) {
     assert.ok(charter.includes(`| ${office} | \`${definition}\` |`), `Missing default appointment: ${office}`);
   }
-  assert.match(charter, /twelve pilot offices/);
+  assert.match(charter, /thirteen pilot offices/);
   assert.match(charter, /\(policies\/council-delegation\.md\)/);
   assert.match(charter, /resident remains sovereign/i);
   assert.match(charter, /final acceptance/i);
@@ -310,7 +316,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-five skills are discoverable, substantive, and correctly scoped', async () => {
+test('all twenty-six skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -385,6 +391,36 @@ test('project data contracts keep project directories distinct from districts', 
   ]);
 });
 
+test('development contracts preserve compatible work orders and distinct professional roles', async () => {
+  const { DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS } = await import('../scripts/lib/constants.mjs');
+  const schema = await json('schemas/work-order.schema.json');
+  assert.deepEqual(schema.properties.schemaVersion.enum, [1, 2]);
+  assert.equal(schema.required.includes('development'), false);
+  assert.deepEqual(schema.$defs.development.required, ['screenings', 'applications', 'assessments']);
+  assert.deepEqual(schema.$defs.screening.properties.impacts.items.enum, DEVELOPMENT_IMPACTS);
+  assert.deepEqual(schema.$defs.screening.properties.requirements.items.properties.kind.enum, DEVELOPMENT_ARTIFACTS);
+  const policyPath = new RegExp(schema.$defs.screening.properties.policyCitations.items.properties.path.pattern, 'u');
+  assert.equal(policyPath.test('policies/Website_API.v1.md'), true);
+  for (const unsafe of ['../Website_API.v1.md', 'policies/../Website_API.v1.md', 'policies/nested/Website_API.v1.md']) {
+    assert.equal(policyPath.test(unsafe), false);
+  }
+  for (const [kind, office] of [['screening', 'chief-planner'], ['application', 'development-advisor'], ['assessment', 'chief-planner']]) {
+    assert.equal(schema.$defs[kind].additionalProperties, false);
+    assert.equal(schema.$defs[kind].properties.sourceOffice.const, office);
+    assert.equal(schema.$defs[kind].properties.authenticated.const, false);
+  }
+  const advisor = await customization(path.join(agentsPath, 'development-advisor.agent.md'));
+  assert.deepEqual(advisor.metadata.tools, ['read', 'search', 'edit']);
+  assert.deepEqual(advisor.metadata.agents, []);
+  assert.match(advisor.body, /independent Chief Planner/);
+  assert.match(advisor.body, /through City Manager/);
+  assert.match(advisor.body, /not an executed runtime/);
+  const policy = await readFile(path.join(root, 'templates/repository/.city/policies/development-applications.md'), 'utf8');
+  assert.match(policy, /Ordinary new features/);
+  assert.match(policy, /never silently\s+waive/);
+  assert.match(policy, /needs-clarification/);
+});
+
 test('all bundled customization resource links resolve within the package', async () => {
   const files = agentIds.map((id) => path.join(agentsPath, `${id}.agent.md`));
   for (const name of [...professionalSkills, ...residentSkills]) {
@@ -398,6 +434,7 @@ test('resident documentation and founding templates have no broken local referen
     'README.md',
     'docs/governance.md',
     'docs/compatibility.md',
+    'docs/development-applications.md',
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
@@ -436,6 +473,7 @@ test('the distributable contains runtime resources but no development profile or
     'scripts/city.mjs',
     'scripts/city-hook.mjs',
     'scripts/smoke.mjs',
+    'scripts/lib/development.mjs',
     'schemas/projects.schema.json',
     'schemas/records-request.schema.json',
     'schemas/requisition.schema.json',
@@ -452,6 +490,7 @@ test('the distributable contains runtime resources but no development profile or
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
     'docs/governance.md',
     'docs/compatibility.md',
+    'docs/development-applications.md',
     ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
     ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),
   ]) {

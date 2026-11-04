@@ -5,6 +5,7 @@ import {
   AUTHORIZATION_OUTCOMES, COMMAND_ONLY_STATES, CONFIG_SCHEMA_VERSION, DECIDERS, DELEGATION_POLICY,
   DELIVERY_DECISION_SCHEMA_VERSION, DRAFT_NOTICE, EVIDENCE_RULE, LEGACY_CONFIG_SCHEMA_VERSION, LIMITS,
   INSTITUTIONAL_REVIEW_POLICY, INSTITUTIONAL_REVIEW_TRIGGERS,
+  DEVELOPMENT_POLICY,
   OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
   WORK_ORDER_SCHEMA_VERSION,
   governanceNotice, provenance,
@@ -19,8 +20,12 @@ import {
   RECORD_EXCHANGE_TYPES, text,
   validateConfig, validateDecision, validateDistricts, validateInstitutionalReview, validateOrderId,
   validateProjects, validateRecordId, validateRecordsRequest, validateState, validateWorkOrder,
+  validateDevelopmentInput, applicationMissing,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
+import {
+  assertDevelopmentReady, currentScreening, developmentPreparationAllowed, developmentSnapshot, developmentStatus,
+} from './development.mjs';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const dayMilliseconds = 24 * 60 * 60 * 1000;
@@ -115,7 +120,8 @@ export async function loadCity(root, required = true) {
     : { schemaVersion: SCHEMA_VERSION, projects: [] });
   await assertProjectPaths(root, projects);
   await governanceLayout(cityPath);
-  const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, await governanceDigests(cityPath)) : null;
+  const currentGovernanceDigests = await governanceDigests(cityPath);
+  const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, currentGovernanceDigests) : null;
   const orders = await readRecords(cityPath, 'work-orders', validateWorkOrder, config.cityId);
   const decisions = await readRecords(cityPath, 'decisions', validateDecision, config.cityId);
   const recordsRequests = await readRecords(
@@ -133,6 +139,9 @@ export async function loadCity(root, required = true) {
   for (const { value: order } of orders.records.values()) {
     if (order.projectIds?.some((id) => !projectIds.has(id))) {
       fail('INVALID_RECORD', 'City work order references a missing project. Restore or repair its local references.');
+    }
+    if (order.development?.screenings.some((screening) => screening.projectIds.some((id) => !projectIds.has(id)))) {
+      fail('INVALID_RECORD', 'Development screening references a missing registered project.');
     }
   }
   for (const { value: decision } of decisions.records.values()) {
@@ -153,6 +162,7 @@ export async function loadCity(root, required = true) {
   return {
     root, path: cityPath, identity, config, configBytes: configSource.bytes,
     districts, districtsBytes: districtsSource.bytes, projects, projectsBytes, drift,
+    governanceDigests: currentGovernanceDigests,
     workOrders: orders.records,
     decisions: decisions.records,
     recordsRequests: recordsRequests.records,
@@ -424,6 +434,10 @@ export function statusOutput(root, city, command = 'status') {
       awaitingResidentDecision: awaitingResidentDecision.sort((first, second) => first.id.localeCompare(second.id)),
       readyForDelivery: readyForDelivery.sort((first, second) => first.id.localeCompare(second.id)),
       deliveryWithoutAssignment,
+      development: [...city.workOrders.values()].map(({ value }) => ({
+        id: value.id, title: value.title, ...developmentStatus(city, value),
+        preparationRequiredForNextAuthorization: !authorizationCurrent(value.history),
+      })).sort((first, second) => first.id.localeCompare(second.id)),
     },
     decisions: { total: city.decisions.size, proposed: byKind.proposal, byKind, byOutcome },
     recordsRequests: {
@@ -1230,6 +1244,7 @@ export async function transition(root, options) {
   checkTransition(
     original.value.status, options.to, original.value.acceptanceCriteria, authorizationCurrent(original.value.history),
   );
+  if (options.to === 'awaiting-approval') assertDevelopmentReady(city, original.value);
   // Never record history before a linked decision (such as a referral) that left the order bytes unchanged.
   const latestDecision = deliveryDecisions(city, original.value.id).at(-1);
   const now = new Date(Math.max(
@@ -1250,10 +1265,91 @@ export async function transition(root, options) {
       const current = await loadCity(root);
       checkCityUnchanged(city, current);
       checkOrderUnchanged(city, current, original);
+      if (options.to === 'awaiting-approval') {
+        checkDevelopmentContextUnchanged(city, current);
+        assertDevelopmentReady(current, original.value);
+      }
       await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
     });
   }
   return mutationOutput('transition', root, options.apply, workOrder, city.config.governance);
+}
+
+function checkDevelopmentContextUnchanged(before, after) {
+  if (!before.districtsBytes.equals(after.districtsBytes)
+    || JSON.stringify(before.governanceDigests) !== JSON.stringify(after.governanceDigests)) {
+    fail('CONFLICT', 'Development policy or district context changed since preparation. Review and retry.');
+  }
+}
+
+export async function developmentRecord(root, options, kind) {
+  validateOrderId(options.id);
+  const input = validateDevelopmentInput(kind, requestJSON(options.data, 'Development --data'));
+  const city = await loadCity(root);
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  const order = original.value;
+  let scopedOrder = order;
+  const development = order.development ?? { screenings: [], applications: [], assessments: [] };
+  if (!developmentPreparationAllowed(order)) {
+    fail('INVALID_TRANSITION', 'Development preparation is recorded before delivery; reopen or return a case before a new planning cycle.');
+  }
+  if (kind === 'screenings') {
+    const registered = new Set(city.projects.projects.map((project) => project.id));
+    if (input.projectIds.some((id) => !registered.has(id))) fail('NOT_FOUND', 'Select registered development project IDs or ask a focused resident question.');
+    const sameScope = JSON.stringify([...input.projectIds].sort()) === JSON.stringify([...(order.projectIds ?? [])].sort());
+    if (input.route !== 'needs-clarification' && order.projectIds && !sameScope) {
+      fail('INVALID_ARGUMENT', 'Conclusive screening must cover the exact work-order project scope. Resolve scope before screening.');
+    }
+    if (input.route !== 'needs-clarification' && !order.projectIds) {
+      scopedOrder = { ...order, schemaVersion: WORK_ORDER_SCHEMA_VERSION, projectIds: input.projectIds };
+    }
+    if (input.policyCitations.some((citation) => !city.governanceDigests.policies.some((policy) => policy.path === citation.path))) {
+      fail('NOT_FOUND', 'Every cited development policy must exist in the local policy register.');
+    }
+  } else {
+    const screening = currentScreening(city, order);
+    if (!screening || screening.route !== 'formal') fail('STALE_DEVELOPMENT', 'Record a current formal screening before application preparation or assessment.');
+    if (kind === 'applications') {
+      if (input.screeningRevision !== screening.revision) fail('STALE_DEVELOPMENT', 'Application must reference the exact current formal screening revision.');
+    } else {
+      const application = development.applications.at(-1);
+      if (!application || application.revision !== input.applicationRevision || application.screeningRevision !== screening.revision) {
+        fail('STALE_DEVELOPMENT', 'Independent assessment must reference the exact current application revision.');
+      }
+      if (input.outcome === 'ready' && applicationMissing(screening, application).length) {
+        fail('DEVELOPMENT_NOT_READY', 'Missing required artifact evidence or resident answers; do not claim readiness.');
+      }
+    }
+  }
+  const previousTimes = Object.values(development).flat().map((record) => Date.parse(record.recordedAt));
+  const recordedAt = new Date(Math.max(Date.now(), Date.parse(order.updatedAt), ...previousTimes)).toISOString();
+  const record = {
+    ...input, revision: development[kind].length + 1, recordedAt,
+    sourceOffice: kind === 'applications' ? 'development-advisor' : 'chief-planner',
+    authenticated: false, provenance: provenance(),
+    ...(kind === 'screenings' ? { snapshot: developmentSnapshot(city, scopedOrder) } : {}),
+  };
+  // Metadata has its own timestamps; updatedAt must remain the final lifecycle timestamp.
+  const workOrder = validateWorkOrder({
+    ...scopedOrder, development: { ...development, [kind]: [...development[kind], record] },
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkOrderUnchanged(city, current, original);
+      checkDevelopmentContextUnchanged(city, current);
+      await atomicRecord(current, 'work-orders', `${order.id}.json`, workOrder, original.bytes);
+    });
+  }
+  const command = { screenings: 'screen-development', applications: 'application-record', assessments: 'assess-application' }[kind];
+  return {
+    ...mutationOutput(command, root, options.apply, workOrder, city.config.governance),
+    scopeAssigned: !order.projectIds && Boolean(workOrder.projectIds),
+    development: developmentStatus(city, workOrder),
+  };
 }
 
 async function deliveryContext(root, id) {
@@ -1328,6 +1424,8 @@ async function writeDeliveryRecords(root, context, records) {
     if (JSON.stringify(await governanceDigests(current.path)) !== JSON.stringify(digests)) {
       fail('CONFLICT', 'The charter or policies changed since this decision was prepared. Review the current text and retry.');
     }
+    checkDevelopmentContextUnchanged(city, current);
+    if (decision.outcome === 'authorize') assertDevelopmentReady(current, original.value);
     if (current.decisions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported decision count.');
     await atomicRecord(current, 'decisions', `${decision.id}.json`, decision);
     if (!changesOrder) return;
@@ -1408,6 +1506,7 @@ export async function authorize(root, options) {
   if (original.value.acceptanceCriteria.length === 0) {
     fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before an authorization decision.');
   }
+  if (options.outcome === 'authorize') assertDevelopmentReady(city, original.value);
   if (reservedMatters.length !== 0 && (routineClass !== null || (decidedBy === 'city-council' && options.outcome === 'authorize'))) {
     fail('RESERVED_MATTER', 'Reserved matters cannot be authorized by the City Council or under a routine class. The council must refer them to the resident.');
   }
@@ -1572,6 +1671,9 @@ export async function amend(root, options) {
   const digests = await governanceDigests(city.path);
   const previous = city.config.adoption;
   const changes = adoptionChanges(previous, digests);
+  if (changes.policies.added.includes(DEVELOPMENT_POLICY) && !changes.charter) {
+    fail('CHARTER_AMENDMENT_REQUIRED', 'Adding development-applications policy requires an explicit revised charter appointing the Development Advisor; installation or a policy-only amendment cannot reappoint offices.');
+  }
   const recordedAt = new Date(Math.max(
     Date.now(), Date.parse(city.config.createdAt), Date.parse(previous.recordedAt) + 1,
   )).toISOString();

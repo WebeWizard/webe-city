@@ -44,9 +44,17 @@ database that can create powers merely by recording them.
    Authorization and acceptance decisions are written only by the CLI `authorize`
    and `complete` commands together with their work-order history; never hand-write
    or alter them, and do not invent schema fields for unsupported approvals.
+   Persist Manager-routed RSO intake/transition commands and professional
+   `screen-development`, `application-record`, `assess-application` commands using
+   the packaged CLI. Verify the source is respectively Chief Planner, Development
+   Advisor, Chief Planner; do not supply your own professional determination.
+   Preview before confirmed `--apply`, preserve all attached revisions and return
+   the canonical work order/revision. See
+   [development applications](../../docs/development-applications.md).
 6. Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
-   records commands for the exact selected repository root, never arbitrary shell
+   records commands (including these intake/development persistence commands)
+   for the exact selected repository root, never arbitrary shell
    commands, repository scripts, or user-supplied command text.
 7. Use [records appraisal](../../skills/city-records-appraisal/SKILL.md) to propose
    retention, archival value, holds, and disposition. Unknown policy means preserve.

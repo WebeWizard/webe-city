@@ -33,6 +33,22 @@ function command(script, args, { input, failure = false } = {}) {
   return JSON.parse(result.stdout);
 }
 
+function development(commandName, root, id, data, apply = true) {
+  return command(cli, [commandName, '--root', root, '--id', id, '--data', JSON.stringify(data), ...(apply ? ['--apply'] : [])]);
+}
+
+function screen(root, id, projectId, extra = {}) {
+  return development('screen-development', root, id, {
+    route: 'lightweight', projectIds: [projectId],
+    scopeEvidence: 'The request is contained in the selected registered project.',
+    reason: 'Contained documentation repair without material effects.',
+    evidence: 'Reviewed existing source interfaces and project facts.',
+    impacts: [], questions: [], requirements: [],
+    policyCitations: [{ path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] }],
+    ...extra,
+  });
+}
+
 const temporary = path.join(pluginRoot, `.smoke-${randomUUID()}`);
 try {
   await mkdir(temporary);
@@ -185,6 +201,7 @@ try {
     '--project', 'website', '--criterion', 'The existing website content is preserved.', '--apply',
   ]).workOrder;
   for (const state of ['triaged', 'proposed', 'awaiting-approval']) {
+    if (state === 'proposed') screen(second, websiteOrder.id, 'website');
     command(cli, [
       'transition', '--root', second, '--id', websiteOrder.id, '--to', state,
       '--reason', `Website workforce smoke: ${state}`, '--apply',
@@ -265,7 +282,9 @@ try {
   const move = (state) => command(cli, [
     'transition', '--root', third, '--id', delivery.id, '--to', state, '--reason', `Smoke scenario: ${state}`, '--apply',
   ]);
-  for (const state of ['triaged', 'proposed', 'awaiting-approval']) move(state);
+  move('triaged');
+  assert.equal(screen(third, delivery.id, 'docs').development.stage, 'ready-lightweight');
+  for (const state of ['proposed', 'awaiting-approval']) move(state);
   const authorizeArgs = [
     'authorize', '--root', third, '--id', delivery.id, '--decided-by', 'city-council', '--outcome', 'authorize',
     '--reserved', 'none', '--routine-class', 'documentation', '--reason', 'Routine documentation within delegated scope.',
@@ -296,6 +315,57 @@ try {
   assert.equal(deliveryStatus.workOrders.byStatus.completed, 1);
   assert.deepEqual(deliveryStatus.decisions.byKind, { proposal: 0, authorization: 1, acceptance: 1 });
   assert.deepEqual(command(hook, [], { input: hookInput(third) }), {});
+
+  const formal = command(cli, [
+    'petition', '--root', third, '--title', 'Define a versioned public documentation contract',
+    '--request', 'Consumers need a new stable machine-readable documentation interface.',
+    '--project', 'docs', '--criterion', 'Existing consumers retain their contract.', '--apply',
+  ]).workOrder;
+  const formalMove = (state) => command(cli, [
+    'transition', '--root', third, '--id', formal.id, '--to', state,
+    '--reason', `Formal development smoke: ${state}`, '--apply',
+  ]);
+  formalMove('triaged');
+  const routed = screen(third, formal.id, 'docs', {
+    route: 'formal', impacts: ['public-interface'],
+    reason: 'The new public contract has material consumer compatibility effects.',
+    questions: ['Must existing consumers remain compatible?'],
+    requirements: [{ id: 'contract', kind: 'specification', description: 'Versioned public contract.', reason: 'Assess consumer compatibility.' }],
+  });
+  assert.equal(routed.development.next.actor, 'development-advisor');
+  formalMove('proposed');
+  const notReady = command(cli, [
+    'transition', '--root', third, '--id', formal.id, '--to', 'awaiting-approval',
+    '--reason', 'Missing Advisor packet and assessment.', '--apply',
+  ], { failure: true });
+  assert.equal(JSON.parse(notReady.stderr).error.code, 'DEVELOPMENT_NOT_READY');
+  const application = {
+    screeningRevision: 1, reason: 'Advisor-assisted versioned proposal.',
+    evidence: 'Static source and contract review only; runtime checks remain delivery criteria.',
+    proposal: 'Add a separate versioned contract without changing the existing interface.',
+    answers: [{ question: 'Must existing consumers remain compatible?', answer: 'Yes, preserve them indefinitely.' }],
+    artifacts: [{ requirementId: 'contract', disposition: 'provided', evidence: 'Proposed v2 contract and compatibility specification in the application proposal.' }],
+  };
+  assert.equal(development('application-record', third, formal.id, application, false).dryRun, true);
+  assert.equal(command(cli, ['records-get', '--root', third, '--id', formal.id]).records[0].record.development.applications.length, 0);
+  development('application-record', third, formal.id, application);
+  assert.equal(command(cli, ['status', '--root', third]).workOrders.development.find((item) => item.id === formal.id).stage, 'independent-assessment');
+  assert.equal(development('assess-application', third, formal.id, {
+    applicationRevision: 1, outcome: 'ready', reason: 'Independent Planner assessment.',
+    evidence: 'Reviewed current contract requirement and resident compatibility choice.',
+  }).development.stage, 'ready-formal');
+  formalMove('awaiting-approval');
+  command(cli, [
+    'authorize', '--root', third, '--id', formal.id, '--decided-by', 'city-council',
+    '--outcome', 'authorize', '--reserved', 'none', '--reason', 'Current formal packet and independent assessment support delivery.', '--apply',
+  ]);
+  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) formalMove(state);
+  command(cli, [
+    'complete', '--root', third, '--id', formal.id, '--declared-by', 'Smoke resident',
+    '--evidence', 'Resident-reviewed pull request, no runtime study claimed.',
+    '--reason', 'Versioned contract and criteria independently inspected.', '--apply',
+  ]);
+  command(cli, ['validate', '--root', third]);
 
   command(cli, ['init', '--root', reviewCity, '--name', 'Institutional Review City', '--apply']);
   const reviewPolicyPath = path.join(reviewCity, '.city/policies/institutional-review.md');
@@ -356,6 +426,8 @@ try {
       'adopt then amend a drifted charter, recording superseded history',
       'website specialist requisition, appointment, toolkit check and assignment',
       'adopted council delegation: routine authorization, delivery, inspection, awaiting merge and resident completion',
+      'lightweight screening remains subject to authorization',
+      'formal screening automatically routes to Advisor; current packet and independent Planner assessment gate delivery',
       'policy-enabled institutional review trigger, dry-run, canonical record and reset',
     ],
     boundary: 'Delivery decisions were recorded, not authenticated. No git operation, merge, push or deployment was performed.',

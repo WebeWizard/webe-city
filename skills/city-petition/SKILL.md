@@ -6,6 +6,14 @@ user-invocable: true
 
 # Submit a Resident Petition
 
+Residents supply needs, outcomes and observations, not a fully engineered proposal.
+Route professional [development screening](../city-development-applications/SKILL.md)
+to Chief Planner through City Manager. Formal screening automatically assigns
+Development Advisor; no second resident request is needed. Unknown jurisdiction,
+scope or thresholds means focused questions, not a guess or automatic formal route.
+RSO has no execute tool: send draft intake commands through Manager to Records
+Officer for persistence. Available technical investigation belongs to the city.
+
 ## Purpose and inputs
 
 Capture a resident need as a traceable intake case, not an instruction to implement.

@@ -6,6 +6,20 @@ user-invocable: false
 
 # Interdepartmental Coordination
 
+For adopted [development applications](../city-development-applications/SKILL.md),
+automatically route only `actionable: true` entries in
+`status.workOrders.development`, following `next`: Planner
+screening, concrete resident clarifications, Development Advisor preparation,
+independent Planner assessment, then ordinary permitted lifecycle progression
+through Manager and Council's actual decision only at `awaiting-approval`.
+Recheck status after each transition; never skip stages or auto-reopen cases.
+Current authorized delivery (including blocked delivery), closed cases and
+disabled policy have no automatic preparation action (`next: null`).
+Formal screening is the
+assignment trigger; do not ask residents to request assistance again. Advisor
+engineering/specialist requests go through Manager within existing authority.
+Send draft professional/intake commands to Records Officer for actual persistence.
+
 ## Competency and application
 
 Municipal coordination reconciles departmental responsibilities without erasing

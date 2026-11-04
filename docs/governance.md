@@ -4,7 +4,7 @@
 
 ## What is provided, and what is not
 
-The [charter template](../templates/repository/.city/charter.md) proposes resident sovereignty, limited jurisdiction, proportional administration, independent inspection/audit, privacy, and appeals. It defines a default roster of twelve pilot offices, including the Engineering Manager, Human Resources Officer, and Performance and Innovation Officer, appointed to the bundled agent definitions only upon valid adoption of that exact charter. The initial resident's identity remains unverified: the charter treats repository access as the source of authority. These appointments grant no actual tool permissions; delivery authority arises only from a recorded authorization decision for a specific work order.
+The [charter template](../templates/repository/.city/charter.md) proposes resident sovereignty, limited jurisdiction, proportional administration, independent inspection/audit, privacy, and appeals. It defines a default roster of thirteen pilot offices, including Development Advisor, Engineering Manager, Human Resources Officer and Performance and Innovation Officer, appointed to bundled definitions only upon valid adoption of that exact charter. The initial resident's identity remains unverified: the charter treats repository access as the source of authority. These appointments grant no actual tool permissions; delivery authority arises only from a recorded authorization decision for a specific work order.
 
 | Proposed foundation | Template |
 |---|---|
@@ -16,8 +16,22 @@ The [charter template](../templates/repository/.city/charter.md) proposes reside
 | Bounded emergencies, backups/recovery, ethics, independent audit, verified learning | [Continuity and accountability](../templates/repository/.city/policies/continuity-and-accountability.md) |
 | Council delegation of delivery authorization, routine classes, reserved matters | [Council delegation](../templates/repository/.city/policies/council-delegation.md) |
 | Periodic and event-driven institutional review, recommendation routing, and evidence | [Institutional review](../templates/repository/.city/policies/institutional-review.md) |
+| Materiality screening, assisted application and independent planning assessment | [Development applications](../templates/repository/.city/policies/development-applications.md) |
 
 The City Manager coordinates functions whose specialists are not installed, with explicit competence limits. A missing specialist, independent reviewer, resource limit, or authorization is a reason to pause affected work, not to manufacture expertise or consent.
+
+**Development control.** Residents supply needs/outcomes/observations; Chief Planner
+screens against the baseline and adopted scoped refinements. Unknown scope or
+thresholds prompts focused questions, not guessed permission or automatic formal
+paperwork. Formal screening automatically routes to Development Advisor, which
+develops only necessary proposal/drawing/specification/project/study evidence and
+requests technical help through Manager. Planner independently assesses that exact
+application; Advisor never assesses its own work or implements production.
+RSO/Advisor/Planner prepare commands for Records Officer persistence through Manager.
+Lightweight is not an authorization exemption. See
+[municipal adaptation, policy and actual CLI contract](./development-applications.md).
+Existing cities explicitly amend the revised charter appointment and new policy;
+installation does not appoint Advisor. Old policy sets and prior delivery stay valid.
 
 **Delivery and staffing authority.** When adopted, the [council delegation policy](../templates/repository/.city/policies/council-delegation.md) delegates authorization to start delivery to the City Council. The council may authorize, reject, return, or refer each `awaiting-approval` work order, and routine classes (`documentation`, `tests`, `in-scope-fix`, `dependency-patch`) are pre-approved within scope. Reserved matters — `governance`, `security`, `deletion`, `deployment`, `publication`, `expenditure` — are always referred to the resident. The [workforce delegation policy](../templates/repository/.city/policies/workforce-delegation.md) separately delegates specialist engineering appointments to the Engineering Manager after independent HR endorsement. HR creates the files only after that appointment; the manager assigns and dispatches the engineer. These office-specific sequencing limits are instruction-level, not authenticated security boundaries. The assigned Engineer delivers on a non-default branch, the Building Inspector reviews it, and the resident reviews and merges the pull request before recording final acceptance with `complete`. An applied authorization routes to the Engineering Manager; it does not dispatch an engineer before assignment.
 
@@ -36,6 +50,9 @@ The first-slice runtime is a Node.js 22, zero-third-party-dependency local CLI. 
 | `validate` | Check supported local structure/invariants, not human identity, lawful authority, or external acceptance |
 | `project-add` | Register a disjoint repository-relative project directory; does not create or move project files |
 | `petition` | Prepare/record an intake request associated with one or more registered projects, not authorize implementation |
+| `screen-development` | Record professional lightweight/formal/needs-clarification screening with explicit scope, policy citations, impacts, questions and proportionate requirements |
+| `application-record` | Append an Advisor-prepared packet against the exact current formal screening, with actual evidence or explained non-applicability and resident answers |
+| `assess-application` | Append independent Planner ready/revise assessment against the exact current application; readiness is not delivery authority |
 | `transition` | Change a permitted lifecycle state; cannot enter `authorized` or `completed`, adopt policy, or bypass review |
 | `migrate` | Upgrade a schema version 1 config to version 2 in place, preserving every record; governance stays draft |
 | `adopt` | Record a resident's declaration that the current charter and policies are adopted, not authenticate it or authorize delivery |
@@ -69,7 +86,7 @@ Schema version 1 decision entries remain proposal-only (`kind: "proposal"`, `sta
 
 To enable specialist hiring in an existing city, similarly copy
 `policies/workforce-delegation.md` and the updated `charter.md` from the plugin
-templates into `.city/`, review the new appointment authority and eleven-office
+templates into `.city/`, review the new appointment authority and thirteen-office
 roster, then record the policy revision with `amend` (or `adopt` while still
 draft). The records-only `status` and `validate` reports do not enforce which
 agent is invoked: the host's wildcard delegation cannot be restricted to a

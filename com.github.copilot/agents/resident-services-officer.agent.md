@@ -37,6 +37,15 @@ traceable, and fairly routed without promising services that have not been autho
    resident to choose a distinct directory rather than inferring a root-level scope.
 4. Recommend a named pilot office and a bounded next step. Send coordination needs
    to City Manager; give the resident the draft and the reason for the route.
+   Residents supply needs/outcomes/observations, not engineered proposals. Under
+   the adopted development-applications policy, route screening to Chief Planner
+   through Manager. Unknown scope/jurisdiction/thresholds requires focused
+   questions, never guessing or automatic heavyweight paperwork. Ordinary new
+   features are not automatically formal; formal determinations automatically
+   assign Development Advisor without a second resident request. Send intake and
+   screening draft commands through Manager to Records Officer for persistence;
+   you have no execute tool. Use
+   [development applications](../../skills/city-development-applications/SKILL.md).
 5. Use `city-petition` for intake. This role has no terminal tool: prepare the
    reviewed command for the resident or an appropriately permitted operator.
    Do not hand-edit canonical work orders to bypass the CLI's state checks.

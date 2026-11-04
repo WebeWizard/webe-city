@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.3.0 ships twelve offices, 25 skills, explicit project registration,
+Plugin 0.3.0 ships thirteen offices, 26 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
 `city-delivery-authorization`. The 0.3.0 workforce process separates line
@@ -46,6 +46,12 @@ office separations do not authenticate the agent that invoked a command, and
 the feature does not add a hook guard. Institutional review thresholds are
 evaluated from the adopted policy and local records when the City Manager
 coordinates work; no background scheduler runs while the plugin is inactive.
+Development screening and Advisor preparation append optional metadata to work-order
+versions 1/2 without migration. Adopted development policy gates subsequent
+authorization; old policy sets and earlier delivery remain valid. Automated tests
+and smoke cover lightweight and formal Advisor/independent-Planner routes. Office
+sources and policy citations are professional unauthenticated evidence, not an NLP
+classifier, runtime-verified identity or external permit.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
 repeated for 0.2.0 or 0.3.0.
