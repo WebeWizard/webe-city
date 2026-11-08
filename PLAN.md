@@ -62,6 +62,14 @@ exercises, continuous monitoring and automated discovery remain human-operated
 or future work as described in the
 [infrastructure implementation notes](docs/infrastructure-plan.md).
 
+The zoning capability is an optional path-based rule layer, separate from project
+scope and district ownership. It adds validated zoning maps and work-order checks,
+with snapshot-bound findings and readiness requirements for conditional, unknown,
+and prohibited uses. New cities receive the zoning policy outside the active
+policy register; opting in requires a resident adoption or amendment and a
+reviewed map. It does not inspect Git diffs, enforce filesystem permissions, or
+grant delivery authority. See [repository zoning](docs/zoning.md).
+
 Implementation refinements:
 
 - Local configuration and district declarations use JSON rather than the

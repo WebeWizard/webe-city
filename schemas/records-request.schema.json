@@ -48,7 +48,7 @@
         "required": ["type", "id", "description"],
         "properties": {
           "type": {
-            "enum": ["work-order", "decision", "config", "project", "district", "charter", "policy"]
+            "enum": ["work-order", "decision", "config", "project", "district", "zoning", "charter", "policy"]
           },
           "id": { "$ref": "#/$defs/text", "maxLength": 300 },
           "description": { "$ref": "#/$defs/text", "maxLength": 1000 }
@@ -96,7 +96,7 @@
                 "type": {
                   "enum": [
                     "work-order", "decision", "records-request", "config", "project",
-                    "district", "charter", "policy"
+                    "district", "zoning", "charter", "policy"
                   ]
                 },
                 "id": { "$ref": "#/$defs/text", "maxLength": 300 },

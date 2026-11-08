@@ -7,12 +7,17 @@ disable-model-invocation: true
 
 # Initialize a Draft City
 
-The current draft charter has thirteen offices, including Development Advisor;
-there are 26 bundled skills. Review development-applications policy and scoped
-local refinements before adoption. Existing cities must explicitly amend both
-charter appointment and policy; installation and non-destructive `init` do not
-reappoint offices or replace customized governance. Draft preparation is not
-adoption. See [development applications](../../docs/development-applications.md).
+The current draft charter has thirteen offices, including Development Advisor.
+Review the development-applications policy and scoped local refinements before
+adoption. Zoning is an optional policy draft at `.city/policy-drafts/zoning.md`;
+ordinary charter adoption does not enable it. To opt in, copy it to
+`.city/policies/zoning.md` before adoption. Adopted zoning requires a reviewed
+map and current work-order findings before authorization. Existing cities must
+explicitly amend their charter and adopted policy register; installation and
+non-destructive `init` do not replace customized governance. Draft preparation
+is not adoption. See
+[development applications](../../docs/development-applications.md) and
+[repository zoning](../../docs/zoning.md).
 
 ## Purpose and inputs
 
@@ -46,9 +51,12 @@ In a multi-root workspace, have the resident select the target; never guess.
    ```
 
 4. Explain the exact preview: `.city/config.json`, `.city/districts.json`,
-   `.city/projects.json` (initially empty), draft charter/policies and records
-   structure, and `.city/instruction-fragment.md`. Check for collisions and
-   preserve existing content. Project directories are registered separately
+   `.city/projects.json` (initially empty), draft charter/policies, the optional
+   `.city/policy-drafts/zoning.md`, and records structure, and
+   `.city/instruction-fragment.md`. The zoning map is not initialized; if the
+   resident opts into zoning, copy its draft into `.city/policies/`, then record
+   a reviewed map before seeking work-order authorization. Check for collisions
+   and preserve existing content. Project directories are registered separately
    before intake.
 5. Explain that governance starts **draft**. Owner procedures, records-only privacy,
    resident sovereignty, and recovery proposals still need resident review.

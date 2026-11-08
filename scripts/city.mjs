@@ -8,7 +8,7 @@ import {
   adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
-  infrastructureProgrammeRecord,
+  infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -64,6 +64,8 @@ const commands = {
   'screen-development': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'application-record': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'assess-application': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'zoning-map': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
+  'zoning-check': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   migrate: { allowed: ['root', 'apply'], required: ['root'] },
   adopt: {
     allowed: ['root', 'adopted-on', 'declared-by', 'evidence', 'charter-version', 'apply'],
@@ -126,6 +128,8 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs zoning-map --root ABS --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs zoning-check --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
@@ -153,6 +157,8 @@ function help() {
     notice: DRAFT_NOTICE,
     notes: [
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
+      'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
+      'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
       'Development source roles are fixed: chief-planner screens/independently assesses; development-advisor prepares applications. Provenance is unauthenticated professional evidence, not semantic classification or verified identity. Routes: lightweight|formal|needs-clarification. Assessment outcomes: ready|revise.',
       'A conclusive screening must match an assigned work order scope exactly. For a legacy unassigned v1 order, explicitly selected registered projectIds bind its scope and write v2 (scopeAssigned:true); needs-clarification may leave it unassigned. Active authorized delivery must return to proposed before new development preparation.',
       'Adopted policies/development-applications.md enables current screening before awaiting-approval and positive authorize (resident decisions included). Formal cases additionally need a complete current Advisor application and independent ready Planner assessment. Reject/return/refer remain possible. Older policy sets remain valid; installing does not appoint the Advisor. Draft preparation does not adopt policy.',
@@ -308,6 +314,10 @@ async function main() {
       return developmentRecord(root, options, 'applications');
     case 'assess-application':
       return developmentRecord(root, options, 'assessments');
+    case 'zoning-map':
+      return zoningMapRecord(root, options);
+    case 'zoning-check':
+      return zoningCheckRecord(root, options);
     case 'migrate':
       return migrate(root, options);
     case 'adopt':

@@ -12,7 +12,9 @@ Require selected root, canonical work order, registered projects and actual
 adopted charter/policies. Read the
 [policy template](../../templates/repository/.city/policies/development-applications.md)
 as a baseline, but apply the repository's adopted revision and scoped refinements.
-Use the [CLI contract and examples](../../docs/development-applications.md).
+When zoning is adopted, also read the current map and use its current work-order
+zoning check; see the [zoning adaptation](../../docs/zoning.md). Use the
+[CLI contract and examples](../../docs/development-applications.md).
 This skill supplies a professional method, not tool access or authority.
 
 ## Chief Planner: screening
@@ -28,6 +30,9 @@ This skill supplies a professional method, not tool access or authority.
 3. Apply and cite the baseline and every applicable adopted local refinement.
    A citation records policy path, section/interpretation and exact project IDs
    (`[]` means repository-wide). Local rules cannot silently waive the baseline.
+   For a conditional zoning finding, use the formal route and include each named
+   zoning requirement in the application. Unknown or prohibited findings are not
+   a lightweight exemption.
 4. Unknown jurisdiction, project, threshold or disputed interpretation means
    `needs-clarification` with concrete resident questions. Ask for choices/intent
    or unavailable facts, not city-performable technical research. Do not guess or

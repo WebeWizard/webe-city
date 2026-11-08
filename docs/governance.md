@@ -17,6 +17,7 @@ The [charter template](../templates/repository/.city/charter.md) proposes reside
 | Council delegation of delivery authorization, routine classes, reserved matters | [Council delegation](../templates/repository/.city/policies/council-delegation.md) |
 | Periodic and event-driven institutional review, recommendation routing, and evidence | [Institutional review](../templates/repository/.city/policies/institutional-review.md) |
 | Materiality screening, assisted application and independent planning assessment | [Development applications](../templates/repository/.city/policies/development-applications.md) |
+| Path-based change permissions, conditional review and zoning map maintenance | [Repository zoning](./zoning.md) |
 
 The City Manager coordinates functions whose specialists are not installed, with explicit competence limits. A missing specialist, independent reviewer, resource limit, or authorization is a reason to pause affected work, not to manufacture expertise or consent.
 
@@ -32,6 +33,13 @@ Lightweight is not an authorization exemption. See
 [municipal adaptation, policy and actual CLI contract](./development-applications.md).
 Existing cities explicitly amend the revised charter appointment and new policy;
 installation does not appoint Advisor. Old policy sets and prior delivery stay valid.
+
+**Repository zoning.** The opt-in [zoning policy](./zoning.md) maps repository
+paths to change-type rules without changing project directories or district
+ownership. When adopted, current zoning evidence is a readiness prerequisite;
+unknown and prohibited findings block authorization, and conditional findings
+require formal development review. It does not inspect actual diffs or grant
+delivery authority.
 
 **Delivery and staffing authority.** When adopted, the [council delegation policy](../templates/repository/.city/policies/council-delegation.md) delegates authorization to start delivery to the City Council. The council may authorize, reject, return, or refer each `awaiting-approval` work order, and routine classes (`documentation`, `tests`, `in-scope-fix`, `dependency-patch`) are pre-approved within scope. Reserved matters — `governance`, `security`, `deletion`, `deployment`, `publication`, `expenditure` — are always referred to the resident. The [workforce delegation policy](../templates/repository/.city/policies/workforce-delegation.md) separately delegates specialist engineering appointments to the Engineering Manager after independent HR endorsement. HR creates the files only after that appointment; the manager assigns and dispatches the engineer. These office-specific sequencing limits are instruction-level, not authenticated security boundaries. The assigned Engineer delivers on a non-default branch, the Building Inspector reviews it, and the resident reviews and merges the pull request before recording final acceptance with `complete`. An applied authorization routes to the Engineering Manager; it does not dispatch an engineer before assignment.
 
@@ -49,6 +57,7 @@ The first-slice runtime is a Node.js 22, zero-third-party-dependency local CLI. 
 | `status` | Read local state and report its observed condition |
 | `validate` | Check supported local structure/invariants, not human identity, lawful authority, or external acceptance |
 | `project-add` | Register a disjoint repository-relative project directory; does not create or move project files |
+| `zoning-map` / `zoning-check` | Preview or record a path-based change map and scoped professional zoning finding; not policy adoption or delivery authorization |
 | `asset-register` / `asset-revise` / `asset-review` | Preview or record versioned infrastructure stewardship evidence; does not authorize delivery |
 | `infrastructure-programme-record` | Preview or record a rolling renewal programme and unfunded needs; does not allocate resources |
 | `petition` | Prepare/record an intake request associated with registered projects, exact infrastructure targets, or both; not authorize implementation |

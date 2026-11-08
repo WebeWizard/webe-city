@@ -24,6 +24,11 @@ impact matrix is required for every request.
 
 ## Baseline and local refinements
 
+When the [zoning policy](./zoning.md) is adopted, a current zoning map and
+work-order finding are additional readiness prerequisites. A conditional finding
+requires formal screening and an independently ready assessment; prohibited or
+unknown findings are not ready for authorization.
+
 The [development policy](../templates/repository/.city/policies/development-applications.md)
 requires formal applications for material development: new projects/substantial
 capabilities, material architecture/ownership-boundary changes, public-interface

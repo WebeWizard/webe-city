@@ -50,7 +50,9 @@ grounds, relevant evidence, and the resident's requested remedy.
    transitions require a separate reviewed `transition` request and confirmation;
    an appeal does not automatically reverse, stay, or expunge an earlier record.
 8. Route evidence/procedure questions to Clerk/Auditor as appropriate and coordination
-   to City Manager. The manager's provisional work is not independent adjudication.
+   to City Manager. A disputed zoning finding or map amendment follows the same
+   recorded decision route; this pilot has no variance or automatic exemption.
+   The manager's provisional work is not independent adjudication.
 9. State the outcome as **pending resident dispute resolution**. Agents may explain
    options but must not vote on the appeal or claim a binding remedy.
 

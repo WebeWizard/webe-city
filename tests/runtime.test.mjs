@@ -40,7 +40,7 @@ function run(args, script = cli) {
 
 function success(args, script) {
   const result = run(args, script);
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.status, 0, `${args.join(' ')}\n${result.stderr}`);
   assert.equal(result.stderr, '');
   return JSON.parse(result.stdout);
 }
@@ -107,12 +107,23 @@ function registerDefaultProject(root) {
 
 function petition(root, criteria = ['The requested outcome is verifiable.']) {
   const projectId = registerDefaultProject(root);
-  return success([
+  const workOrder = success([
     'petition', '--root', root, '--title', 'Make a bounded improvement',
     '--request', 'Record this request without authorizing any delivery.',
     '--project', projectId,
     ...criteria.flatMap((criterion) => ['--criterion', criterion]), '--apply',
   ]).workOrder;
+  const zoning = success(['status', '--root', root]).zoning;
+  if (zoning.enabled && zoning.configured) {
+    success([
+      'zoning-check', '--root', root, '--id', workOrder.id,
+      '--data', JSON.stringify({
+        changeTypes: ['bugfix'], reason: 'Contained repair in the registered project.',
+        evidence: 'Reviewed the request and its declared project scope.',
+      }), '--apply',
+    ]);
+  }
+  return workOrder;
 }
 
 function infrastructureAssetData(today = new Date(Date.now() - 86400000).toISOString().slice(0, 10)) {
@@ -185,9 +196,183 @@ function developmentArgs(command, root, id, data, apply = false) {
   return [command, '--root', root, '--id', id, '--data', JSON.stringify(data), ...(apply ? ['--apply'] : [])];
 }
 
+function zoningMapArgs(root, zones, apply = false) {
+  return ['zoning-map', '--root', root, '--data', JSON.stringify({ schemaVersion: 1, zones }), ...(apply ? ['--apply'] : [])];
+}
+
+function zoningZone(path, rules, id = 'repository') {
+  return { id, name: id, path, description: `Zone for ${path}.`, rules };
+}
+
+function zoningRule(changeType, disposition, requirements = []) {
+  return { changeType, disposition, requirements };
+}
+
+function zoningCheckArgs(root, id, changeTypes = ['bugfix'], apply = false) {
+  return developmentArgs('zoning-check', root, id, {
+    changeTypes, reason: 'Reviewed the proposed change against the mapped repository scope.',
+    evidence: 'Checked the registered project directory and applicable zone rules.',
+  }, apply);
+}
+
 function recordScreening(root, id, data = screening()) {
   return success(developmentArgs('screen-development', root, id, data, true));
 }
+
+test('unadopted zoning preserves pre-zoning snapshots and development readiness', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  const city = await loadCity(root);
+  const preZoningSnapshot = createHash('sha256').update(JSON.stringify({
+    title: order.title, request: order.request, criteria: order.acceptanceCriteria,
+    projectIds: order.projectIds,
+    projects: city.projects.projects.filter((project) => order.projectIds.includes(project.id)),
+    infrastructure: [], districts: city.districts, resets: [],
+    adoption: city.config.adoption, governance: city.governanceDigests,
+  })).digest('hex');
+  const prepared = recordScreening(root, order.id);
+  assert.equal(prepared.workOrder.development.screenings.at(-1).snapshot, preZoningSnapshot);
+
+  success(zoningMapArgs(root, [zoningZone('projects/default-project', [
+    zoningRule('bugfix', 'conditional', ['zoning feasibility study']),
+  ])], true));
+  const checked = success(zoningCheckArgs(root, order.id, ['bugfix'], true));
+  assert.equal(checked.workOrder.development.zoningChecks.at(-1).outcome, 'conditional');
+  assert.equal(checked.development.zoning.enabled, false);
+  assert.equal(checked.development.stage, 'ready-lightweight');
+  const lightweight = recordScreening(root, order.id);
+  assert.equal(lightweight.workOrder.development.screenings.at(-1).snapshot, preZoningSnapshot);
+
+  const formal = recordScreening(root, order.id, screening({
+    route: 'formal', impacts: ['architecture'],
+    requirements: [{
+      id: 'boundary-diagram', kind: 'diagram',
+      description: 'Document the component boundary.', reason: 'Needed for architecture review.',
+    }],
+  }));
+  const application = success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: formal.workOrder.development.screenings.at(-1).revision,
+    reason: 'Prepared the architecture evidence.', evidence: 'Reviewed the component boundary.',
+    proposal: 'Adjust the internal component boundary without changing public interfaces.',
+    answers: [],
+    artifacts: [{
+      requirementId: 'boundary-diagram', disposition: 'provided',
+      evidence: 'Component boundary diagram included in the application.',
+    }],
+  }, true));
+  const assessment = success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: application.workOrder.development.applications.at(-1).revision,
+    outcome: 'ready', reason: 'The architecture evidence meets the screening requirements.',
+    evidence: 'Independently reviewed the component boundary diagram.',
+  }, true));
+  assert.equal(assessment.development.stage, 'ready-formal');
+});
+
+test('adopted zoning binds checks to scope and map, and blocks prohibited or unknown uses', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  transition(root, order.id, 'proposed');
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].zoning.outcome, 'permitted');
+  const mapRecord = success(['records-get', '--root', root, '--id', 'zoning']).records[0];
+  assert.equal(mapRecord.path, '.city/zoning.json');
+  assert.equal(success(['records-list', '--root', root, '--type', 'zoning']).records[0].id, 'zoning');
+
+  const before = await snapshot(root);
+  const prohibitedMap = [zoningZone('projects/default-project', [
+    zoningRule('bugfix', 'prohibited'),
+  ])];
+  const preview = success(zoningMapArgs(root, prohibitedMap));
+  assert.equal(preview.dryRun, true);
+  assert.deepEqual(await snapshot(root), before);
+  success(zoningMapArgs(root, prohibitedMap, true));
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'zoning-check-required');
+  const prohibited = success(zoningCheckArgs(root, order.id, ['bugfix'], true));
+  assert.equal(prohibited.zoning.outcome, 'prohibited');
+  assert.equal(prohibited.development.ready, false);
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval',
+    '--reason', 'The prohibited change should not proceed.',
+  ], 'DEVELOPMENT_NOT_READY');
+
+  success(zoningMapArgs(root, [zoningZone('docs', [
+    zoningRule('documentation', 'permitted'),
+  ])], true));
+  const unknown = success(zoningCheckArgs(root, order.id, ['bugfix'], true));
+  assert.equal(unknown.zoning.outcome, 'unknown');
+  assert.equal(unknown.development.stage, 'zoning-unknown');
+  failure(zoningMapArgs(root, [
+    zoningZone('projects', [zoningRule('bugfix', 'permitted')], 'projects'),
+    zoningZone('projects/default-project', [zoningRule('bugfix', 'permitted')], 'app'),
+  ], true), 'INVALID_RECORD');
+});
+
+test('adopted zoning without a map explicitly blocks readiness', async () => {
+  const { root } = await fixture();
+  init(root);
+  await cp(
+    path.join(project, 'templates/repository/.city/policy-drafts/zoning.md'),
+    path.join(root, '.city/policies/zoning.md'),
+  );
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  transition(root, order.id, 'proposed');
+  const development = success(['status', '--root', root]).workOrders.development[0];
+  assert.equal(development.stage, 'zoning-map-required');
+  assert.deepEqual(development.zoning.missing, ['.city/zoning.json']);
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval',
+    '--reason', 'A missing map must not be treated as permission.',
+  ], 'DEVELOPMENT_NOT_READY');
+});
+
+test('conditional zoning requires named formal evidence and independent assessment', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  const order = petition(root);
+  const requirement = 'security impact assessment';
+  success(zoningMapArgs(root, [zoningZone('projects/default-project', [
+    zoningRule('bugfix', 'conditional', [requirement]),
+  ])], true));
+  const check = success(zoningCheckArgs(root, order.id, ['bugfix'], true));
+  assert.equal(check.zoning.outcome, 'conditional');
+  failure(developmentArgs('screen-development', root, order.id, screening()), 'DEVELOPMENT_NOT_READY');
+
+  const formal = screening({
+    route: 'formal',
+    impacts: ['security'],
+    requirements: [{
+      id: 'security-review', kind: 'study',
+      description: `Provide a ${requirement}.`,
+      reason: 'Required by the adopted conditional zone rule.',
+    }],
+  });
+  failure(developmentArgs('screen-development', root, order.id, screening({
+    ...formal, requirements: [{ ...formal.requirements[0], description: 'Unrelated review.' }],
+  })), 'INVALID_ARGUMENT');
+  const screened = recordScreening(root, order.id, formal);
+  const application = success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: screened.workOrder.development.screenings.at(-1).revision,
+    reason: 'Prepared the required evidence.',
+    evidence: 'The application includes the named security review.',
+    proposal: 'Implement the contained repair and document the reviewed security impact.',
+    answers: [],
+    artifacts: [{
+      requirementId: 'security-review', disposition: 'provided',
+      evidence: 'Security impact assessment completed and reviewed.',
+    }],
+  }, true));
+  success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: application.workOrder.development.applications.at(-1).revision,
+    outcome: 'ready', reason: 'The formal application includes the conditional zoning evidence.',
+    evidence: 'Verified the required artifact and scope.',
+  }, true));
+  assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'ready-formal');
+});
 
 test('development screening is proportionate, dry-run, scope-aware and never delivery authority', async () => {
   const { root } = await fixture();
@@ -452,6 +637,11 @@ test('development screening accepts adopted project refinements using compatible
     'Cite source review of the public interface; material interface changes still require formal assessment.',
     '',
   ].join('\n'));
+  success(zoningMapArgs(root, [zoningZone('.', [
+    ...['documentation', 'tests', 'bugfix', 'refactor', 'feature', 'public-interface',
+      'dependency', 'data-migration', 'security', 'deletion', 'generated-code']
+      .map((type) => zoningRule(type, 'permitted')),
+  ])], true));
   success(adoptArgs(root, ['--apply']));
   const order = petition(root);
   transition(root, order.id, 'triaged');
@@ -1394,6 +1584,7 @@ test('infrastructure records report stewardship, create pinned work, reserve sec
   assert.equal(order.schemaVersion, 3);
   assert.equal(Object.hasOwn(order, 'projectIds'), false);
   assert.equal(success(['validate', '--root', root]).valid, true);
+  success(zoningCheckArgs(root, order.id, ['security'], true));
   transition(root, order.id, 'triaged');
   transition(root, order.id, 'proposed');
   recordScreening(root, order.id, screening({
@@ -1960,6 +2151,7 @@ test('adopt records date, exact charter revision and resident-declaration eviden
   assert.equal(config.adoption.charter.sha256, charter);
   assert.equal(config.adoption.charter.version, '1.0');
   assert.equal(config.adoption.policies.length, (await readdir(path.join(root, '.city/policies'))).length);
+  assert.equal(config.adoption.policies.some((policy) => policy.path === 'policies/zoning.md'), false);
   assert.deepEqual(config.adoption.evidence, {
     rule: 'resident-declaration',
     declaredBy: 'Initial resident',
@@ -1969,6 +2161,7 @@ test('adopt records date, exact charter revision and resident-declaration eviden
   const validated = success(['validate', '--root', root]);
   assert.equal(validated.governance, 'adopted');
   assert.equal(validated.city.adoption.drift.matchesAdoptedRevision, true);
+  assert.equal(success(['status', '--root', root]).zoning.enabled, false);
   assert.deepEqual(hookResult(payload(root)), {});
   assert.equal(transition(root, order.id, 'triaged').governance, 'adopted');
   failure(['transition', '--root', root, '--id', order.id, '--to', 'in-progress', '--reason', 'Deliver'], 'INVALID_TRANSITION');
@@ -2006,6 +2199,11 @@ test('adopt rejects bad arguments and forged adoption records are invalid', asyn
     (config) => { config.adoption.evidence.rule = 'external-approval'; },
     (config) => { config.adoption.charter.sha256 = 'not-a-digest'; },
     (config) => { config.adoption.policies = []; },
+    (config) => {
+      const developmentPolicy = config.adoption.policies
+        .find((policy) => policy.path === 'policies/development-applications.md');
+      developmentPolicy.path = 'policies/zoning.md';
+    },
     (config) => { config.adoption.approvedForDelivery = true; },
     (config) => { config.governance = 'draft'; },
     (config) => { config.adoption = null; },
@@ -2256,6 +2454,22 @@ const completeArgs = (root, id, extra = []) => [
 
 async function adoptedCity(root) {
   init(root);
+  await cp(
+    path.join(project, 'templates/repository/.city/policy-drafts/zoning.md'),
+    path.join(root, '.city/policies/zoning.md'),
+  );
+  success([
+    'zoning-map', '--root', root, '--data', JSON.stringify({
+      schemaVersion: 1,
+      zones: [{
+        id: 'repository', name: 'Repository', path: '.',
+        description: 'Test fixture zone covering the repository.',
+        rules: ['documentation', 'tests', 'bugfix', 'refactor', 'feature', 'public-interface',
+          'dependency', 'data-migration', 'security', 'deletion', 'generated-code']
+          .map((changeType) => ({ changeType, disposition: 'permitted', requirements: [] })),
+      }],
+    }), '--apply',
+  ]);
   success(adoptArgs(root, ['--apply']));
 }
 
@@ -2438,6 +2652,9 @@ test('authorize and complete refuse draft governance, drift and missing council 
   const undelegated = await fixture('undelegated');
   init(undelegated.root);
   await rm(path.join(undelegated.root, '.city/policies/council-delegation.md'));
+  success(zoningMapArgs(undelegated.root, [zoningZone('.', [
+    zoningRule('bugfix', 'permitted'),
+  ])], true));
   success(adoptArgs(undelegated.root, ['--apply']));
   const order = awaitingOrder(undelegated.root);
   const council = success(['status', '--root', undelegated.root]).council;
@@ -2656,11 +2873,13 @@ test('help documents delivery commands, command-only states and honest limits', 
   assert.equal(output.plugin.version, '0.4.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
+  assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));
+  assert.ok(output.usage.some((line) => line.includes(' zoning-check --root ABS')));
   assert.deepEqual(output.commandOnlyStates, { authorized: 'authorize', completed: 'complete' });
   assert.deepEqual(output.transitions['awaiting-approval'], ['proposed', 'authorized', 'blocked', 'rejected', 'withdrawn']);
   assert.deepEqual(output.transitions.completed, ['reopened']);
   const notes = output.notes.join('\n');
-  for (const pattern of [/recorded, not authenticated/, /not by this runtime/, /never runs git/, /AUTHORIZATION_REQUIRED/, /RESERVED_MATTER/, /NO_DELEGATION/, /RESIDENT_EVIDENCE_REQUIRED/, /GOVERNANCE_DRIFT/, /NOT_ADOPTED/]) {
+  for (const pattern of [/recorded, not authenticated/, /not by this runtime/, /never runs git/, /AUTHORIZATION_REQUIRED/, /RESERVED_MATTER/, /NO_DELEGATION/, /RESIDENT_EVIDENCE_REQUIRED/, /GOVERNANCE_DRIFT/, /NOT_ADOPTED/, /zoning-check/, /unknown, not permitted/]) {
     assert.match(notes, pattern);
   }
 });
@@ -2765,7 +2984,7 @@ test('workforce records are optional and status exposes the bundled general engi
   assert.deepEqual(validated.records, {
     projects: 0, workOrders: 0, decisions: 0, recordsRequests: 0,
     requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0,
-    infrastructureAssets: 0, infrastructureProgramme: 0,
+    infrastructureAssets: 0, infrastructureProgramme: 0, zoningMap: 0,
   });
   assert.deepEqual(validated.workforce.drift, []);
   await assert.rejects(lstat(path.join(root, '.city/workforce')), { code: 'ENOENT' });
@@ -2841,6 +3060,7 @@ test('HR declines and appointment declines are terminal history transitions', as
     projects: 1, workOrders: 1, decisions: 0, recordsRequests: 0,
     requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0,
     infrastructureAssets: 0, infrastructureProgramme: 0,
+    zoningMap: 1,
   });
   assert.equal(success(['status', '--root', root]).workforce.requisitions.byStatus.declined, 2);
 });

@@ -26,7 +26,7 @@ and proposal records in the target repository, not the installed plugin cache.
   record schema, retention/access policy, and any hold or privacy concern.
 - Inventory `.city/config.json` (including any `adoption.history` of
   amendments, oldest first), `.city/districts.json`, charter, policies, work
-  orders, and decisions. Proposal decisions are drafts; authorization and
+  orders, decisions, and `.city/zoning.json` when present. Proposal decisions are drafts; authorization and
   acceptance decisions are written only by the CLI with their work-order history.
 
 ## Procedure
@@ -34,8 +34,9 @@ and proposal records in the target repository, not the installed plugin cache.
 1. Identify each record's purpose, stable ID, provenance, relationships, version,
    location, status, and known gaps using the existing schema.
 2. Use `records-list` for bounded metadata discovery, then `records-get` with exact
-   canonical IDs for content. Request first-degree links only when they help the
-   task; do not create a request for records already available through retrieval.
+   canonical IDs for content, including the zoning map when present. Request
+   first-degree links only when they help the task; do not create a request for
+   records already available through retrieval.
 3. If an exact needed record is missing or requires a source-office response, ask
    the City Manager to route a records request with the purpose, exact item list,
    optional source office, and related work order. The Records Officer reports

@@ -31,6 +31,7 @@ An open-source license and publisher have not been selected.
   council and workforce delegation.
 - Dependency-free Node.js tooling for initialization, intake, lifecycle
   transitions, project registration, development screening/application/assessment,
+  path-based zoning maps and work-order checks,
   adoption, delivery authorization,
   acceptance, workforce requisitions, HR review, delegated appointments, local
   specialist generation, assignment, retirement, institutional-review trigger
@@ -76,6 +77,24 @@ before adoption. Existing cities must explicitly merge/review the revised charte
 appointment and policy, then `amend`; a policy-only addition is refused.
 Installation/non-destructive `init` never implicitly reappoints offices. Older
 policy sets remain valid; earlier delivery is not retroactively invalidated.
+
+## Repository zoning
+
+The opt-in zoning policy assigns permitted, conditional, and prohibited change
+types to disjoint repository path zones. It is separate from project delivery
+scope and district ownership. `zoning-map` records the rule map; `zoning-check`
+records a Chief Planner assessment against declared project directories and exact
+infrastructure targets. When adopted, current zoning evidence is required before
+authorization; unknown or prohibited scope is not ready, and conditional rules
+require formal application and independent assessment. The check does not inspect
+the Git diff, enforce filesystem permissions, or grant delivery authority.
+
+New cities receive zoning as an optional draft outside the active policy
+register, so ordinary charter adoption does not enable zoning. To opt in, copy
+`.city/policy-drafts/zoning.md` to `.city/policies/zoning.md` before adoption.
+Existing cities must add the policy through a charter amendment and record a
+reviewed map. See the
+[municipal adaptation, map schema, and CLI contract](./docs/zoning.md).
 
 ## Engineering workforce
 

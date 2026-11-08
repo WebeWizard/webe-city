@@ -336,6 +336,39 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "governance": { "const": "adopted" },
+          "adoption": {
+            "properties": {
+              "policies": {
+                "contains": {
+                  "properties": {
+                    "path": { "const": "policies/zoning.md" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adoption": {
+            "properties": {
+              "policies": {
+                "contains": {
+                  "properties": {
+                    "path": { "const": "policies/development-applications.md" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

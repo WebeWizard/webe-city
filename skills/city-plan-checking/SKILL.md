@@ -24,6 +24,9 @@ a proposal is coherent and reviewable without rewriting it into compliance.
   acceptance criteria and planned work disagree.
 - Require root, case, exact proposal revision, criteria, applicable standards,
   architecture constraints, district ownership, and claimed approval evidence.
+- When zoning is adopted, check the current zoning finding and its map/scope
+  snapshot separately from district ownership; conditional rules require formal
+  review, and unknown or prohibited rules are not conformance.
 - Read original source requirements. Record absent or disputed baselines explicitly.
 
 ## Procedure
@@ -38,6 +41,8 @@ a proposal is coherent and reviewable without rewriting it into compliance.
    compatibility, and missing specialist assessments.
 5. Check consistency between scope, proposed tests, and affected districts.
    Do not expand or weaken criteria to make the plan pass.
+   Compare each declared project directory and infrastructure target with the
+   applicable zone rules and the proposal's change types.
 6. Separate a clear nonconformity from insufficient evidence and an advisory
    improvement. State precisely what would resolve each issue.
 7. Compare revisions when available, retaining unresolved findings and identifying

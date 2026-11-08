@@ -365,6 +365,8 @@ test('founding documents remain unadopted without draft or template labels', asy
     assert.match(contents, /Initialization status: Not adopted\./, file);
     assert.doesNotMatch(contents, /\b(?:draft|template)\b/i, file);
   }
+  const zoningDraft = await readFile(path.join(template, 'policy-drafts/zoning.md'), 'utf8');
+  assert.match(zoningDraft, /Initialization status: Not adopted\./);
   assert.deepEqual(await json('templates/repository/.city/projects.json'), { schemaVersion: 1, projects: [] });
   assert.equal(existsSync(path.join(template, 'config.json')), false);
 });
@@ -404,6 +406,7 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.deepEqual(schema.properties.schemaVersion.enum, [1, 2, 3]);
   assert.equal(schema.required.includes('development'), false);
   assert.deepEqual(schema.$defs.development.required, ['screenings', 'applications', 'assessments']);
+  assert.ok(schema.$defs.development.properties.zoningChecks);
   assert.deepEqual(schema.$defs.screening.properties.impacts.items.enum, DEVELOPMENT_IMPACTS);
   assert.deepEqual(schema.$defs.screening.properties.requirements.items.properties.kind.enum, DEVELOPMENT_ARTIFACTS);
   const policyPath = new RegExp(schema.$defs.screening.properties.policyCitations.items.properties.path.pattern, 'u');
@@ -428,6 +431,21 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.match(policy, /needs-clarification/);
 });
 
+test('zoning schema keeps change rules separate from project and district records', async () => {
+  const { ZONING_CHANGE_TYPES } = await import('../scripts/lib/constants.mjs');
+  const schema = await json('schemas/zoning.schema.json');
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(schema.required, ['schemaVersion', 'zones']);
+  assert.deepEqual(schema.properties.zones.items.properties.rules.items.properties.changeType.enum, ZONING_CHANGE_TYPES);
+  assert.deepEqual(schema.properties.zones.items.properties.rules.items.properties.disposition.enum, [
+    'permitted', 'conditional', 'prohibited',
+  ]);
+  const zoning = await readFile(path.join(root, 'templates/repository/.city/policy-drafts/zoning.md'), 'utf8');
+  assert.match(zoning, /separate from project delivery scope and\s+district ownership/);
+  assert.match(zoning, /not a team, permission boundary/);
+  assert.match(zoning, /copy this draft to\s+`\.city\/policies\/zoning\.md`/);
+});
+
 test('all bundled customization resource links resolve within the package', async () => {
   const files = agentIds.map((id) => path.join(agentsPath, `${id}.agent.md`));
   for (const name of [...professionalSkills, ...residentSkills]) {
@@ -442,10 +460,12 @@ test('resident documentation and founding templates have no broken local referen
     'docs/governance.md',
     'docs/compatibility.md',
     'docs/development-applications.md',
+    'docs/zoning.md',
     'docs/infrastructure-plan.md',
     'skills/city-asset-management/SKILL.md',
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
+    'templates/repository/.city/policy-drafts/zoning.md',
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
   ];
   for (const file of files) await markdownLinksExist(path.join(root, file));
@@ -483,6 +503,8 @@ test('the distributable contains runtime resources but no development profile or
     'scripts/city-hook.mjs',
     'scripts/smoke.mjs',
     'scripts/lib/development.mjs',
+    'scripts/lib/zoning.mjs',
+    'schemas/zoning.schema.json',
     'schemas/projects.schema.json',
     'schemas/infrastructure-asset.schema.json',
     'schemas/infrastructure-programme.schema.json',
@@ -494,6 +516,7 @@ test('the distributable contains runtime resources but no development profile or
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
     'templates/repository/.city/projects.json',
+    'templates/repository/.city/policy-drafts/zoning.md',
     'templates/workforce/agent.md',
     'templates/workforce/skill.md',
     'templates/workforce/practice.md',
@@ -502,6 +525,7 @@ test('the distributable contains runtime resources but no development profile or
     'docs/governance.md',
     'docs/compatibility.md',
     'docs/development-applications.md',
+    'docs/zoning.md',
     'docs/infrastructure-plan.md',
     ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
     ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),

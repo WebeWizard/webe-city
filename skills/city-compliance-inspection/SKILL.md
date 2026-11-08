@@ -27,6 +27,9 @@ author, without fixing defects or treating a passing test as authorization.
    A missing or unlinked authorization decision blocks delivery-level clearance.
 3. Read the actual change and surrounding behavior. Compare scope, error handling,
    interfaces, tests, and operational assumptions with the stated requirements.
+   When zoning is adopted, compare actual changed paths and change types with the
+   current map and recorded zoning finding; a CLI scope check does not inspect the
+   diff or replace this independent review.
 4. If execute is available, inspect commands and project scripts for side effects
    before running existing relevant checks. Avoid installs, auto-fix, formatters,
    migrations, arbitrary case commands, and writes to inspected artifacts.

@@ -39,6 +39,9 @@ do not force code into physical-city metaphors or treat the map as approval.
 5. Propose target project directories and interface rules with explicit tradeoffs.
    Project directories must be disjoint; cross-check district ownership, which is
    separate, and do not rewrite either register as a side effect of planning.
+   When zoning is adopted, assess the separate `.city/zoning.json` path map.
+   Propose zoning amendments separately from project scope and district ownership;
+   a master plan or map recommendation does not amend the adopted map.
 6. Break the proposal into reversible increments, each with a dependency,
    observable acceptance evidence, migration concern, and recovery assumption.
 7. Identify standards that are recommendations versus established requirements.

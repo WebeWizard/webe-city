@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import { DEVELOPMENT_POLICY } from './constants.mjs';
 import { fail } from './errors.mjs';
 import { applicationMissing, authorizationCurrent } from './validation.mjs';
+import { currentZoningCheck, zoningEnabled, zoningStatus } from './zoning.mjs';
 
 export function developmentEnabled(city) {
-  return city.config.governance === 'adopted'
-    && city.config.adoption.policies.some((policy) => policy.path === DEVELOPMENT_POLICY);
+  return (city.config.governance === 'adopted'
+    && city.config.adoption.policies.some((policy) => policy.path === DEVELOPMENT_POLICY))
+    || zoningEnabled(city);
 }
 
 export function developmentSnapshot(city, order) {
@@ -27,6 +29,10 @@ export function developmentSnapshot(city, order) {
       };
     }),
     districts: city.districts, resets,
+    ...(zoningEnabled(city) ? {
+      zoningMap: city.zoningBytes ? createHash('sha256').update(city.zoningBytes).digest('hex') : null,
+      zoningCheck: order.development?.zoningChecks?.at(-1)?.snapshot ?? null,
+    } : {}),
     adoption: city.config.adoption ?? null, governance: city.governanceDigests,
   };
   return createHash('sha256').update(JSON.stringify(scope)).digest('hex');
@@ -44,11 +50,12 @@ export function developmentPreparationAllowed(order) {
 
 export function developmentStatus(city, order) {
   const enabled = developmentEnabled(city);
+  const zoning = zoningStatus(city, order);
   const actionable = enabled && developmentPreparationAllowed(order);
   const result = (stage, actor, action, extra = {}) => ({
     enabled, status: order.status, authorizationCurrent: authorizationCurrent(order.history),
     actionable, stage, ready: ['ready-lightweight', 'ready-formal'].includes(stage),
-    next: actionable ? { actor, action } : null, questions: [], missing: [], ...extra,
+    next: actionable ? { actor, action } : null, questions: [], missing: [], zoning, ...extra,
   });
   const ready = (stage) => order.status === 'awaiting-approval'
     ? result(stage, 'city-council', 'review-authorization')
@@ -56,10 +63,21 @@ export function developmentStatus(city, order) {
   if (enabled && !city.drift.matchesAdoptedRevision) {
     return result('governance-drift', 'city-clerk', 'resolve-policy-revision');
   }
+  if (zoning.enabled) {
+    if (!city.zoning) return result('zoning-map-required', 'chief-planner', 'prepare-zoning-map', { missing: zoning.missing });
+    const zoningCheck = currentZoningCheck(city, order);
+    if (!zoningCheck) return result('zoning-check-required', 'chief-planner', 'check-zoning');
+    if (['unknown', 'prohibited'].includes(zoningCheck.outcome)) {
+      return result(`zoning-${zoningCheck.outcome}`, 'chief-planner', 'resolve-zoning-finding');
+    }
+  }
   const screening = currentScreening(city, order);
   if (!screening) return result('screening-required', 'chief-planner', 'screen-development');
   if (screening.route === 'needs-clarification') {
     return result('resident-clarification', 'resident', 'answer-screening-questions', { questions: screening.questions });
+  }
+  if (zoning.enabled && zoning.outcome === 'conditional' && screening.route === 'lightweight') {
+    return result('zoning-formal-review-required', 'chief-planner', 'screen-development', { missing: zoning.missing });
   }
   if (screening.route === 'lightweight') return ready('ready-lightweight');
   const application = order.development.applications.at(-1);

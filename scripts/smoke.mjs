@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -47,6 +47,41 @@ function screen(root, id, projectId, extra = {}) {
     policyCitations: [{ path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] }],
     ...extra,
   });
+}
+
+async function prepareZoning(root) {
+  await cp(
+    path.join(root, '.city/policy-drafts/zoning.md'),
+    path.join(root, '.city/policies/zoning.md'),
+  );
+  const changeTypes = [
+    'documentation', 'tests', 'bugfix', 'refactor', 'feature', 'public-interface',
+    'dependency', 'data-migration', 'security', 'deletion', 'generated-code',
+  ];
+  return command(cli, [
+    'zoning-map', '--root', root,
+    '--data', JSON.stringify({
+      schemaVersion: 1,
+      zones: [{
+        id: 'repository', name: 'Repository', path: '.',
+        description: 'Smoke-test zone covering the repository.',
+        rules: changeTypes.map((changeType) => ({
+          changeType, disposition: 'permitted', requirements: [],
+        })),
+      }],
+    }), '--apply',
+  ]);
+}
+
+function checkZoning(root, id, changeType) {
+  const result = development('zoning-check', root, id, {
+    changeTypes: [changeType], reason: 'Reviewed the proposed change against its declared scope.',
+    evidence: 'Checked the registered project directory and current zone rules.',
+  });
+  assert.equal(result.zoning.enabled, true);
+  assert.equal(result.zoning.current, true);
+  assert.equal(result.zoning.outcome, 'permitted');
+  return result;
 }
 
 const temporary = path.join(pluginRoot, `.smoke-${randomUUID()}`);
@@ -181,6 +216,7 @@ try {
   command(cli, ['validate', '--root', second]);
 
   const adoptedOn = new Date().toISOString().slice(0, 10);
+  await prepareZoning(second);
   const adoptArgs = [
     'adopt', '--root', second, '--adopted-on', adoptedOn,
     '--declared-by', 'Smoke resident', '--evidence', 'Charter and policies record the resident declaration.',
@@ -200,6 +236,7 @@ try {
     '--request', 'Make the website pages clearer and more accessible.',
     '--project', 'website', '--criterion', 'The existing website content is preserved.', '--apply',
   ]).workOrder;
+  checkZoning(second, websiteOrder.id, 'feature');
   for (const state of ['triaged', 'proposed', 'awaiting-approval']) {
     if (state === 'proposed') screen(second, websiteOrder.id, 'website');
     command(cli, [
@@ -265,6 +302,7 @@ try {
 
   await mkdir(path.join(third, '.git'));
   command(cli, ['init', '--root', third, '--name', 'Council City', '--apply']);
+  await prepareZoning(third);
   command(cli, ['adopt', '--root', third, '--adopted-on', adoptedOn,
     '--declared-by', 'Smoke resident', '--evidence', 'Charter, policies and council delegation adopted by the resident.', '--apply']);
   assert.equal(command(cli, ['status', '--root', third]).council.delegationAvailable, true);
@@ -278,6 +316,7 @@ try {
     '--project', 'docs',
     '--criterion', 'The README lists every delivery state.', '--apply',
   ]).workOrder;
+  checkZoning(third, delivery.id, 'documentation');
   const deliveryPath = path.join(third, '.city/work-orders', `${delivery.id}.json`);
   const move = (state) => command(cli, [
     'transition', '--root', third, '--id', delivery.id, '--to', state, '--reason', `Smoke scenario: ${state}`, '--apply',
@@ -321,6 +360,7 @@ try {
     '--request', 'Consumers need a new stable machine-readable documentation interface.',
     '--project', 'docs', '--criterion', 'Existing consumers retain their contract.', '--apply',
   ]).workOrder;
+  checkZoning(third, formal.id, 'public-interface');
   const formalMove = (state) => command(cli, [
     'transition', '--root', third, '--id', formal.id, '--to', state,
     '--reason', `Formal development smoke: ${state}`, '--apply',

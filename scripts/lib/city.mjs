@@ -21,7 +21,7 @@ import {
   RECORD_EXCHANGE_TYPES, text,
   validateConfig, validateDecision, validateDistricts, validateInstitutionalReview, validateOrderId,
   validateProjects, validateRecordId, validateRecordsRequest, validateState, validateWorkOrder,
-  validateDevelopmentInput, applicationMissing,
+  validateDevelopmentInput, applicationMissing, validateZoningMap, validateZoningCheckInput,
   validateInfrastructureWorkScope,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
@@ -33,6 +33,9 @@ import {
   infrastructurePathWithin, infrastructurePolicyEnabled, infrastructureStatus, validateInfrastructureAsset,
   validateInfrastructureProgramme,
 } from './infrastructure.mjs';
+import {
+  assessZoning, currentZoningCheck, zoningEnabled, zoningSnapshot, zoningStatus,
+} from './zoning.mjs';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const dayMilliseconds = 24 * 60 * 60 * 1000;
@@ -126,6 +129,10 @@ export async function loadCity(root, required = true) {
     ? parseJSON(projectsSource.bytes, 'City projects')
     : { schemaVersion: SCHEMA_VERSION, projects: [] });
   await assertProjectPaths(root, projects);
+  const zoningPath = path.join(cityPath, 'zoning.json');
+  const zoningInfo = await inspect(zoningPath);
+  const zoningSource = zoningInfo ? await readRegular(zoningPath, 'City zoning map') : null;
+  const zoning = zoningSource ? validateZoningMap(parseJSON(zoningSource.bytes, 'City zoning map')) : null;
   await governanceLayout(cityPath);
   const currentGovernanceDigests = await governanceDigests(cityPath);
   const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, currentGovernanceDigests) : null;
@@ -268,6 +275,7 @@ export async function loadCity(root, required = true) {
   await assertIdentity(path.join(cityPath, 'config.json'), configSource.info, 'City config');
   await assertIdentity(path.join(cityPath, 'districts.json'), districtsSource.info, 'City districts');
   if (projectsSource) await assertIdentity(projectsPath, projectsSource.info, 'City projects');
+  if (zoningSource) await assertIdentity(zoningPath, zoningSource.info, 'City zoning map');
   if (infrastructureRootInfo) {
     await assertIdentity(infrastructureRoot, infrastructureRootInfo, 'City infrastructure');
     if (infrastructureProgramme) {
@@ -277,6 +285,7 @@ export async function loadCity(root, required = true) {
   return {
     root, path: cityPath, identity, config, configBytes: configSource.bytes,
     districts, districtsBytes: districtsSource.bytes, projects, projectsBytes, drift,
+    zoning, zoningBytes: zoningSource?.bytes ?? null,
     governanceDigests: currentGovernanceDigests,
     workOrders: orders.records,
     decisions: decisions.records,
@@ -547,6 +556,7 @@ export function statusOutput(root, city, command = 'status') {
   return {
     command, root, enrolled: true, governance: city.config.governance, city: citySummary(city),
     council: councilSummary(city),
+    zoning: { enabled: zoningEnabled(city), configured: Boolean(city.zoning), zones: city.zoning?.zones.length ?? 0 },
     projects: city.projects.projects,
     workOrders: {
       total: city.workOrders.size,
@@ -1148,6 +1158,10 @@ async function canonicalRecords(city) {
     records.push(recordItem('district', district.id, '.city/districts.json', city.districtsBytes,
       district, null, [], district.name));
   }
+  if (city.zoning) {
+    records.push(recordItem('zoning', 'zoning', '.city/zoning.json', city.zoningBytes,
+      city.zoning, null, [], 'Repository zoning map'));
+  }
   if (city.projectsBytes) {
     for (const project of city.projects.projects) {
       records.push(recordItem('project', project.id, '.city/projects.json', city.projectsBytes,
@@ -1201,13 +1215,13 @@ function validateAnyRecordId(id) {
   if (/^ASN-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'assignment', id };
   }
-  if (/^[a-z][a-z0-9-]{1,40}$/u.test(id)) return { type: 'staff', id };
-  if (id === 'config' || id === 'charter' || id === 'infrastructure-programme') {
+  if (id === 'config' || id === 'zoning' || id === 'charter' || id === 'infrastructure-programme') {
     return { type: id === 'infrastructure-programme' ? 'infrastructure-programme' : id, id };
   }
   if (/^policy:[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.md$/u.test(id)) {
     return { type: 'policy', id };
   }
+  if (/^[a-z][a-z0-9-]{1,40}$/u.test(id)) return { type: 'staff', id };
   if (/^[a-z][a-z0-9-]{0,63}$/u.test(id)) return { type: null, id };
   fail('INVALID_ARGUMENT', 'Record ID must be a supported canonical identifier.');
 }
@@ -1555,6 +1569,7 @@ export async function validate(root) {
       institutionalReviews: city.institutionalReviews.size,
       infrastructureAssets: city.infrastructure.assets.size,
       infrastructureProgramme: Number(Boolean(city.infrastructure.programme)),
+      zoningMap: Number(Boolean(city.zoning)),
     },
     institutionalReview: institutionalReviewStatus(city),
     infrastructure: infrastructureStatus(city),
@@ -1568,7 +1583,7 @@ async function templateFiles(templateRoot) {
   const files = new Map();
   const names = await entries(templateRoot, 'Installed city templates');
   const allowed = [
-    'charter.md', 'instruction-fragment.md', 'policies', 'districts.json', 'projects.json',
+    'charter.md', 'instruction-fragment.md', 'policies', 'policy-drafts', 'districts.json', 'projects.json',
     'work-orders', 'decisions', 'records-requests',
   ];
   if (names.some((name) => !allowed.includes(name))) {
@@ -1583,6 +1598,13 @@ async function templateFiles(templateRoot) {
   for (const name of policies) {
     if (!name.endsWith('.md')) fail('INVALID_TEMPLATE', 'Installed policy templates must be regular Markdown files.');
     files.set(`policies/${name}`, (await readRegular(path.join(policiesPath, name), 'Installed city policy template')).bytes);
+  }
+  if (names.includes('policy-drafts')) {
+    const policyDraftsPath = path.join(templateRoot, 'policy-drafts');
+    for (const name of await entries(policyDraftsPath, 'Optional policy drafts')) {
+      if (!name.endsWith('.md')) fail('INVALID_TEMPLATE', 'Optional policy drafts must be regular Markdown files.');
+      files.set(`policy-drafts/${name}`, (await readRegular(path.join(policyDraftsPath, name), 'Optional policy draft')).bytes);
+    }
   }
   if (names.includes('districts.json')) {
     const source = await readRegular(path.join(templateRoot, 'districts.json'), 'Installed district template');
@@ -1692,8 +1714,13 @@ function checkCityUnchanged(before, after) {
   const sameProgramme = beforeProgramme === null
     ? afterProgramme === null
     : afterProgramme !== null && beforeProgramme.equals(afterProgramme);
-  if (!before.configBytes.equals(after.configBytes) || !sameProjects || !sameAssets || !sameProgramme) {
-    fail('CONFLICT', 'City config, projects, or infrastructure records changed since validation. Inspect the concurrent edit and retry.');
+  const beforeZoning = before.zoningBytes ?? null;
+  const afterZoning = after.zoningBytes ?? null;
+  const sameZoning = beforeZoning === null
+    ? afterZoning === null
+    : afterZoning !== null && beforeZoning.equals(afterZoning);
+  if (!before.configBytes.equals(after.configBytes) || !sameProjects || !sameAssets || !sameProgramme || !sameZoning) {
+    fail('CONFLICT', 'City config, projects, zoning map, or infrastructure records changed since validation. Inspect the concurrent edit and retry.');
   }
 }
 
@@ -1910,9 +1937,14 @@ export async function transition(root, options) {
 }
 
 function checkDevelopmentContextUnchanged(before, after) {
-  if (!before.districtsBytes.equals(after.districtsBytes)
+  const sameProjects = before.projectsBytes === null
+    ? after.projectsBytes === null
+    : after.projectsBytes !== null && before.projectsBytes.equals(after.projectsBytes);
+  if (!before.districtsBytes.equals(after.districtsBytes) || !sameProjects
+    || (before.zoningBytes === null) !== (after.zoningBytes === null)
+    || (before.zoningBytes && !before.zoningBytes.equals(after.zoningBytes))
     || JSON.stringify(before.governanceDigests) !== JSON.stringify(after.governanceDigests)) {
-    fail('CONFLICT', 'Development policy or district context changed since preparation. Review and retry.');
+    fail('CONFLICT', 'Development policy, district, or zoning context changed since preparation. Review and retry.');
   }
 }
 
@@ -1925,6 +1957,7 @@ export async function developmentRecord(root, options, kind) {
   const order = original.value;
   let scopedOrder = order;
   const development = order.development ?? { screenings: [], applications: [], assessments: [] };
+  const zoningCheck = zoningEnabled(city) ? currentZoningCheck(city, order) : null;
   if (!developmentPreparationAllowed(order)) {
     fail('INVALID_TRANSITION', 'Development preparation is recorded before delivery; reopen or return a case before a new planning cycle.');
   }
@@ -1948,6 +1981,18 @@ export async function developmentRecord(root, options, kind) {
     if (input.policyCitations.some((citation) => !city.governanceDigests.policies.some((policy) => policy.path === citation.path))) {
       fail('NOT_FOUND', 'Every cited development policy must exist in the local policy register.');
     }
+    if (zoningCheck?.outcome === 'conditional' && input.route === 'formal') {
+      const conditions = [...new Set(zoningCheck.coverage.flatMap((scope) => scope.determinations
+        .filter((item) => item.disposition === 'conditional')
+        .flatMap((item) => item.requirements)))];
+      if (conditions.some((condition) => !input.requirements.some((requirement) => (
+        requirement.description.includes(condition)
+      )))) {
+        fail('INVALID_ARGUMENT', 'Formal screening must include every named conditional zoning requirement.');
+      }
+    } else if (zoningCheck?.outcome === 'conditional' && input.route === 'lightweight') {
+      fail('DEVELOPMENT_NOT_READY', 'A conditional zoning finding requires formal screening and an independently assessed application.');
+    }
   } else {
     const screening = currentScreening(city, order);
     if (!screening || screening.route !== 'formal') fail('STALE_DEVELOPMENT', 'Record a current formal screening before application preparation or assessment.');
@@ -1960,6 +2005,18 @@ export async function developmentRecord(root, options, kind) {
       }
       if (input.outcome === 'ready' && applicationMissing(screening, application).length) {
         fail('DEVELOPMENT_NOT_READY', 'Missing required artifact evidence or resident answers; do not claim readiness.');
+      }
+      if (input.outcome === 'ready' && zoningCheck?.outcome === 'conditional') {
+        const conditions = [...new Set(zoningCheck.coverage.flatMap((scope) => scope.determinations
+          .filter((item) => item.disposition === 'conditional')
+          .flatMap((item) => item.requirements)))];
+        const unsatisfied = conditions.filter((condition) => {
+          const requirement = screening.requirements.find((entry) => entry.description.includes(condition));
+          return !requirement || !application.artifacts.some((artifact) => (
+            artifact.requirementId === requirement.id && artifact.disposition === 'provided'
+          ));
+        });
+        if (unsatisfied.length) fail('DEVELOPMENT_NOT_READY', 'Conditional zoning requirements need provided application evidence.');
       }
     }
   }
@@ -1989,6 +2046,75 @@ export async function developmentRecord(root, options, kind) {
   return {
     ...mutationOutput(command, root, options.apply, workOrder, city.config.governance),
     scopeAssigned: !order.projectIds && Boolean(workOrder.projectIds) && !order.infrastructure,
+    development: developmentStatus(city, workOrder),
+  };
+}
+
+export async function zoningMapRecord(root, options) {
+  const zoning = validateZoningMap(requestJSON(options.data, 'Zoning map --data'));
+  const city = await loadCity(root);
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      if (!current.configBytes.equals(city.configBytes)
+        || (current.zoningBytes === null) !== (city.zoningBytes === null)
+        || (current.zoningBytes && !current.zoningBytes.equals(city.zoningBytes))) {
+        fail('CONFLICT', 'City config or zoning map changed since validation. Inspect concurrent edits and retry.');
+      }
+      await atomicCityFile(current, 'zoning.json', zoning, city.zoningBytes);
+    });
+  }
+  return {
+    command: 'zoning-map', root, governance: city.config.governance,
+    dryRun: !options.apply, changed: Boolean(options.apply), wouldWrite: true,
+    zoning, notice: 'Recording a zoning map is not policy adoption, authorization, or permission to deliver.',
+  };
+}
+
+export async function zoningCheckRecord(root, options) {
+  validateOrderId(options.id);
+  const input = validateZoningCheckInput(requestJSON(options.data, 'Zoning check --data'));
+  const city = await loadCity(root);
+  if (!city.zoning) fail('ZONING_MAP_MISSING', 'Record a valid zoning map with zoning-map before checking a work order.');
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  if (!developmentPreparationAllowed(original.value)) {
+    fail('INVALID_TRANSITION', 'Zoning checks are recorded before delivery or after a new planning cycle.');
+  }
+  const { coverage, outcome } = assessZoning(city, original.value, input.changeTypes);
+  const priorDevelopment = original.value.development ?? {
+    screenings: [], applications: [], assessments: [], zoningChecks: [],
+  };
+  const zoningChecks = priorDevelopment.zoningChecks ?? [];
+  const previousTimes = Object.values(priorDevelopment).flat().map((record) => Date.parse(record.recordedAt));
+  const recordedAt = new Date(Math.max(Date.now(), Date.parse(original.value.updatedAt), ...previousTimes)).toISOString();
+  const record = {
+    ...input, revision: zoningChecks.length + 1, recordedAt, coverage, outcome,
+    sourceOffice: 'chief-planner', authenticated: false, provenance: provenance(),
+    snapshot: zoningSnapshot(city, original.value, input.changeTypes),
+  };
+  const workOrder = validateWorkOrder({
+    ...original.value,
+    development: { ...priorDevelopment, zoningChecks: [...zoningChecks, record] },
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) {
+    fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  }
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkOrderUnchanged(city, current, original);
+      checkDevelopmentContextUnchanged(city, current);
+      if (original.value.infrastructure?.assets.length) {
+        checkInfrastructureUnchanged(city, current, original.value.infrastructure.assets.map((pin) => pin.assetId));
+        assertInfrastructureScopeCurrent(current, original.value);
+      }
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+    });
+  }
+  return {
+    ...mutationOutput('zoning-check', root, options.apply, workOrder, city.config.governance),
+    zoning: zoningStatus(city, workOrder),
     development: developmentStatus(city, workOrder),
   };
 }
