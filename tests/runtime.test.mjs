@@ -115,6 +115,42 @@ function petition(root, criteria = ['The requested outcome is verifiable.']) {
   ]).workOrder;
 }
 
+function infrastructureAssetData(today = new Date(Date.now() - 86400000).toISOString().slice(0, 10)) {
+  return {
+    name: 'Shared build foundation',
+    purpose: 'Provides repeatable repository builds.',
+    category: 'build-system',
+    lifecycle: 'active',
+    owner: 'City Manager',
+    custodian: 'Engineering Manager',
+    operator: { role: 'Repository maintainer', channel: 'Maintainer issue tracker', coverage: 'Business days', verifiedAt: null },
+    services: [{
+      id: 'builds', name: 'Reproducible builds', expectation: 'Builds complete reproducibly.',
+      target: 'CI evidence', measurementSource: 'Recorded build results', maxAgeDays: 30, measurements: [],
+    }],
+    locators: ['.'], projectIds: [], dependencies: [],
+    criticality: 'high',
+    condition: { state: 'unknown', observedAt: null, method: 'Not yet assessed', evidence: 'No condition assessment recorded.' },
+    baseline: { version: '1.0', compatibility: 'Repository-local tooling.', supportEnds: null },
+    obligations: [{
+      id: 'monthly-health-review', task: 'Review build health and dependency support.', owner: 'Engineering Manager',
+      trigger: 'recurring', dueDate: today, recurrenceDays: 30, acceptanceEvidence: 'Dated review record.',
+      status: 'open', nextReviewDate: null, history: [],
+    }],
+    findings: [{
+      id: 'security-report', kind: 'security', source: 'Resident-supplied advisory',
+      observedAt: today, affectedBaseline: '1.0', applicability: 'unknown', urgency: 'high',
+      evidence: 'Applicability requires technical assessment.', status: 'open', workOrderId: null,
+    }],
+    deferrals: [],
+    renewal: { description: 'Review build foundation and supported dependencies.', resourceEstimate: 'Engineering assessment required.' },
+    resilience: {
+      failureModes: ['Build provider unavailable.'], restorationOrder: 'Restore repository-local build capability.',
+      recoveryPlan: 'Use documented local recovery steps.', lastExerciseAt: null, exerciseEvidence: 'No exercise recorded.',
+    },
+  };
+}
+
 function transition(root, id, to, apply = true) {
   // Existing lifecycle scenarios use a professionally screened contained repair.
   // Gate-specific scenarios below call the CLI directly to test missing preparation.
@@ -920,7 +956,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.3.0' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.4.0' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -1299,6 +1335,181 @@ test('new work orders require a registered project and status groups legacy work
   assert.equal(success(['validate', '--root', root]).valid, true);
 });
 
+test('infrastructure records report stewardship, create pinned work, reserve security authority, and reject scope drift', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  await writeFile(path.join(root, 'shared-build.json'), '{"build":true}\n');
+  const data = infrastructureAssetData();
+  const registerArgs = [
+    'asset-register', '--root', root, '--data', JSON.stringify(data),
+    '--recorded-by', 'City Manager', '--reason', 'Register shared build service.',
+  ];
+  const preview = success(registerArgs);
+  assert.equal(preview.dryRun, true);
+  assert.equal(success(['status', '--root', root]).infrastructure.assets, 0);
+  const registered = success([...registerArgs, '--apply']).asset;
+  assert.match(registered.id, /^IA-/);
+  const programme = success([
+    'infrastructure-programme-record', '--root', root, '--revision', '0',
+    '--data', JSON.stringify({
+      horizon: { startYear: new Date().getUTCFullYear(), endYear: new Date().getUTCFullYear() + 5 },
+      reviewDue: new Date().toISOString().slice(0, 10),
+      summary: 'Rolling review of shared repository foundations.',
+      assets: [{ assetId: registered.id, revision: registered.revision }],
+      activities: [],
+      unfundedNeeds: [{
+        id: 'build-provider-review', description: 'Assess provider continuity.',
+        consequence: 'Recovery options remain uncertain.', reviewDate: new Date().toISOString().slice(0, 10),
+      }],
+    }),
+    '--recorded-by', 'Chief Planner', '--reason', 'Establish a rolling review.', '--apply',
+  ]);
+  assert.equal(programme.programme.revision, 1);
+  assert.deepEqual(
+    await readJSON(path.join(root, '.city/infrastructure/programme.json')), programme.programme,
+    'Applied programme output must match the persisted record.',
+  );
+  const infrastructureStatus = success(['status', '--root', root]).infrastructure;
+  assert.equal(infrastructureStatus.assets, 1);
+  assert.equal(infrastructureStatus.dueObligations[0].assetId, registered.id);
+  assert.equal(infrastructureStatus.staleServices[0].serviceId, 'builds');
+  assert.equal(infrastructureStatus.missingOperatingCoverage[0], registered.id);
+  assert.equal(infrastructureStatus.programme.unfundedNeeds, 1);
+
+  const infrastructure = {
+    assets: [registered.id],
+    targets: [{ assetId: registered.id, path: 'shared-build.json' }],
+    obligations: [{
+      assetId: registered.id, obligationId: 'monthly-health-review',
+      dueDate: data.obligations[0].dueDate,
+    }],
+    findings: [{ assetId: registered.id, findingId: 'security-report' }],
+  };
+  const order = success([
+    'petition', '--root', root, '--title', 'Review shared build security',
+    '--request', 'Assess the supplied security report and maintain the shared build service.',
+    '--infrastructure', JSON.stringify(infrastructure),
+    '--criterion', 'Assessment and any authorized change are inspected and documented.', '--apply',
+  ]).workOrder;
+  assert.equal(order.schemaVersion, 3);
+  assert.equal(Object.hasOwn(order, 'projectIds'), false);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+  transition(root, order.id, 'triaged');
+  transition(root, order.id, 'proposed');
+  recordScreening(root, order.id, screening({
+    projectIds: [], scopeEvidence: 'Pinned shared-build.json target and asset revision.',
+  }));
+  success([
+    'transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval',
+    '--reason', 'Exact infrastructure scope is screened.', '--apply',
+  ]);
+  const councilDecision = [
+    'authorize', '--root', root, '--id', order.id, '--decided-by', 'city-council',
+    '--outcome', 'authorize', '--reserved', 'security', '--reason', 'Routine delivery.',
+  ];
+  failure(councilDecision, 'RESERVED_MATTER');
+  const residentAuthorization = success([
+    'authorize', '--root', root, '--id', order.id, '--decided-by', 'resident',
+    '--outcome', 'authorize', '--reserved', 'security', '--reason', 'Resident decision on security work.',
+    '--declared-by', 'Repository resident', '--evidence', 'Security authority recorded in the review.',
+    '--apply',
+  ]);
+  assert.equal(residentAuthorization.workOrder.status, 'authorized');
+
+  const revised = { ...registered, lifecycle: 'deprecated' };
+  success([
+    'asset-revise', '--root', root, '--id', registered.id, '--revision', '1',
+    '--data', JSON.stringify(revised), '--recorded-by', 'City Manager',
+    '--reason', 'Record lifecycle change for drift test.', '--apply',
+  ]);
+  assert.equal(success(['status', '--root', root]).infrastructure.staleWorkOrders[0].id, order.id);
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'in-progress',
+    '--reason', 'Attempt delivery against stale asset scope.',
+  ], 'STALE_INFRASTRUCTURE');
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('infrastructure no-change reviews preserve recurring and event-driven obligations', async () => {
+  const { root } = await fixture();
+  init(root);
+  const data = infrastructureAssetData();
+  data.obligations.push({
+    ...data.obligations[0], id: 'event-review', trigger: 'event-driven',
+    dueDate: null, recurrenceDays: null,
+  });
+  let asset = success([
+    'asset-register', '--root', root, '--data', JSON.stringify(data),
+    '--recorded-by', 'City Manager', '--reason', 'Register maintenance obligations.', '--apply',
+  ]).asset;
+  for (const original of data.obligations) {
+    asset = success([
+      'asset-review', '--root', root, '--id', asset.id, '--revision', String(asset.revision),
+      '--data', JSON.stringify({
+        kind: 'obligation', obligationId: original.id, outcome: 'no-change',
+        date: new Date().toISOString().slice(0, 10), evidence: 'No accepted maintenance work yet.',
+        workOrderId: null, reviewDate: null, riskOwner: null, authorityReference: null,
+      }),
+      '--recorded-by', 'Engineering Manager', '--reason', 'Record review without completion.', '--apply',
+    ]).asset;
+    const reviewed = asset.obligations.find((obligation) => obligation.id === original.id);
+    assert.equal(reviewed.status, original.status);
+    assert.equal(reviewed.dueDate, original.dueDate);
+    assert.equal(reviewed.nextReviewDate, original.nextReviewDate);
+    assert.deepEqual(reviewed.history.map((entry) => entry.outcome), ['no-change']);
+    assert.deepEqual(
+      await readJSON(path.join(root, '.city/infrastructure/assets', `${asset.id}.json`)), asset,
+      'Applied review output must match the persisted record.',
+    );
+  }
+  const status = success(['status', '--root', root]).infrastructure;
+  assert.equal(status.dueObligations[0].id, data.obligations[0].id);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('infrastructure deferrals preserve the original obligation and survive no-change reviews', async () => {
+  const { root } = await fixture();
+  init(root);
+  const data = infrastructureAssetData();
+  let asset = success([
+    'asset-register', '--root', root, '--data', JSON.stringify(data),
+    '--recorded-by', 'City Manager', '--reason', 'Register a maintenance obligation.', '--apply',
+  ]).asset;
+  const reviewDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  asset = success([
+    'asset-review', '--root', root, '--id', asset.id, '--revision', String(asset.revision),
+    '--data', JSON.stringify({
+      kind: 'obligation', obligationId: data.obligations[0].id, outcome: 'deferred',
+      date: new Date().toISOString().slice(0, 10), evidence: 'Capacity is unavailable until review.',
+      workOrderId: null, reviewDate, riskOwner: 'City Manager', authorityReference: 'Recorded capacity decision.',
+    }),
+    '--recorded-by', 'City Manager', '--reason', 'Record maintenance deferral.', '--apply',
+  ]).asset;
+  assert.match(asset.deferrals[0].id, /^[a-z][a-z0-9-]{0,63}$/u);
+  assert.equal(asset.deferrals[0].originalDueDate, data.obligations[0].dueDate);
+  assert.equal(asset.deferrals[0].riskOwner, 'City Manager');
+  assert.equal(asset.deferrals[0].reviewDate, reviewDate);
+  assert.deepEqual(
+    await readJSON(path.join(root, '.city/infrastructure/assets', `${asset.id}.json`)), asset,
+    'Applied deferral output must match the persisted record.',
+  );
+  asset = success([
+    'asset-review', '--root', root, '--id', asset.id, '--revision', String(asset.revision),
+    '--data', JSON.stringify({
+      kind: 'obligation', obligationId: data.obligations[0].id, outcome: 'no-change',
+      date: new Date().toISOString().slice(0, 10), evidence: 'Capacity is still unavailable.',
+      workOrderId: null, reviewDate: null, riskOwner: null, authorityReference: null,
+    }),
+    '--recorded-by', 'City Manager', '--reason', 'Retain the recorded deferral.', '--apply',
+  ]).asset;
+  assert.equal(asset.obligations[0].status, 'deferred');
+  assert.equal(asset.obligations[0].dueDate, data.obligations[0].dueDate);
+  assert.equal(asset.obligations[0].nextReviewDate, reviewDate);
+  assert.deepEqual(asset.obligations[0].history.map((entry) => entry.outcome), ['deferred', 'no-change']);
+  assert.equal(asset.deferrals.length, 1);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
 test('legacy work orders without project IDs remain valid and project references are checked', async () => {
   const { root } = await fixture();
   init(root);
@@ -1627,7 +1838,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -1641,7 +1852,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   const order = await readJSON(path.join(project, 'schemas/work-order.schema.json'));
   assert.ok(order.properties.projectIds, 'work orders expose project associations');
   assert.equal(order.properties.projectIds.minItems, 1);
-  assert.deepEqual(order.properties.schemaVersion.enum, [1, 2]);
+  assert.deepEqual(order.properties.schemaVersion.enum, [1, 2, 3]);
   assert.deepEqual(order.allOf[0].then.required, ['projectIds']);
   const projectSchema = await readJSON(path.join(project, 'schemas/projects.schema.json'));
   assert.deepEqual(projectSchema.required, ['schemaVersion', 'projects']);
@@ -1651,7 +1862,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
   assert.deepEqual(decision.properties.schemaVersion.enum, [1, 2]);
   const { proposal, delivery } = decision.$defs;
@@ -2083,7 +2294,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.3.0' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.4.0' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -2432,7 +2643,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.3.0');
+  assert.equal(output.decision.provenance.plugin.version, '0.4.0');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -2442,7 +2653,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.3.0');
+  assert.equal(output.plugin.version, '0.4.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.deepEqual(output.commandOnlyStates, { authorized: 'authorize', completed: 'complete' });
@@ -2554,6 +2765,7 @@ test('workforce records are optional and status exposes the bundled general engi
   assert.deepEqual(validated.records, {
     projects: 0, workOrders: 0, decisions: 0, recordsRequests: 0,
     requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0,
+    infrastructureAssets: 0, infrastructureProgramme: 0,
   });
   assert.deepEqual(validated.workforce.drift, []);
   await assert.rejects(lstat(path.join(root, '.city/workforce')), { code: 'ENOENT' });
@@ -2628,6 +2840,7 @@ test('HR declines and appointment declines are terminal history transitions', as
   assert.deepEqual(success(['validate', '--root', root]).records, {
     projects: 1, workOrders: 1, decisions: 0, recordsRequests: 0,
     requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0,
+    infrastructureAssets: 0, infrastructureProgramme: 0,
   });
   assert.equal(success(['status', '--root', root]).workforce.requisitions.byStatus.declined, 2);
 });

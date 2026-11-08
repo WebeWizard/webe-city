@@ -34,6 +34,10 @@ proposals, not for granting development permission or implementing the proposal.
    substantial architectural/long-term boundary planning, not every ordinary feature.
 2. Compare the smallest viable change, a meaningful alternative, and no change.
    Explain resident value, compatibility, maintenance cost, and reversibility.
+   For shared systems, use [asset management](../../skills/city-asset-management/SKILL.md)
+   to compare service evidence, supported baselines, cross-asset dependencies,
+   rolling renewal priorities, capacity, and explicitly unfunded needs. Keep
+   resource estimates separate from authorized expenditure.
 3. Use [development impact assessment](../../skills/city-development-impact-assessment/SKILL.md)
    when material impacts warrant it. Specify only necessary justified requirements;
    do not require a full impact matrix or master plan for every request.

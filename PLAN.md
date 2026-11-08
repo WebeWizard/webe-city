@@ -52,6 +52,16 @@ governance. The CLI has no background scheduler; triggers are checked when
 Still future work: authenticated identity, protected merge integration,
 expenditure and budget controls, and a published release.
 
+The private 0.4.0 infrastructure capability adds optional asset and rolling
+programme records, service/condition/obligation/finding status, exact pinned
+infrastructure work-order scopes, and a policy/skill for continuing stewardship.
+Older cities and work orders remain valid; records do not adopt policy, appoint
+operators, monitor services, authorize work, or claim external execution.
+Consultation records, delivered disruption notices, system-wide recovery
+exercises, continuous monitoring and automated discovery remain human-operated
+or future work as described in the
+[infrastructure implementation notes](docs/infrastructure-plan.md).
+
 Implementation refinements:
 
 - Local configuration and district declarations use JSON rather than the

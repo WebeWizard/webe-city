@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City infrastructure asset record",
+  "description": "A versioned local register of an infrastructure asset, its operators, services, lifecycle obligations, condition, findings, deferrals, renewal and resilience evidence. Provenance is not authenticated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "cityId", "revision", "name", "purpose", "category", "lifecycle", "owner", "custodian", "operator", "services", "locators", "projectIds", "dependencies", "criticality", "condition", "baseline", "obligations", "findings", "deferrals", "renewal", "resilience", "history", "createdAt", "updatedAt", "provenance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "cityId": { "type": "string", "format": "uuid" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "name": { "$ref": "#/$defs/text", "maxLength": 200 },
+    "purpose": { "$ref": "#/$defs/text", "maxLength": 2000 },
+    "category": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "lifecycle": { "enum": ["proposed", "active", "deprecated", "retired"] },
+    "owner": { "$ref": "#/$defs/text", "maxLength": 200 },
+    "custodian": { "$ref": "#/$defs/text", "maxLength": 200 },
+    "operator": { "$ref": "#/$defs/operator" },
+    "services": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/service" } },
+    "locators": { "type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": { "anyOf": [{ "const": "." }, { "$ref": "#/$defs/path" }] } },
+    "projectIds": { "type": "array", "maxItems": 100, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" } },
+    "dependencies": { "type": "array", "maxItems": 100, "uniqueItems": true, "items": { "type": "string", "pattern": "^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } },
+    "criticality": { "$ref": "#/$defs/criticality" },
+    "condition": {
+      "type": "object", "additionalProperties": false, "required": ["state", "observedAt", "method", "evidence"],
+      "properties": {
+        "state": { "enum": ["unknown", "satisfactory", "degraded", "failed"] },
+        "observedAt": { "$ref": "#/$defs/dateOrNull" },
+        "method": { "$ref": "#/$defs/text", "maxLength": 500 },
+        "evidence": { "$ref": "#/$defs/text", "maxLength": 2000 }
+      }
+    },
+    "baseline": {
+      "type": "object", "additionalProperties": false, "required": ["version", "compatibility", "supportEnds"],
+      "properties": {
+        "version": { "type": ["string", "null"], "maxLength": 200 },
+        "compatibility": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "supportEnds": { "$ref": "#/$defs/dateOrNull" }
+      }
+    },
+    "obligations": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/obligation" } },
+    "findings": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/finding" } },
+    "deferrals": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/deferral" } },
+    "renewal": {
+      "type": "object", "additionalProperties": false, "required": ["description", "resourceEstimate"],
+      "properties": { "description": { "$ref": "#/$defs/text", "maxLength": 2000 }, "resourceEstimate": { "$ref": "#/$defs/text", "maxLength": 500 } }
+    },
+    "resilience": {
+      "type": "object", "additionalProperties": false, "required": ["failureModes", "restorationOrder", "recoveryPlan", "lastExerciseAt", "exerciseEvidence"],
+      "properties": {
+        "failureModes": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/text", "maxLength": 500 } },
+        "restorationOrder": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "recoveryPlan": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "lastExerciseAt": { "$ref": "#/$defs/dateOrNull" },
+        "exerciseEvidence": { "$ref": "#/$defs/text", "maxLength": 2000 }
+      }
+    },
+    "history": {
+      "type": "array", "minItems": 1, "maxItems": 1000, "items": {
+        "type": "object", "additionalProperties": false, "required": ["revision", "reason", "recordedAt", "recordedBy"],
+        "properties": {
+          "revision": { "type": "integer", "minimum": 1 },
+          "reason": { "$ref": "#/$defs/text", "maxLength": 2000 },
+          "recordedAt": { "$ref": "#/$defs/timestamp" },
+          "recordedBy": { "$ref": "#/$defs/text", "maxLength": 200 }
+        }
+      }
+    },
+    "createdAt": { "$ref": "#/$defs/timestamp" },
+    "updatedAt": { "$ref": "#/$defs/timestamp" },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "^(?!\\s)(?:[\\s\\S]*\\S)?$" },
+    "dateOrNull": { "type": ["string", "null"], "format": "date" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "criticality": { "enum": ["low", "moderate", "high", "critical"] },
+    "path": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*[*?\\[\\]{}])(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)(?:\\.city|\\.git)(?:/|$))\\S(?:[^\\r\\n]*\\S)?$" },
+    "operator": {
+      "type": "object", "additionalProperties": false, "required": ["role", "channel", "coverage", "verifiedAt"],
+      "properties": { "role": { "$ref": "#/$defs/text", "maxLength": 200 }, "channel": { "$ref": "#/$defs/text", "maxLength": 500 }, "coverage": { "$ref": "#/$defs/text", "maxLength": 1000 }, "verifiedAt": { "$ref": "#/$defs/dateOrNull" } }
+    },
+    "service": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "expectation", "target", "measurementSource", "maxAgeDays", "measurements"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+        "name": { "$ref": "#/$defs/text", "maxLength": 200 },
+        "expectation": { "$ref": "#/$defs/text", "maxLength": 1000 },
+        "target": { "type": ["string", "null"], "maxLength": 500 },
+        "measurementSource": { "$ref": "#/$defs/text", "maxLength": 500 },
+        "maxAgeDays": { "type": "integer", "minimum": 1, "maximum": 3650 },
+        "measurements": { "type": "array", "maxItems": 1000, "items": {
+          "type": "object", "additionalProperties": false, "required": ["observedAt", "value", "evidence"],
+          "properties": { "observedAt": { "type": "string", "format": "date" }, "value": { "$ref": "#/$defs/text", "maxLength": 500 }, "evidence": { "$ref": "#/$defs/text", "maxLength": 2000 } }
+        } }
+      }
+    },
+    "obligation": {
+      "type": "object", "additionalProperties": false, "required": ["id", "task", "owner", "trigger", "dueDate", "recurrenceDays", "acceptanceEvidence", "status", "nextReviewDate", "history"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+        "task": { "$ref": "#/$defs/text", "maxLength": 1000 }, "owner": { "$ref": "#/$defs/text", "maxLength": 200 },
+        "trigger": { "enum": ["recurring", "event-driven"] }, "dueDate": { "$ref": "#/$defs/dateOrNull" },
+        "recurrenceDays": { "type": ["integer", "null"], "minimum": 1, "maximum": 3650 },
+        "acceptanceEvidence": { "$ref": "#/$defs/text", "maxLength": 1000 },
+        "status": { "enum": ["open", "deferred", "satisfied"] }, "nextReviewDate": { "$ref": "#/$defs/dateOrNull" },
+        "history": { "type": "array", "maxItems": 1000, "items": {
+          "type": "object", "additionalProperties": false, "required": ["outcome", "date", "evidence", "workOrderId"],
+          "properties": { "outcome": { "enum": ["completed", "deferred", "no-change"] }, "date": { "$ref": "#/$defs/dateOrNull" }, "evidence": { "$ref": "#/$defs/text", "maxLength": 2000 }, "workOrderId": { "type": ["string", "null"] } }
+        } }
+      }
+    },
+    "finding": {
+      "type": "object", "additionalProperties": false, "required": ["id", "kind", "source", "observedAt", "affectedBaseline", "applicability", "urgency", "evidence", "status", "workOrderId"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+        "kind": { "enum": ["security", "defect", "reliability", "support", "compatibility", "recovery", "other"] },
+        "source": { "$ref": "#/$defs/text", "maxLength": 500 }, "observedAt": { "$ref": "#/$defs/dateOrNull" },
+        "affectedBaseline": { "$ref": "#/$defs/text", "maxLength": 500 },
+        "applicability": { "enum": ["unknown", "applicable", "not-applicable"] },
+        "urgency": { "$ref": "#/$defs/criticality" }, "evidence": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "status": { "enum": ["open", "resolved"] }, "workOrderId": { "type": ["string", "null"] }
+      }
+    },
+    "deferral": {
+      "type": "object", "additionalProperties": false, "required": ["id", "referenceType", "referenceId", "reason", "riskOwner", "authorityReference", "reviewDate", "originalDueDate"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+        "referenceType": { "enum": ["obligation", "finding"] }, "referenceId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "reason": { "$ref": "#/$defs/text", "maxLength": 2000 }, "riskOwner": { "$ref": "#/$defs/text", "maxLength": 200 },
+        "authorityReference": { "type": ["string", "null"], "maxLength": 1000 },
+        "reviewDate": { "type": "string", "format": "date" }, "originalDueDate": { "$ref": "#/$defs/dateOrNull" }
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false, "required": ["source", "plugin"],
+      "properties": {
+        "source": { "const": "local-draft" },
+        "plugin": { "type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": { "name": { "const": "repository-city" }, "version": { "enum": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"] } } }
+      }
+    }
+  }
+}
