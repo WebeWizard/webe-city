@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.4.0 pilot, not a production government.**
+**Status: private 0.5.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -21,9 +21,9 @@ An open-source license and publisher have not been selected.
   Clerk, Chief Planner, Development Advisor, Engineering Manager, Human Resources
   Officer, Municipal Software Engineer, Building Inspector, Records Officer, City Auditor, and
   Performance and Innovation Officer.
-- Twenty-two professional skills drawn from real municipal competencies,
-  including development applications, asset management and delivery authorization
-  (27 skills total).
+- Twenty-three professional skills drawn from real municipal competencies,
+  including development applications, asset management, delivery authorization,
+  and building permits (28 skills total).
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
 - Draft charter and operating procedures for authority, policy, services,
@@ -35,7 +35,9 @@ An open-source license and publisher have not been selected.
   acceptance, workforce requisitions, HR review, delegated appointments, local
   specialist generation, assignment, retirement, institutional-review trigger
   evaluation and review-record persistence, infrastructure asset/programme
-  records, pinned infrastructure work scopes, and validation.
+  records, pinned infrastructure work scopes, and optional adopted building
+  permits with risk classification, permit conditions, expiry and completion
+  notice gates.
 - A guarded Copilot hook that leaves unrelated repositories alone and reports
   malformed or incompatible city records.
 
@@ -70,6 +72,18 @@ Manager; Council's actual decision handoff is only at `awaiting-approval`.
 Existing `records-list/get` expose
 all attached revisions. The runtime validates evidence structure and snapshots,
 not policy semantics or identities. See the [complete contract and examples](./docs/development-applications.md).
+
+## Optional building permits
+
+The separately adopted [building-permits policy](./docs/building-permits.md)
+adds safety and structural risk classes, required staff competency statements
+for classes 3–4, independent verification for class 4, permit conditions and
+expiry, limited extensions, and a completion notice before inspection. The
+policy is not authority until adopted with `amend`; existing authorizations
+remain valid. Records are unauthenticated declarations, and the CLI has no
+background expiry scheduler. Neighbour consultation, structured dispensations,
+retroactive legalization, professional licensing, and physical inspection are
+not implemented.
 
 New cities review the thirteen-office charter and development-applications policy
 before adoption. Existing cities must explicitly merge/review the revised charter

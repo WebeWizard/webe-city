@@ -39,6 +39,11 @@ chain. Findings may support resident judgment; they do not confer authorization.
    decided by the resident; inspection preceded `awaiting-merge`; the Engineer
    did not authorize, inspect, or complete its own work; returns to `proposed`
    were followed by a new authorization before delivery resumed.
+   When the building-permits policy is adopted, also trace the screening class,
+   any required professional statement and independent verification, authorization
+   permit terms, extension limits, lapse state, completion notice, and Inspector
+   disposition. Report competency strings as unauthenticated staff records, not
+   proof of professional licensing.
 6. For workforce activity, trace requisition -> HR review -> Engineering Manager
    appointment -> HR hire -> assignment. Check that the generated-file digests
    match, appointments are recorded with `authenticated: false`, retired staff

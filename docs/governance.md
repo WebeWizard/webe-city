@@ -1,6 +1,6 @@
 # Governance and institutional memory
 
-**DRAFT — 0.4.0 pilot.** The supplied templates propose responsibilities; none is adopted policy, an appointed employee, a human decision, or permission to deliver until a resident adopts them. Plugin installation is not city founding. Local initialization is paperwork, not enrollment or proof of consent. Once governance is adopted, the runtime records delivery authorization and acceptance decisions; those decisions are recorded, not authenticated.
+**DRAFT — 0.5.0 pilot.** The supplied templates propose responsibilities; none is adopted policy, an appointed employee, a human decision, or permission to deliver until a resident adopts them. Plugin installation is not city founding. Local initialization is paperwork, not enrollment or proof of consent. Once governance is adopted, the runtime records delivery authorization and acceptance decisions; those decisions are recorded, not authenticated.
 
 ## What is provided, and what is not
 
