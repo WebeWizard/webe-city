@@ -2,6 +2,7 @@ import { isAbsolute, posix } from 'node:path';
 import {
   AUTHORIZATION_OUTCOMES, AUTHORIZATION_VOIDING_STATES, COMPATIBLE_PLUGIN_VERSIONS, CONFIG_SCHEMA_VERSION,
   DELIVERY_DECISION_SCHEMA_VERSION, EVIDENCE_RULE, GOVERNANCE, LEGACY_CONFIG_SCHEMA_VERSION,
+  INFRASTRUCTURE_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION,
   INSTITUTIONAL_REVIEW_TRIGGERS, LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
   SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_SCHEMA_VERSION, WORKFORCE_SCHEMA_VERSION,
   WORKFORCE_TOOLS, GENERAL_ENGINEER_ID,
@@ -15,19 +16,22 @@ const orderPattern = new RegExp(`^WO-${uuid}$`);
 const decisionPattern = new RegExp(`^DEC-${uuid}$`);
 const recordsRequestPattern = new RegExp(`^RR-${uuid}$`);
 const institutionalReviewPattern = new RegExp(`^IR-${uuid}$`);
+const infrastructureAssetPattern = new RegExp(`^IA-${uuid}$`);
 const requisitionPattern = new RegExp(`^REQ-${uuid}$`);
 const assignmentPattern = new RegExp(`^ASN-${uuid}$`);
 const staffIdPattern = /^[a-z][a-z0-9-]{1,40}$/u;
 const own = (value, key) => Object.hasOwn(value, key);
 
 export const RECORD_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'institutional-review', 'config', 'project', 'district', 'charter', 'policy',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
+  'infrastructure-programme', 'config', 'project', 'district', 'charter', 'policy',
 ]);
 export const CANONICAL_RECORD_TYPES = Object.freeze([
   ...RECORD_TYPES, 'requisition', 'staff', 'assignment',
 ]);
 export const RECORD_EXCHANGE_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'institutional-review', 'config', 'project', 'district', 'charter', 'policy',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
+  'infrastructure-programme', 'config', 'project', 'district', 'charter', 'policy',
 ]);
 export const RECORD_REQUEST_OUTCOMES = Object.freeze(['found', 'not-found', 'withheld', 'unavailable']);
 
@@ -45,6 +49,12 @@ export function validateRecordId(type, id, label = 'Record ID') {
       break;
     case 'institutional-review':
       if (!institutionalReviewPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an institutional-review ID.`);
+      break;
+    case 'infrastructure-asset':
+      if (!infrastructureAssetPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an infrastructure asset ID.`);
+      break;
+    case 'infrastructure-programme':
+      if (id !== 'infrastructure-programme') fail('INVALID_ARGUMENT', `${label} must be infrastructure-programme.`);
       break;
     case 'requisition':
       if (!requisitionPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be a requisition ID.`);
@@ -392,14 +402,97 @@ export function checkTransition(from, to, criteria, authorized = false) {
   }
 }
 
+function safeInfrastructurePath(value, label, allowRepositoryRoot = false) {
+  text(value, label, 500);
+  if (allowRepositoryRoot && value === '.') return;
+  const segments = value.split('/');
+  if (posix.isAbsolute(value) || value.includes('\\') || value.includes(':') || /[*?[\]{}]/u.test(value)
+    || segments.some((segment) => !segment || segment === '.' || segment === '..')
+    || segments.some((segment) => segment === '.city' || segment === '.git')
+    || posix.normalize(value) !== value) {
+    fail('INVALID_RECORD', `${label} must be a normalized, explicit repository-relative path outside Git and city metadata.`);
+  }
+}
+
+export function validateInfrastructureWorkScope(value) {
+  fields(value, ['assets', 'targets', 'obligations', 'findings'], 'Work-order infrastructure scope');
+  if (!Array.isArray(value.assets) || value.assets.length === 0 || value.assets.length > 100) {
+    fail('INVALID_RECORD', 'Infrastructure scope must pin 1-100 asset revisions.');
+  }
+  const assets = new Set();
+  for (const asset of value.assets) {
+    fields(asset, ['assetId', 'revision', 'locators', 'baseline', 'criticality'], 'Infrastructure asset pin');
+    validateRecordId('infrastructure-asset', asset.assetId, 'Infrastructure asset ID');
+    positiveRevision(asset.revision);
+    if (!Array.isArray(asset.locators) || asset.locators.length === 0 || asset.locators.length > 100) {
+      fail('INVALID_RECORD', 'Infrastructure asset pins must snapshot 1-100 local asset locators.');
+    }
+    asset.locators.forEach((locator) => safeInfrastructurePath(locator, 'Pinned infrastructure asset locator', true));
+    fields(asset.baseline, ['version', 'compatibility', 'supportEnds'], 'Pinned infrastructure baseline');
+    if (asset.baseline.version !== null) text(asset.baseline.version, 'Pinned infrastructure baseline version', 200);
+    text(asset.baseline.compatibility, 'Pinned infrastructure compatibility', 2000);
+    if (asset.baseline.supportEnds !== null) calendarDate(asset.baseline.supportEnds, 'Pinned infrastructure support end date', 'INVALID_RECORD');
+    if (!['low', 'moderate', 'high', 'critical'].includes(asset.criticality)) {
+      fail('INVALID_RECORD', 'Pinned infrastructure criticality is unsupported.');
+    }
+    if (assets.has(asset.assetId)) fail('INVALID_RECORD', 'Infrastructure asset pins must be unique.');
+    assets.add(asset.assetId);
+  }
+  if (!Array.isArray(value.targets) || value.targets.length > 100) {
+    fail('INVALID_RECORD', 'Infrastructure delivery targets must be an array of at most 100 entries.');
+  }
+  const targets = new Set();
+  for (const target of value.targets) {
+    fields(target, ['assetId', 'path'], 'Infrastructure delivery target');
+    if (!assets.has(target.assetId)) fail('INVALID_RECORD', 'Each infrastructure target must reference a pinned asset.');
+    safeInfrastructurePath(target.path, 'Infrastructure target path');
+    const key = `${target.assetId}\n${target.path}`;
+    if (targets.has(key)) fail('INVALID_RECORD', 'Infrastructure delivery targets must be unique per asset.');
+    targets.add(key);
+  }
+  if (!Array.isArray(value.obligations) || value.obligations.length > 100) {
+    fail('INVALID_RECORD', 'Infrastructure obligations must be an array of at most 100 entries.');
+  }
+  const obligations = new Set();
+  for (const obligation of value.obligations) {
+    fields(obligation, ['assetId', 'obligationId', 'dueDate'], 'Infrastructure obligation reference');
+    if (!assets.has(obligation.assetId)) fail('INVALID_RECORD', 'Each obligation must reference a pinned asset.');
+    text(obligation.obligationId, 'Infrastructure obligation ID', 64);
+    calendarDate(obligation.dueDate, 'Infrastructure obligation due date', 'INVALID_RECORD');
+    const key = `${obligation.assetId}\n${obligation.obligationId}\n${obligation.dueDate}`;
+    if (obligations.has(key)) fail('INVALID_RECORD', 'Infrastructure obligation occurrences must be unique.');
+    obligations.add(key);
+  }
+  if (!Array.isArray(value.findings) || value.findings.length > 100) {
+    fail('INVALID_RECORD', 'Infrastructure findings must be an array of at most 100 entries.');
+  }
+  const findings = new Set();
+  for (const finding of value.findings) {
+    fields(finding, ['assetId', 'findingId', 'kind'], 'Infrastructure finding reference');
+    if (!assets.has(finding.assetId)) fail('INVALID_RECORD', 'Each finding must reference a pinned asset.');
+    text(finding.findingId, 'Infrastructure finding ID', 64);
+    if (!['security', 'defect', 'reliability', 'support', 'compatibility', 'recovery', 'other'].includes(finding.kind)) {
+      fail('INVALID_RECORD', 'Infrastructure finding kind is unsupported.');
+    }
+    const key = `${finding.assetId}\n${finding.findingId}`;
+    if (findings.has(key)) fail('INVALID_RECORD', 'Infrastructure finding references must be unique.');
+    findings.add(key);
+  }
+}
+
 export function validateWorkOrder(value, expectedCityId) {
-  version(value, 'City work order', [SCHEMA_VERSION, WORK_ORDER_SCHEMA_VERSION]);
+  version(value, 'City work order', [SCHEMA_VERSION, WORK_ORDER_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION]);
   const required = [
     'schemaVersion', 'id', 'cityId', 'title', 'request', 'acceptanceCriteria',
     'status', 'createdAt', 'updatedAt', 'history', 'provenance',
   ];
   if (value.schemaVersion === WORK_ORDER_SCHEMA_VERSION) {
     fields(value, [...required, 'projectIds', ...(own(value, 'development') ? ['development'] : [])], 'City work order');
+  } else if (value.schemaVersion === INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION) {
+    fields(value, [
+      ...required, ...(own(value, 'projectIds') ? ['projectIds'] : []), 'infrastructure',
+      ...(own(value, 'development') ? ['development'] : []),
+    ], 'City work order');
   } else {
     fields(value, [...required, ...(own(value, 'development') ? ['development'] : [])], 'City work order');
   }
@@ -408,11 +501,18 @@ export function validateWorkOrder(value, expectedCityId) {
   text(value.title, 'Work-order title', 500);
   text(value.request, 'Work-order request', 20000);
   stringArray(value.acceptanceCriteria, 'Work-order acceptance criteria', LIMITS.criteria, 2000);
-  if (value.schemaVersion === WORK_ORDER_SCHEMA_VERSION) {
+  if ([WORK_ORDER_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION].includes(value.schemaVersion)
+    && own(value, 'projectIds')) {
     if (!Array.isArray(value.projectIds) || value.projectIds.length === 0 || value.projectIds.length > 100
       || new Set(value.projectIds).size !== value.projectIds.length
       || value.projectIds.some((id) => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(id))) {
       fail('INVALID_RECORD', 'Work-order projectIds must contain unique safe IDs for at least one project.');
+    }
+  }
+  if (value.schemaVersion === INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION) {
+    validateInfrastructureWorkScope(value.infrastructure);
+    if ((!value.projectIds || value.projectIds.length === 0) && value.infrastructure.targets.length === 0) {
+      fail('INVALID_RECORD', 'Infrastructure work orders need at least one registered project or exact infrastructure delivery target.');
     }
   }
   validateState(value.status);
@@ -422,6 +522,7 @@ export function validateWorkOrder(value, expectedCityId) {
   if (!Array.isArray(value.history) || value.history.length === 0 || value.history.length > LIMITS.history) {
     fail('INVALID_RECORD', `Work-order history must have between 1 and ${LIMITS.history} entries.`);
   }
+
   let previousState = null;
   let previousTimestamp = value.createdAt;
   let authorized = false;
@@ -510,7 +611,6 @@ export function validateDevelopmentInput(kind, value) {
       text(requirement.description, 'Requirement description', 2000);
       text(requirement.reason, 'Requirement justification', 2000);
     }
-    if (value.route !== 'needs-clarification' && value.projectIds.length === 0) fail('INVALID_ARGUMENT', 'Conclusive screening needs selected project scope.');
     if (value.route === 'needs-clarification' && value.questions.length === 0) fail('INVALID_ARGUMENT', 'Uncertain screening needs concrete resident questions.');
     if (value.route === 'lightweight' && (value.impacts.length || value.questions.length || value.requirements.length)) {
       fail('INVALID_ARGUMENT', 'Lightweight screening cannot contain material impacts, unresolved questions or formal requirements.');

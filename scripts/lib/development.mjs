@@ -16,6 +16,16 @@ export function developmentSnapshot(city, order) {
     title: order.title, request: order.request, criteria: order.acceptanceCriteria,
     projectIds: order.projectIds ?? [],
     projects: city.projects.projects.filter((project) => order.projectIds?.includes(project.id)),
+    infrastructure: (order.infrastructure?.assets ?? []).map((pin) => {
+      const current = city.infrastructure.assets.get(pin.assetId)?.value;
+      return {
+        assetId: pin.assetId, pinnedRevision: pin.revision,
+        current: current ? {
+          lifecycle: current.lifecycle, locators: current.locators,
+          baseline: current.baseline, criticality: current.criticality,
+        } : null,
+      };
+    }),
     districts: city.districts, resets,
     adoption: city.config.adoption ?? null, governance: city.governanceDigests,
   };

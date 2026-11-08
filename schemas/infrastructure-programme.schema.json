@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City rolling infrastructure programme",
+  "description": "A versioned rolling-horizon programme of proposed, authorized, deferred and completed asset work, including explicitly recorded unfunded needs. It is not itself an authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "cityId", "revision", "horizon", "reviewDue", "summary", "assets", "activities", "unfundedNeeds", "history", "updatedAt", "provenance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "const": "infrastructure-programme" },
+    "cityId": { "type": "string", "format": "uuid" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "horizon": { "type": "object", "additionalProperties": false, "required": ["startYear", "endYear"], "properties": { "startYear": { "type": "integer", "minimum": 2000 }, "endYear": { "type": "integer", "minimum": 2000 } } },
+    "reviewDue": { "type": "string", "format": "date" },
+    "summary": { "$ref": "#/$defs/text", "maxLength": 4000 },
+    "assets": { "type": "array", "maxItems": 100, "items": { "type": "object", "additionalProperties": false, "required": ["assetId", "revision"], "properties": { "assetId": { "type": "string", "pattern": "^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }, "revision": { "type": "integer", "minimum": 1 } } } },
+    "activities": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/activity" } },
+    "unfundedNeeds": { "type": "array", "maxItems": 500, "items": { "type": "object", "additionalProperties": false, "required": ["id", "description", "consequence", "reviewDate"], "properties": { "id": { "$ref": "#/$defs/id" }, "description": { "$ref": "#/$defs/text", "maxLength": 2000 }, "consequence": { "$ref": "#/$defs/text", "maxLength": 2000 }, "reviewDate": { "type": "string", "format": "date" } } } },
+    "history": { "type": "array", "minItems": 1, "maxItems": 1000, "items": { "type": "object", "additionalProperties": false, "required": ["revision", "reason", "recordedAt", "recordedBy"], "properties": { "revision": { "type": "integer", "minimum": 1 }, "reason": { "$ref": "#/$defs/text", "maxLength": 2000 }, "recordedAt": { "type": "string", "format": "date-time" }, "recordedBy": { "$ref": "#/$defs/text", "maxLength": 200 } } } },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "^(?!\\s)(?:[\\s\\S]*\\S)?$" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "activity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "assetId", "title", "description", "priority", "proposedYear", "effortEstimate", "resourceEstimate", "authorityStatus", "workOrderId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "assetId": { "type": "string", "pattern": "^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "title": { "$ref": "#/$defs/text", "maxLength": 200 }, "description": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "priority": { "enum": ["low", "moderate", "high", "critical"] }, "proposedYear": { "type": "integer" },
+        "effortEstimate": { "$ref": "#/$defs/text", "maxLength": 500 }, "resourceEstimate": { "$ref": "#/$defs/text", "maxLength": 500 },
+        "authorityStatus": { "enum": ["proposed", "authorized", "deferred", "complete"] }, "workOrderId": { "type": ["string", "null"] }
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false, "required": ["source", "plugin"],
+      "properties": {
+        "source": { "const": "local-draft" },
+        "plugin": { "type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": { "name": { "const": "repository-city" }, "version": { "enum": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"] } } }
+      }
+    }
+  }
+}

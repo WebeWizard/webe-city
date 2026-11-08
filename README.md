@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.3.0 pilot, not a production government.**
+**Status: private 0.4.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -21,8 +21,9 @@ An open-source license and publisher have not been selected.
   Clerk, Chief Planner, Development Advisor, Engineering Manager, Human Resources
   Officer, Municipal Software Engineer, Building Inspector, Records Officer, City Auditor, and
   Performance and Innovation Officer.
-- Twenty-one professional skills drawn from real municipal competencies,
-  including development applications and delivery authorization (26 skills total).
+- Twenty-two professional skills drawn from real municipal competencies,
+  including development applications, asset management and delivery authorization
+  (27 skills total).
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
 - Draft charter and operating procedures for authority, policy, services,
@@ -33,7 +34,8 @@ An open-source license and publisher have not been selected.
   adoption, delivery authorization,
   acceptance, workforce requisitions, HR review, delegated appointments, local
   specialist generation, assignment, retirement, institutional-review trigger
-  evaluation and review-record persistence, and validation.
+  evaluation and review-record persistence, infrastructure asset/programme
+  records, pinned infrastructure work scopes, and validation.
 - A guarded Copilot hook that leaves unrelated repositories alone and reports
   malformed or incompatible city records.
 
@@ -242,6 +244,43 @@ node /absolute/path/to/city/scripts/city.mjs petition \
 
 Review the dry-run, then repeat with `--apply` to create the intake record.
 Criteria may be omitted at intake, but must be clarified before a proposal.
+
+## Steward shared infrastructure
+
+The adopted [infrastructure-management policy](./templates/repository/.city/policies/infrastructure-management.md)
+applies stewardship to shared build/test foundations, reusable libraries,
+release configuration, data foundations, tooling, and recorded external
+dependencies. It keeps asset/service records separate from work orders and
+resident authorization. No monitor, scanner, external notice, operator
+appointment, or background maintenance is implied.
+
+Use the strict [asset schema](./schemas/infrastructure-asset.schema.json) to
+record accountable ownership, actual operator coverage, services and dated
+measurements, condition, supported baseline, maintenance obligations, findings,
+deferrals, renewal and resilience evidence. All mutators default to dry-run:
+
+The CLI syntax is `asset-register --root ABS --data JSON --recorded-by OFFICE
+--reason TEXT`. Supply the complete strict record shape from the schema; preview
+it, then repeat with `--apply`.
+
+`asset-revise` requires the current `--revision`; `asset-review` appends dated
+condition, service, obligation, or finding evidence. The
+`infrastructure-programme-record` command maintains a rolling horizon and
+explicitly identifies estimated work and unfunded needs; it does not allocate
+resources. `status.infrastructure` reports due obligations, stale service
+measurements, missing operating coverage, support deadlines, open findings,
+deferrals, stale pinned work orders and programme review dates only from
+recorded evidence.
+
+Shared infrastructure work can omit `--project` only when `petition` includes
+`--infrastructure` JSON with current asset IDs, exact local target paths, and
+current due-obligation/open-finding references. The runtime snapshots revisions,
+locators, baseline and criticality and rejects unsafe/symlinked targets. A linked
+security finding requires an explicit resident-reserved decision; Council must
+refer it. Ordinary lifecycle screening, assignment, delivery, independent
+inspection and resident acceptance still apply. Review the
+[asset-management skill](./skills/city-asset-management/SKILL.md) and
+[infrastructure implementation notes](./docs/infrastructure-plan.md).
 
 ```sh
 node /absolute/path/to/city/scripts/city.mjs status \

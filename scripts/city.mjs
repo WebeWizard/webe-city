@@ -7,6 +7,8 @@ import {
 import {
   adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
+  infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
+  infrastructureProgrammeRecord,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -16,7 +18,23 @@ const commands = {
   init: { allowed: ['root', 'name', 'apply'], required: ['root'] },
   status: { allowed: ['root'], required: ['root'] },
   validate: { allowed: ['root'], required: ['root'] },
-  petition: { allowed: ['root', 'title', 'request', 'project', 'criterion', 'apply'], required: ['root', 'title', 'request'] },
+  petition: { allowed: ['root', 'title', 'request', 'project', 'infrastructure', 'criterion', 'apply'], required: ['root', 'title', 'request'] },
+  'asset-register': {
+    allowed: ['root', 'data', 'recorded-by', 'reason', 'apply'],
+    required: ['root', 'data', 'recorded-by', 'reason'],
+  },
+  'asset-revise': {
+    allowed: ['root', 'id', 'revision', 'data', 'recorded-by', 'reason', 'apply'],
+    required: ['root', 'id', 'revision', 'data', 'recorded-by', 'reason'],
+  },
+  'asset-review': {
+    allowed: ['root', 'id', 'revision', 'data', 'recorded-by', 'reason', 'apply'],
+    required: ['root', 'id', 'revision', 'data', 'recorded-by', 'reason'],
+  },
+  'infrastructure-programme-record': {
+    allowed: ['root', 'revision', 'data', 'recorded-by', 'reason', 'apply'],
+    required: ['root', 'revision', 'data', 'recorded-by', 'reason'],
+  },
   'project-add': {
     allowed: ['root', 'id', 'name', 'path', 'description', 'apply'],
     required: ['root', 'id', 'name', 'path', 'description'],
@@ -99,7 +117,11 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs status --root ABS',
       'node <installed-plugin>/scripts/city.mjs validate --root ABS',
       'node <installed-plugin>/scripts/city.mjs project-add --root ABS --id ID --name NAME --path RELATIVE_DIR --description TEXT [--apply]',
-      'node <installed-plugin>/scripts/city.mjs petition --root ABS --title TEXT --request TEXT --project ID [--project ID repeated] [--criterion TEXT repeated] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs asset-register --root ABS --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs asset-revise --root ABS --id IA-ID --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs asset-review --root ABS --id IA-ID --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs infrastructure-programme-record --root ABS --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
+      'node <installed-plugin>/scripts/city.mjs petition --root ABS --title TEXT --request TEXT [--project ID repeated] [--infrastructure JSON] [--criterion TEXT repeated] [--apply]',
       'node <installed-plugin>/scripts/city.mjs transition --root ABS --id ID --to STATE --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID --data JSON [--apply]',
@@ -137,7 +159,9 @@ function help() {
       'status workOrders.development reports lifecycle status, authorizationCurrent, actionable, questions, missing evidence and ready-lightweight/ready-formal. Only actionable:true entries have next actor/action; disabled policy, current authorized delivery (including blocked delivery) and closed cases retain diagnostics with next:null. Explicit draft preparation remains permitted. Ready preapproval packets point to city-manager/arrange-lifecycle-progression through ordinary permitted stages; city-council/review-authorization is only for awaiting-approval. Never auto-reopen or skip stages. Formal screening automatically routes to development-advisor through City Manager. Scope/policy changes, re-triage, reopening and return-to-proposed invalidate preparation for subsequent authorization; normal triaged->proposed does not. Prior delivery authorizations are not retroactively invalidated.',
       'All mutators default to JSON dry-runs with no writes. Installing this plugin never enrolls a repository.',
       'Register each project directory with project-add before intake. Project paths are repository-relative, normalized, disjoint directories outside .city and .git; registration does not create or move project files.',
-      'New work orders require one or more registered --project IDs. Legacy work orders without projectIds remain valid and appear as unassigned; project associations are not inferred.',
+      'Project-only work orders require one or more registered --project IDs. Infrastructure-scoped orders may omit projects when supplied --infrastructure JSON identifies pinned asset revisions, exact local targets, and linked obligations/findings. Project associations are never inferred.',
+      'Infrastructure record commands take strict --data JSON and default to dry-run. asset-register data includes inventory, operator, services, locators, projects, dependencies, criticality, condition, supported baseline, obligations, findings, deferrals, renewal and resilience fields. asset-review kinds are condition, service-measurement, obligation and finding. The rolling infrastructure-programme record includes horizon, reviewDue, summary, assets, activities, and unfundedNeeds.',
+      'Maintenance and asset records do not authorize delivery. Infrastructure work orders pin asset revision/locators/baseline and exact targets; security findings require resident authorization. Status reports measurements, due obligations, operating coverage, recovery and renewal gaps without running checks, contacting networks or sending notices.',
       'Only --apply requests local writes. It is not authenticated approval, ratification or verified human authorization.',
       'Governance is draft until adopt records a resident declaration under the charter rule that repository access is the source of authority. The record stores the adoption date, charter SHA-256 and optional version label, policy digests, and authenticated: false.',
       'Adopted governance is recorded, not independently verified. Draft governance blocks authorize and complete (NOT_ADOPTED); charter or policy drift blocks them too (GOVERNANCE_DRIFT) until amend records the revision.',
@@ -240,6 +264,11 @@ async function main() {
   const { command, options } = parse(process.argv.slice(2));
   if (command === 'help') return help();
   const root = await rootDirectory(options.root);
+  if (Object.hasOwn(options, 'revision')) {
+    const revision = Number(options.revision);
+    if (!Number.isSafeInteger(revision) || revision < 0) fail('INVALID_ARGUMENT', '--revision must be a nonnegative integer.');
+    options.revision = revision;
+  }
   switch (command) {
     case 'init':
       return init(root, options, fileURLToPath(new URL('../templates/repository/.city/', import.meta.url)));
@@ -249,6 +278,14 @@ async function main() {
       return validate(root);
     case 'petition':
       return petition(root, options);
+    case 'asset-register':
+      return infrastructureAssetRegister(root, options);
+    case 'asset-revise':
+      return infrastructureAssetRevise(root, options);
+    case 'asset-review':
+      return infrastructureAssetReview(root, options);
+    case 'infrastructure-programme-record':
+      return infrastructureProgrammeRecord(root, options);
     case 'project-add':
       return projectAdd(root, options);
     case 'records-list':

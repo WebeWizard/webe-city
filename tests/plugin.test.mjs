@@ -25,6 +25,7 @@ const agentIds = [
 ];
 const professionalSkills = [
   'agenda-management',
+  'asset-management',
   'case-management',
   'complaint-triage',
   'compliance-inspection',
@@ -63,6 +64,7 @@ const policyTemplates = [
   'institutional-review',
   'development-applications',
   'continuity-and-accountability',
+  'infrastructure-management',
 ];
 const residentSkills = [
   'city-appeal',
@@ -103,7 +105,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.3.0');
+  assert.equal(manifest.version, '0.4.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -316,7 +318,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-six skills are discoverable, substantive, and correctly scoped', async () => {
+test('all twenty-seven skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -375,6 +377,11 @@ test('project data contracts keep project directories distinct from districts', 
   const orderSchema = await json('schemas/work-order.schema.json');
   assert.equal(orderSchema.properties.projectIds.minItems, 1);
   assert.equal(orderSchema.required.includes('projectIds'), false, 'legacy orders remain readable');
+  const assetSchema = await json('schemas/infrastructure-asset.schema.json');
+  const programmeSchema = await json('schemas/infrastructure-programme.schema.json');
+  assert.equal(assetSchema.additionalProperties, false);
+  assert.equal(programmeSchema.additionalProperties, false);
+  assert.deepEqual(orderSchema.allOf.find((entry) => entry.if.properties.schemaVersion.const === 3).then.required, ['infrastructure']);
   const requestSchema = await json('schemas/records-request.schema.json');
   assert.equal(requestSchema.additionalProperties, false);
   assert.deepEqual(requestSchema.required, [
@@ -394,7 +401,7 @@ test('project data contracts keep project directories distinct from districts', 
 test('development contracts preserve compatible work orders and distinct professional roles', async () => {
   const { DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS } = await import('../scripts/lib/constants.mjs');
   const schema = await json('schemas/work-order.schema.json');
-  assert.deepEqual(schema.properties.schemaVersion.enum, [1, 2]);
+  assert.deepEqual(schema.properties.schemaVersion.enum, [1, 2, 3]);
   assert.equal(schema.required.includes('development'), false);
   assert.deepEqual(schema.$defs.development.required, ['screenings', 'applications', 'assessments']);
   assert.deepEqual(schema.$defs.screening.properties.impacts.items.enum, DEVELOPMENT_IMPACTS);
@@ -435,6 +442,8 @@ test('resident documentation and founding templates have no broken local referen
     'docs/governance.md',
     'docs/compatibility.md',
     'docs/development-applications.md',
+    'docs/infrastructure-plan.md',
+    'skills/city-asset-management/SKILL.md',
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
@@ -475,6 +484,8 @@ test('the distributable contains runtime resources but no development profile or
     'scripts/smoke.mjs',
     'scripts/lib/development.mjs',
     'schemas/projects.schema.json',
+    'schemas/infrastructure-asset.schema.json',
+    'schemas/infrastructure-programme.schema.json',
     'schemas/records-request.schema.json',
     'schemas/requisition.schema.json',
     'schemas/staff.schema.json',
@@ -491,6 +502,7 @@ test('the distributable contains runtime resources but no development profile or
     'docs/governance.md',
     'docs/compatibility.md',
     'docs/development-applications.md',
+    'docs/infrastructure-plan.md',
     ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
     ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),
   ]) {

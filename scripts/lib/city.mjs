@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import {
   AUTHORIZATION_OUTCOMES, COMMAND_ONLY_STATES, CONFIG_SCHEMA_VERSION, DECIDERS, DELEGATION_POLICY,
   DELIVERY_DECISION_SCHEMA_VERSION, DRAFT_NOTICE, EVIDENCE_RULE, LEGACY_CONFIG_SCHEMA_VERSION, LIMITS,
+  INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION,
   INSTITUTIONAL_REVIEW_POLICY, INSTITUTIONAL_REVIEW_TRIGGERS,
   DEVELOPMENT_POLICY,
   OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
@@ -12,7 +13,7 @@ import {
 } from './constants.mjs';
 import { CityError, fail } from './errors.mjs';
 import {
-  assertIdentity, atomicCityFile, atomicConfig, atomicRecord, directory, encodeJSON, entries, inspect,
+  assertIdentity, atomicCityFile, atomicConfig, atomicRecord, directory, encodeJSON, entries, ensureDirectories, inspect,
   publishCity, readRegular, regularFile, rootDirectory, withMutationLock,
 } from './filesystem.mjs';
 import {
@@ -21,11 +22,17 @@ import {
   validateConfig, validateDecision, validateDistricts, validateInstitutionalReview, validateOrderId,
   validateProjects, validateRecordId, validateRecordsRequest, validateState, validateWorkOrder,
   validateDevelopmentInput, applicationMissing,
+  validateInfrastructureWorkScope,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
 import {
   assertDevelopmentReady, currentScreening, developmentPreparationAllowed, developmentSnapshot, developmentStatus,
 } from './development.mjs';
+import {
+  assertInfrastructureScopeCurrent, assertInfrastructureTargets, infrastructureSecurityFinding,
+  infrastructurePathWithin, infrastructurePolicyEnabled, infrastructureStatus, validateInfrastructureAsset,
+  validateInfrastructureProgramme,
+} from './infrastructure.mjs';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const dayMilliseconds = 24 * 60 * 60 * 1000;
@@ -130,18 +137,120 @@ export async function loadCity(root, required = true) {
   const institutionalReviews = await readRecords(
     cityPath, 'institutional-reviews', validateInstitutionalReview, config.cityId, true,
   );
+  const infrastructureRoot = path.join(cityPath, 'infrastructure');
+  const infrastructureRootInfo = await inspect(infrastructureRoot);
+  if (infrastructureRootInfo && (!infrastructureRootInfo.isDirectory() || infrastructureRootInfo.isSymbolicLink())) {
+    fail('UNSAFE_PATH', 'City infrastructure state must be a regular directory, not a symlink.');
+  }
+  const infrastructureAssets = await readRecords(
+    cityPath, 'infrastructure/assets', validateInfrastructureAsset, config.cityId, true,
+  );
+  let infrastructureProgramme = null;
+  let infrastructureProgrammePath = null;
+  if (infrastructureRootInfo) {
+    infrastructureProgrammePath = path.join(infrastructureRoot, 'programme.json');
+    const programmeInfo = await inspect(infrastructureProgrammePath);
+    if (programmeInfo) {
+      const source = await readRegular(infrastructureProgrammePath, 'Infrastructure programme');
+      infrastructureProgramme = {
+        value: validateInfrastructureProgramme(parseJSON(source.bytes, 'Infrastructure programme'), config.cityId),
+        bytes: source.bytes,
+        identity: source.info,
+      };
+    }
+  }
   const institutionalReviewPolicyPath = path.join(cityPath, INSTITUTIONAL_REVIEW_POLICY);
   const institutionalReviewPolicy = await inspect(institutionalReviewPolicyPath)
     ? (await readRegular(institutionalReviewPolicyPath, 'Institutional review policy')).bytes.toString('utf8')
     : null;
   const workforce = await readWorkforceRecords(root, cityPath, config.cityId, orders.records);
   const projectIds = new Set(projects.projects.map((project) => project.id));
+  const assetIds = new Set(infrastructureAssets.records.keys());
+  for (const { value: asset } of infrastructureAssets.records.values()) {
+    if (asset.projectIds.some((id) => !projectIds.has(id))) {
+      fail('INVALID_RECORD', 'Infrastructure asset references a missing project.');
+    }
+    if (asset.dependencies.some((id) => !assetIds.has(id))) {
+      fail('INVALID_RECORD', 'Infrastructure asset references a missing dependency.');
+    }
+  }
+  for (const { value: asset } of infrastructureAssets.records.values()) {
+    for (const dependency of asset.dependencies) {
+      if (infrastructureAssets.records.get(dependency).value.dependencies.includes(asset.id)) {
+        fail('INVALID_RECORD', 'Infrastructure asset dependency cycle must be resolved explicitly.');
+      }
+    }
+  }
+  const visitedAssets = new Set();
+  const activeAssets = new Set();
+  const visitAsset = (id) => {
+    if (activeAssets.has(id)) fail('INVALID_RECORD', 'Infrastructure asset dependency cycle must be resolved explicitly.');
+    if (visitedAssets.has(id)) return;
+    activeAssets.add(id);
+    for (const dependency of infrastructureAssets.records.get(id).value.dependencies) visitAsset(dependency);
+    activeAssets.delete(id);
+    visitedAssets.add(id);
+  };
+  for (const id of assetIds) visitAsset(id);
   for (const { value: order } of orders.records.values()) {
     if (order.projectIds?.some((id) => !projectIds.has(id))) {
       fail('INVALID_RECORD', 'City work order references a missing project. Restore or repair its local references.');
     }
     if (order.development?.screenings.some((screening) => screening.projectIds.some((id) => !projectIds.has(id)))) {
       fail('INVALID_RECORD', 'Development screening references a missing registered project.');
+    }
+    if (order.schemaVersion === INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION) {
+      for (const pin of order.infrastructure.assets) {
+        const asset = infrastructureAssets.records.get(pin.assetId)?.value;
+        if (!asset || pin.revision > asset.revision) {
+          fail('INVALID_RECORD', 'Infrastructure work order references a missing asset or a future asset revision.');
+        }
+      }
+      for (const target of order.infrastructure.targets) {
+        const asset = infrastructureAssets.records.get(target.assetId)?.value;
+        if (!asset) fail('INVALID_RECORD', 'Infrastructure work order references a missing target asset.');
+        const pin = order.infrastructure.assets.find((item) => item.assetId === target.assetId);
+        const locatorMatches = pin.locators.some((locator) => infrastructurePathWithin(locator, target.path));
+        if (!locatorMatches) fail('INVALID_RECORD', 'Infrastructure work-order target is outside the registered asset locators.');
+      }
+      for (const obligation of order.infrastructure.obligations) {
+        const asset = infrastructureAssets.records.get(obligation.assetId)?.value;
+        if (!asset?.obligations.some((item) => item.id === obligation.obligationId)) {
+          fail('INVALID_RECORD', 'Infrastructure work order references a missing maintenance obligation.');
+        }
+      }
+      for (const reference of order.infrastructure.findings) {
+        const asset = infrastructureAssets.records.get(reference.assetId)?.value;
+        if (!asset?.findings.some((item) => item.id === reference.findingId)) {
+          fail('INVALID_RECORD', 'Infrastructure work order references a missing finding.');
+        }
+      }
+      await assertInfrastructureTargets(root, order.infrastructure, infrastructureAssets.records);
+    }
+  }
+  if (infrastructureProgramme) {
+    for (const pin of infrastructureProgramme.value.assets) {
+      const asset = infrastructureAssets.records.get(pin.assetId)?.value;
+      if (!asset || pin.revision > asset.revision) fail('INVALID_RECORD', 'Infrastructure programme references a missing asset or future revision.');
+    }
+    for (const activity of infrastructureProgramme.value.activities) {
+      if (activity.workOrderId && !orders.records.has(activity.workOrderId)) {
+        fail('INVALID_RECORD', 'Infrastructure programme activity references a missing work order.');
+      }
+    }
+  }
+  for (const { value: asset } of infrastructureAssets.records.values()) {
+    for (const obligation of asset.obligations) {
+      for (const entry of obligation.history) {
+        if (entry.workOrderId && !orders.records.has(entry.workOrderId)) {
+          fail('INVALID_RECORD', 'Infrastructure obligation history references a missing work order.');
+        }
+      }
+    }
+    for (const finding of asset.findings) {
+      if (finding.workOrderId && !orders.records.has(finding.workOrderId)) {
+        fail('INVALID_RECORD', 'Infrastructure finding references a missing work order.');
+      }
     }
   }
   for (const { value: decision } of decisions.records.values()) {
@@ -159,6 +268,12 @@ export async function loadCity(root, required = true) {
   await assertIdentity(path.join(cityPath, 'config.json'), configSource.info, 'City config');
   await assertIdentity(path.join(cityPath, 'districts.json'), districtsSource.info, 'City districts');
   if (projectsSource) await assertIdentity(projectsPath, projectsSource.info, 'City projects');
+  if (infrastructureRootInfo) {
+    await assertIdentity(infrastructureRoot, infrastructureRootInfo, 'City infrastructure');
+    if (infrastructureProgramme) {
+      await assertIdentity(infrastructureProgrammePath, infrastructureProgramme.identity, 'Infrastructure programme');
+    }
+  }
   return {
     root, path: cityPath, identity, config, configBytes: configSource.bytes,
     districts, districtsBytes: districtsSource.bytes, projects, projectsBytes, drift,
@@ -167,12 +282,19 @@ export async function loadCity(root, required = true) {
     decisions: decisions.records,
     recordsRequests: recordsRequests.records,
     institutionalReviews: institutionalReviews.records,
+    infrastructure: {
+      assets: infrastructureAssets.records,
+      programme: infrastructureProgramme,
+      rootIdentity: infrastructureRootInfo,
+    },
     institutionalReviewPolicy,
     workforce,
     directoryIdentities: {
       'work-orders': orders.identity, decisions: decisions.identity,
       'records-requests': recordsRequests.identity,
       'institutional-reviews': institutionalReviews.identity,
+      'infrastructure/assets': infrastructureAssets.identity,
+      ...(infrastructureRootInfo ? { infrastructure: infrastructureRootInfo } : {}),
       ...workforce.directoryIdentities,
     },
   };
@@ -447,6 +569,7 @@ export function statusOutput(root, city, command = 'status') {
         || first.id.localeCompare(second.id)),
     },
     institutionalReview: institutionalReviewStatus(city),
+    infrastructure: infrastructureStatus(city),
     workforce: workforceStatus(city),
     notice: governanceNotice(city.config.governance),
   };
@@ -454,6 +577,370 @@ export function statusOutput(root, city, command = 'status') {
 
 export async function status(root) {
   return statusOutput(root, await loadCity(root, false));
+}
+
+async function ensureInfrastructureDirectories(city) {
+  await ensureDirectories(city.path, 'infrastructure/assets', 'City infrastructure');
+  city.directoryIdentities.infrastructure = await directory(path.join(city.path, 'infrastructure'), 'City infrastructure');
+  city.directoryIdentities['infrastructure/assets'] = await directory(
+    path.join(city.path, 'infrastructure/assets'), 'City infrastructure assets',
+  );
+}
+
+function infrastructureTimestamp(previous = null) {
+  return new Date(Math.max(Date.now(), previous ? Date.parse(previous) + 1 : 0)).toISOString();
+}
+
+function assetRecord(city, id, data, recordedBy, reason, previous = null) {
+  const recordedAt = infrastructureTimestamp(previous?.updatedAt);
+  return validateInfrastructureAsset({
+    ...(previous ?? {}),
+    ...data,
+    schemaVersion: 1,
+    id,
+    cityId: city.config.cityId,
+    revision: (previous?.revision ?? 0) + 1,
+    history: [
+      ...(previous?.history ?? []),
+      { revision: (previous?.revision ?? 0) + 1, reason, recordedAt, recordedBy },
+    ],
+    createdAt: previous?.createdAt ?? recordedAt,
+    updatedAt: recordedAt,
+    provenance: previous?.provenance ?? provenance(),
+  }, city.config.cityId);
+}
+
+function infrastructureMutationOutput(command, root, apply, city, asset, programme = null) {
+  return {
+    command, root, governance: city.config.governance,
+    dryRun: !apply, changed: Boolean(apply), wouldWrite: true,
+    ...(asset ? { asset } : {}),
+    ...(programme ? { programme } : {}),
+    notice: governanceNotice(city.config.governance),
+  };
+}
+
+function validateInfrastructureAssetReferences(city, asset) {
+  const projectIds = new Set(city.projects.projects.map((project) => project.id));
+  if (asset.projectIds.some((id) => !projectIds.has(id))) {
+    fail('NOT_FOUND', 'Every infrastructure consumer project must already be registered.');
+  }
+  const assets = new Map([...city.infrastructure.assets].map(([id, record]) => [id, record.value]));
+  assets.set(asset.id, asset);
+  for (const id of asset.dependencies) {
+    if (!assets.has(id)) fail('NOT_FOUND', `Infrastructure dependency ${id} is not registered.`);
+  }
+  const visited = new Set();
+  const active = new Set();
+  const visit = (id) => {
+    if (active.has(id)) fail('INVALID_RECORD', 'Infrastructure asset dependency cycle must be resolved explicitly.');
+    if (visited.has(id)) return;
+    active.add(id);
+    for (const dependency of assets.get(id).dependencies) visit(dependency);
+    active.delete(id);
+    visited.add(id);
+  };
+  for (const id of assets.keys()) visit(id);
+  for (const obligation of asset.obligations) {
+    for (const entry of obligation.history) {
+      if (entry.workOrderId) {
+        const order = city.workOrders.get(entry.workOrderId)?.value;
+        if (!order) fail('NOT_FOUND', 'Infrastructure obligation history references a missing work order.');
+        if (entry.outcome === 'completed' && (order.status !== 'completed'
+          || !order.infrastructure?.assets.some((pin) => pin.assetId === asset.id)
+          || !order.infrastructure.obligations.some((reference) => reference.assetId === asset.id
+            && reference.obligationId === obligation.id))) {
+          fail('INVALID_RECORD', 'Completed infrastructure obligations must link to an accepted order covering that asset and obligation.');
+        }
+      }
+    }
+  }
+  for (const finding of asset.findings) {
+    if (finding.workOrderId) {
+      const order = city.workOrders.get(finding.workOrderId)?.value;
+      if (!order) fail('NOT_FOUND', 'Infrastructure finding references a missing work order.');
+      if (finding.status === 'resolved' && finding.applicability === 'applicable'
+        && (order.status !== 'completed'
+          || !order.infrastructure?.findings.some((reference) => reference.assetId === asset.id
+            && reference.findingId === finding.id))) {
+        fail('INVALID_RECORD', 'An applicable infrastructure finding may be resolved only by its accepted linked order.');
+      }
+    }
+  }
+}
+
+function validateInfrastructureProgrammeReferences(city, programme) {
+  for (const pin of programme.assets) {
+    const asset = city.infrastructure.assets.get(pin.assetId)?.value;
+    if (!asset || pin.revision > asset.revision) {
+      fail('NOT_FOUND', 'Infrastructure programme references a missing asset or future revision.');
+    }
+  }
+  for (const activity of programme.activities) {
+    if (activity.authorityStatus === 'authorized' || activity.authorityStatus === 'complete') {
+      const order = activity.workOrderId && city.workOrders.get(activity.workOrderId)?.value;
+      if (!order || !order.infrastructure?.assets.some((pin) => pin.assetId === activity.assetId)
+        || (activity.authorityStatus === 'authorized'
+          && !['authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed'].includes(order.status))
+        || (activity.authorityStatus === 'complete' && order.status !== 'completed')) {
+        fail('INVALID_RECORD', 'Authorized or completed programme activities must link to a delivery order for that asset in the matching lifecycle state.');
+      }
+    } else if (activity.workOrderId && !city.workOrders.has(activity.workOrderId)) {
+      fail('NOT_FOUND', 'Infrastructure programme activity references a missing work order.');
+    }
+  }
+}
+
+export async function infrastructureAssetRegister(root, options) {
+  const data = requestJSON(options.data, 'Infrastructure asset --data');
+  text(options['recorded-by'], '--recorded-by', 200);
+  text(options.reason, '--reason', 2000);
+  const city = await loadCity(root);
+  if (city.infrastructure.assets.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported infrastructure asset count.');
+  const asset = assetRecord(city, `IA-${randomUUID()}`, data, options['recorded-by'], options.reason);
+  validateInfrastructureAssetReferences(city, asset);
+  if (Buffer.byteLength(encodeJSON(asset)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed infrastructure asset exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      if (current.infrastructure.assets.has(asset.id)) fail('CONFLICT', 'Infrastructure asset ID already exists.');
+      if (current.infrastructure.assets.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported infrastructure asset count.');
+      await ensureInfrastructureDirectories(current);
+      await atomicRecord(current, 'infrastructure/assets', `${asset.id}.json`, asset);
+      await loadCity(root);
+    });
+  }
+  return infrastructureMutationOutput('asset-register', root, options.apply, city, asset);
+}
+
+export async function infrastructureAssetRevise(root, options) {
+  validateRecordId('infrastructure-asset', options.id);
+  text(options['recorded-by'], '--recorded-by', 200);
+  text(options.reason, '--reason', 2000);
+  if (!Number.isSafeInteger(options.revision) || options.revision < 1) {
+    fail('INVALID_ARGUMENT', '--revision must be the positive current infrastructure asset revision.');
+  }
+  const data = requestJSON(options.data, 'Infrastructure asset --data');
+  const city = await loadCity(root);
+  const original = city.infrastructure.assets.get(options.id);
+  if (!original) fail('NOT_FOUND', 'Infrastructure asset does not exist in this repository.');
+  if (original.value.revision !== options.revision) fail('CONFLICT', 'Infrastructure asset revision is stale; retrieve its current record and reconcile before retrying.');
+  const asset = assetRecord(city, options.id, data, options['recorded-by'], options.reason, original.value);
+  validateInfrastructureAssetReferences(city, asset);
+  if (Buffer.byteLength(encodeJSON(asset)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed infrastructure asset exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const latest = current.infrastructure.assets.get(options.id);
+      if (!latest || !latest.bytes.equals(original.bytes)) fail('CONFLICT', 'Infrastructure asset changed since revision preparation.');
+      await atomicRecord(current, 'infrastructure/assets', `${asset.id}.json`, asset, original.bytes);
+      await loadCity(root);
+    });
+  }
+  return infrastructureMutationOutput('asset-revise', root, options.apply, city, asset);
+}
+
+function updateInfrastructureAssetForReview(city, original, data, recordedBy, reason) {
+  const previous = original.value;
+  const next = structuredClone(previous);
+  if (data.kind === 'condition') {
+    next.condition = {
+      state: data.state, observedAt: data.observedAt, method: data.method, evidence: data.evidence,
+    };
+  } else if (data.kind === 'service-measurement') {
+    const service = next.services.find((item) => item.id === data.serviceId);
+    if (!service) fail('NOT_FOUND', 'Infrastructure service does not exist on this asset.');
+    service.measurements.push({ observedAt: data.observedAt, value: data.value, evidence: data.evidence });
+    if (service.measurements.length > LIMITS.history) fail('SIZE_LIMIT', 'Infrastructure service measurement history is full.');
+  } else if (data.kind === 'obligation') {
+    const obligation = next.obligations.find((item) => item.id === data.obligationId);
+    if (!obligation) fail('NOT_FOUND', 'Infrastructure maintenance obligation does not exist on this asset.');
+    if (data.outcome === 'completed' && data.workOrderId === null) {
+      fail('INVALID_TRANSITION', 'Completing a maintenance obligation requires its accepted linked work order.');
+    }
+    if (data.workOrderId !== null) {
+      const order = city.workOrders.get(data.workOrderId)?.value;
+      if (!order) fail('NOT_FOUND', 'Infrastructure maintenance work order does not exist.');
+      if (data.outcome === 'completed' && order.status !== 'completed') {
+        fail('INVALID_TRANSITION', 'A maintenance obligation can be marked completed only after delivery inspection and resident acceptance.');
+      }
+      if (data.outcome === 'completed' && (!order.infrastructure?.assets.some((pin) => pin.assetId === previous.id)
+        || !order.infrastructure.obligations.some((reference) => reference.assetId === previous.id
+          && reference.obligationId === obligation.id))) {
+        fail('INVALID_TRANSITION', 'The accepted work order must be scoped to this asset and maintenance obligation.');
+      }
+    }
+    obligation.history.push({
+      outcome: data.outcome, date: data.date, evidence: data.evidence, workOrderId: data.workOrderId,
+    });
+    if (data.outcome === 'deferred') {
+      obligation.status = 'deferred';
+      obligation.nextReviewDate = data.reviewDate;
+      next.deferrals.push({
+        id: `deferral-${randomUUID()}`, referenceType: 'obligation', referenceId: obligation.id,
+        reason: data.evidence, riskOwner: data.riskOwner, authorityReference: data.authorityReference,
+        reviewDate: data.reviewDate, originalDueDate: obligation.dueDate,
+      });
+    } else if (data.outcome === 'completed') {
+      obligation.status = obligation.recurrenceDays ? 'open' : 'satisfied';
+      obligation.nextReviewDate = null;
+      if (obligation.recurrenceDays) {
+        const base = Date.parse(`${obligation.dueDate}T00:00:00.000Z`);
+        const completedAt = Date.parse(`${data.date}T00:00:00.000Z`);
+        obligation.dueDate = new Date(Math.max(base, completedAt) + obligation.recurrenceDays * dayMilliseconds).toISOString().slice(0, 10);
+      }
+    }
+  } else if (data.kind === 'finding') {
+    const finding = next.findings.find((item) => item.id === data.findingId);
+    if (!finding) fail('NOT_FOUND', 'Infrastructure finding does not exist on this asset.');
+    finding.applicability = data.applicability;
+    finding.evidence = data.evidence;
+    if (data.status === 'resolved' && finding.applicability === 'applicable') {
+      const order = data.workOrderId && city.workOrders.get(data.workOrderId)?.value;
+      if (!order || order.status !== 'completed'
+        || !order.infrastructure?.findings.some((reference) => reference.assetId === previous.id
+          && reference.findingId === finding.id)) {
+        fail('INVALID_TRANSITION', 'An applicable infrastructure finding can be resolved only with an accepted linked work order.');
+      }
+      finding.workOrderId = data.workOrderId;
+    }
+    finding.status = data.status;
+  } else {
+    fail('INVALID_ARGUMENT', 'Infrastructure review kind is unsupported.');
+  }
+  return assetRecord(city, previous.id, next, recordedBy, reason, previous);
+}
+
+function validateInfrastructureReviewInput(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.kind !== 'string') {
+    fail('INVALID_ARGUMENT', 'Infrastructure review --data must be a JSON object with a supported kind.');
+  }
+  const shape = {
+    condition: ['kind', 'state', 'observedAt', 'method', 'evidence'],
+    'service-measurement': ['kind', 'serviceId', 'observedAt', 'value', 'evidence'],
+    obligation: [
+      'kind', 'obligationId', 'outcome', 'date', 'evidence', 'workOrderId',
+      'reviewDate', 'riskOwner', 'authorityReference',
+    ],
+    finding: ['kind', 'findingId', 'applicability', 'status', 'evidence', 'workOrderId'],
+  }[data.kind];
+  if (!shape || Object.keys(data).length !== shape.length || shape.some((key) => !Object.hasOwn(data, key))) {
+    fail('INVALID_ARGUMENT', 'Infrastructure review --data has missing or unexpected fields.');
+  }
+  if (data.kind === 'condition') {
+    if (!['unknown', 'satisfactory', 'degraded', 'failed'].includes(data.state)) fail('INVALID_ARGUMENT', 'Condition state is unsupported.');
+    calendarDate(data.observedAt, 'Infrastructure condition observation date');
+    text(data.method, 'Infrastructure condition method', 500);
+    text(data.evidence, 'Infrastructure condition evidence', 2000);
+  } else if (data.kind === 'service-measurement') {
+    text(data.serviceId, 'Infrastructure service ID', 64);
+    calendarDate(data.observedAt, 'Infrastructure measurement date');
+    text(data.value, 'Infrastructure measurement value', 500);
+    text(data.evidence, 'Infrastructure measurement evidence', 2000);
+  } else if (data.kind === 'obligation') {
+    text(data.obligationId, 'Infrastructure obligation ID', 64);
+    if (!['completed', 'deferred', 'no-change'].includes(data.outcome)) fail('INVALID_ARGUMENT', 'Infrastructure obligation outcome is unsupported.');
+    calendarDate(data.date, 'Infrastructure obligation review date');
+    text(data.evidence, 'Infrastructure obligation evidence', 2000);
+    if (data.workOrderId !== null) validateOrderId(data.workOrderId);
+    if (data.outcome === 'deferred') {
+      calendarDate(data.reviewDate, 'Infrastructure deferral review date');
+      text(data.riskOwner, 'Infrastructure deferral risk owner', 200);
+      if (data.authorityReference !== null) text(data.authorityReference, 'Infrastructure deferral authority reference', 1000);
+    } else if (data.reviewDate !== null || data.riskOwner !== null || data.authorityReference !== null) {
+      fail('INVALID_ARGUMENT', 'Deferral details are permitted only for a deferred obligation.');
+    }
+  } else {
+    text(data.findingId, 'Infrastructure finding ID', 64);
+    if (!['unknown', 'applicable', 'not-applicable'].includes(data.applicability)
+      || !['open', 'resolved'].includes(data.status)) fail('INVALID_ARGUMENT', 'Infrastructure finding disposition is unsupported.');
+    text(data.evidence, 'Infrastructure finding evidence', 2000);
+    if (data.workOrderId !== null) validateOrderId(data.workOrderId);
+  }
+}
+
+export async function infrastructureAssetReview(root, options) {
+  validateRecordId('infrastructure-asset', options.id);
+  if (!Number.isSafeInteger(options.revision) || options.revision < 1) {
+    fail('INVALID_ARGUMENT', '--revision must be the positive current infrastructure asset revision.');
+  }
+  text(options['recorded-by'], '--recorded-by', 200);
+  text(options.reason, '--reason', 2000);
+  const data = requestJSON(options.data, 'Infrastructure review --data');
+  validateInfrastructureReviewInput(data);
+  const city = await loadCity(root);
+  const original = city.infrastructure.assets.get(options.id);
+  if (!original) fail('NOT_FOUND', 'Infrastructure asset does not exist in this repository.');
+  if (original.value.revision !== options.revision) fail('CONFLICT', 'Infrastructure asset revision is stale; retrieve the current record before retrying.');
+  let asset = updateInfrastructureAssetForReview(city, original, data, options['recorded-by'], options.reason);
+  validateInfrastructureAssetReferences(city, asset);
+  if (Buffer.byteLength(encodeJSON(asset)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed infrastructure asset exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const latest = current.infrastructure.assets.get(options.id);
+      if (!latest || !latest.bytes.equals(original.bytes)) fail('CONFLICT', 'Infrastructure asset changed since review preparation.');
+      asset = updateInfrastructureAssetForReview(current, latest, data, options['recorded-by'], options.reason);
+      validateInfrastructureAssetReferences(current, asset);
+      await atomicRecord(current, 'infrastructure/assets', `${asset.id}.json`, asset, original.bytes);
+      await loadCity(root);
+    });
+  }
+  return infrastructureMutationOutput('asset-review', root, options.apply, city, asset);
+}
+
+function programmeRecord(city, data, recordedBy, reason, previous = null) {
+  const recordedAt = infrastructureTimestamp(previous?.updatedAt);
+  return validateInfrastructureProgramme({
+    ...data,
+    schemaVersion: 1,
+    id: 'infrastructure-programme',
+    cityId: city.config.cityId,
+    revision: (previous?.revision ?? 0) + 1,
+    history: [
+      ...(previous?.history ?? []),
+      { revision: (previous?.revision ?? 0) + 1, reason, recordedAt, recordedBy },
+    ],
+    updatedAt: recordedAt,
+    provenance: previous?.provenance ?? provenance(),
+  }, city.config.cityId);
+}
+
+export async function infrastructureProgrammeRecord(root, options) {
+  if (!Number.isSafeInteger(options.revision) || options.revision < 0) {
+    fail('INVALID_ARGUMENT', '--revision must be 0 for a new programme or the positive current revision.');
+  }
+  text(options['recorded-by'], '--recorded-by', 200);
+  text(options.reason, '--reason', 2000);
+  const data = requestJSON(options.data, 'Infrastructure programme --data');
+  const city = await loadCity(root);
+  const previous = city.infrastructure.programme;
+  if ((previous?.value.revision ?? 0) !== options.revision) {
+    fail('CONFLICT', 'Infrastructure programme revision is stale; retrieve the current record before retrying.');
+  }
+  let programme = programmeRecord(city, data, options['recorded-by'], options.reason, previous?.value ?? null);
+  validateInfrastructureProgrammeReferences(city, programme);
+  if (Buffer.byteLength(encodeJSON(programme)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed infrastructure programme exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      const latest = current.infrastructure.programme;
+      if ((latest?.value.revision ?? 0) !== options.revision
+        || (previous && !latest.bytes.equals(previous.bytes))) {
+        fail('CONFLICT', 'Infrastructure programme changed since preparation.');
+      }
+      await ensureInfrastructureDirectories(current);
+      programme = programmeRecord(current, data, options['recorded-by'], options.reason, latest?.value ?? null);
+      validateInfrastructureProgrammeReferences(current, programme);
+      await atomicRecord(current, 'infrastructure', 'programme.json', programme, latest?.bytes);
+      await loadCity(root);
+    });
+  }
+  return infrastructureMutationOutput('infrastructure-programme-record', root, options.apply, city, null, programme);
 }
 
 async function ensureInstitutionalReviewDirectory(city) {
@@ -573,6 +1060,14 @@ async function canonicalRecords(city) {
     }
   }
   const workforceByOrder = new Map();
+  const infrastructureByOrder = new Map();
+  for (const { value: order } of city.workOrders.values()) {
+    for (const pin of order.infrastructure?.assets ?? []) {
+      const related = infrastructureByOrder.get(order.id) ?? [];
+      related.push({ type: 'infrastructure-asset', id: pin.assetId });
+      infrastructureByOrder.set(order.id, related);
+    }
+  }
   for (const { value } of city.workforce.requisitions.values()) {
     const related = workforceByOrder.get(value.workOrderId) ?? [];
     related.push({ type: 'requisition', id: value.id });
@@ -589,6 +1084,7 @@ async function canonicalRecords(city) {
         ...(decisionsByOrder.get(value.id) ?? []),
         ...(requestsByOrder.get(value.id) ?? []),
         ...(workforceByOrder.get(value.id) ?? []),
+        ...(infrastructureByOrder.get(value.id) ?? []),
       ], value.title));
   }
   for (const { value, bytes } of city.decisions.values()) {
@@ -605,6 +1101,27 @@ async function canonicalRecords(city) {
   for (const { value, bytes } of city.institutionalReviews.values()) {
     records.push(recordItem('institutional-review', value.id,
       `.city/institutional-reviews/${value.id}.json`, bytes, value, null, [], value.summary));
+  }
+  for (const { value, bytes } of city.infrastructure.assets.values()) {
+    const related = [];
+    for (const { value: order } of city.workOrders.values()) {
+      if (order.infrastructure?.assets.some((pin) => pin.assetId === value.id)) {
+        related.push({ type: 'work-order', id: order.id });
+      }
+    }
+    if (city.infrastructure.programme?.value.assets.some((asset) => asset.assetId === value.id)) {
+      related.push({ type: 'infrastructure-programme', id: 'infrastructure-programme' });
+    }
+    records.push(recordItem('infrastructure-asset', value.id,
+      `.city/infrastructure/assets/${value.id}.json`, bytes, value, value.lifecycle, related, value.name));
+  }
+  if (city.infrastructure.programme) {
+    const { value, bytes } = city.infrastructure.programme;
+    records.push(recordItem('infrastructure-programme', value.id,
+      '.city/infrastructure/programme.json', bytes, value, 'draft', [
+        ...value.assets.map((asset) => ({ type: 'infrastructure-asset', id: asset.assetId })),
+        ...value.activities.flatMap((item) => item.workOrderId ? [{ type: 'work-order', id: item.workOrderId }] : []),
+      ], 'Infrastructure programme'));
   }
   for (const { value, bytes } of city.workforce.requisitions.values()) {
     records.push(recordItem('requisition', value.id, `.city/workforce/requisitions/${value.id}.json`,
@@ -675,6 +1192,9 @@ function validateAnyRecordId(id) {
   if (/^IR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'institutional-review', id };
   }
+  if (/^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'infrastructure-asset', id };
+  }
   if (/^REQ-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'requisition', id };
   }
@@ -682,7 +1202,9 @@ function validateAnyRecordId(id) {
     return { type: 'assignment', id };
   }
   if (/^[a-z][a-z0-9-]{1,40}$/u.test(id)) return { type: 'staff', id };
-  if (id === 'config' || id === 'charter') return { type: id, id };
+  if (id === 'config' || id === 'charter' || id === 'infrastructure-programme') {
+    return { type: id === 'infrastructure-programme' ? 'infrastructure-programme' : id, id };
+  }
   if (/^policy:[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.md$/u.test(id)) {
     return { type: 'policy', id };
   }
@@ -726,6 +1248,9 @@ export async function recordsList(root, options) {
         && related.id === options['work-order'])) return false;
     if (options.project) {
       if (meta.type === 'project' && meta.id === options.project) {
+        return !options.status || meta.status === options.status;
+      }
+      if (meta.type === 'infrastructure-asset' && data.projectIds.includes(options.project)) {
         return !options.status || meta.status === options.status;
       }
       let workOrder = data;
@@ -1028,8 +1553,11 @@ export async function validate(root) {
       staff: city.workforce.staff.size,
       assignments: city.workforce.assignments.size,
       institutionalReviews: city.institutionalReviews.size,
+      infrastructureAssets: city.infrastructure.assets.size,
+      infrastructureProgramme: Number(Boolean(city.infrastructure.programme)),
     },
     institutionalReview: institutionalReviewStatus(city),
+    infrastructure: infrastructureStatus(city),
     workforce: { drift: city.workforce.drift },
     notice: governanceNotice(city.config.governance),
   };
@@ -1141,12 +1669,31 @@ export function checkOrderUnchanged(before, after, original) {
   }
 }
 
+function checkInfrastructureUnchanged(before, after, ids) {
+  for (const id of ids) {
+    const first = before.infrastructure.assets.get(id);
+    const second = after.infrastructure.assets.get(id);
+    if (!first || !second || !first.bytes.equals(second.bytes)) {
+      fail('CONFLICT', 'A pinned infrastructure asset changed since scope validation. Review its current record and retry.');
+    }
+  }
+}
+
 function checkCityUnchanged(before, after) {
   const sameProjects = before.projectsBytes === null
     ? after.projectsBytes === null
     : after.projectsBytes !== null && before.projectsBytes.equals(after.projectsBytes);
-  if (!before.configBytes.equals(after.configBytes) || !sameProjects) {
-    fail('CONFLICT', 'City config or project register changed since validation. Inspect the concurrent edit and retry.');
+  const sameAssets = before.infrastructure.assets.size === after.infrastructure.assets.size
+    && [...before.infrastructure.assets].every(([id, record]) => (
+      after.infrastructure.assets.get(id)?.bytes.equals(record.bytes)
+    ));
+  const beforeProgramme = before.infrastructure.programme?.bytes ?? null;
+  const afterProgramme = after.infrastructure.programme?.bytes ?? null;
+  const sameProgramme = beforeProgramme === null
+    ? afterProgramme === null
+    : afterProgramme !== null && beforeProgramme.equals(afterProgramme);
+  if (!before.configBytes.equals(after.configBytes) || !sameProjects || !sameAssets || !sameProgramme) {
+    fail('CONFLICT', 'City config, projects, or infrastructure records changed since validation. Inspect the concurrent edit and retry.');
   }
 }
 
@@ -1188,8 +1735,8 @@ export async function projectAdd(root, options) {
 export async function petition(root, options) {
   text(options.title, 'Petition title', 500);
   text(options.request, 'Petition request', 20000);
-  if (!Array.isArray(options.projects) || options.projects.length === 0 || options.projects.length > 100) {
-    fail('PROJECT_REQUIRED', 'Select one or more registered projects with repeated --project flags before creating a work order.');
+  if (!Array.isArray(options.projects) || options.projects.length > 100) {
+    fail('INVALID_ARGUMENT', 'Select at most 100 registered projects with repeated --project flags.');
   }
   if (new Set(options.projects).size !== options.projects.length) {
     fail('INVALID_ARGUMENT', 'A project may be selected only once per work order.');
@@ -1203,16 +1750,96 @@ export async function petition(root, options) {
   if (options.projects.some((id) => !registeredProjects.has(id))) {
     fail('NOT_FOUND', 'Every selected project must be registered in this repository.');
   }
+  let infrastructure = null;
+  if (options.infrastructure !== undefined) {
+    const proposed = requestJSON(options.infrastructure, 'Petition --infrastructure');
+    if (!proposed || typeof proposed !== 'object' || Array.isArray(proposed)
+      || Object.keys(proposed).length !== 4
+      || !['assets', 'targets', 'obligations', 'findings'].every((key) => Object.hasOwn(proposed, key))) {
+      fail('INVALID_ARGUMENT', '--infrastructure must contain exactly assets, targets, obligations, and findings arrays.');
+    }
+    if (!Array.isArray(proposed.assets) || proposed.assets.length === 0 || proposed.assets.length > 100
+      || new Set(proposed.assets).size !== proposed.assets.length) {
+      fail('INVALID_ARGUMENT', '--infrastructure assets must contain unique asset IDs.');
+    }
+    proposed.assets.forEach((id) => validateRecordId('infrastructure-asset', id, 'Infrastructure asset ID'));
+    if (!Array.isArray(proposed.targets) || !Array.isArray(proposed.obligations) || !Array.isArray(proposed.findings)) {
+      fail('INVALID_ARGUMENT', 'Infrastructure targets, obligations, and findings must be arrays.');
+    }
+    infrastructure = {
+      assets: proposed.assets.map((id) => {
+        const asset = city.infrastructure.assets.get(id)?.value;
+        if (!asset) fail('NOT_FOUND', `Infrastructure asset ${id} is not registered in this city.`);
+        if (asset.lifecycle !== 'active') fail('INVALID_TRANSITION', `Infrastructure asset ${id} is not active for delivery.`);
+        return {
+          assetId: id, revision: asset.revision, locators: asset.locators,
+          baseline: asset.baseline, criticality: asset.criticality,
+        };
+      }),
+      targets: proposed.targets,
+      obligations: proposed.obligations,
+      findings: proposed.findings.map((reference) => {
+        if (!reference || typeof reference !== 'object' || Array.isArray(reference)
+          || Object.keys(reference).length !== 2
+          || !Object.hasOwn(reference, 'assetId') || !Object.hasOwn(reference, 'findingId')) {
+          fail('INVALID_ARGUMENT', 'Each infrastructure finding reference must contain exactly assetId and findingId.');
+        }
+        validateRecordId('infrastructure-asset', reference.assetId, 'Infrastructure finding asset ID');
+        text(reference.findingId, 'Infrastructure finding ID', 64);
+        const asset = city.infrastructure.assets.get(reference.assetId)?.value;
+        const finding = asset?.findings.find((item) => item.id === reference.findingId);
+        if (!finding || finding.status !== 'open') fail('STALE_INFRASTRUCTURE', 'Infrastructure finding is missing or already resolved.');
+        return { ...reference, kind: finding.kind };
+      }),
+    };
+    const consumerProjects = new Set(infrastructure.assets.flatMap((asset) => (
+      city.infrastructure.assets.get(asset.assetId).value.projectIds
+    )));
+    if (options.projects.some((projectId) => !consumerProjects.has(projectId))) {
+      fail('INVALID_ARGUMENT', 'An infrastructure work order may associate only consumer projects recorded on its pinned assets.');
+    }
+    validateInfrastructureWorkScope(infrastructure);
+    for (const reference of infrastructure.obligations) {
+      const asset = city.infrastructure.assets.get(reference.assetId).value;
+      const obligation = asset.obligations.find((item) => item.id === reference.obligationId);
+      if (!obligation || obligation.status === 'satisfied'
+        || (obligation.dueDate !== reference.dueDate && obligation.nextReviewDate !== reference.dueDate)) {
+        fail('STALE_INFRASTRUCTURE', 'Infrastructure maintenance occurrence is missing, satisfied, or no longer current.');
+      }
+      const duplicate = [...city.workOrders.values()].find(({ value }) => (
+        !['completed', 'rejected', 'withdrawn'].includes(value.status)
+        && value.infrastructure?.obligations.some((item) => item.assetId === reference.assetId
+          && item.obligationId === reference.obligationId && item.dueDate === reference.dueDate)
+      ));
+      if (duplicate) fail('CONFLICT', `Infrastructure occurrence already has open work order ${duplicate.value.id}.`);
+    }
+    for (const reference of infrastructure.findings) {
+      const asset = city.infrastructure.assets.get(reference.assetId).value;
+      const finding = asset.findings.find((item) => item.id === reference.findingId);
+      if (!finding || finding.status !== 'open') fail('STALE_INFRASTRUCTURE', 'Infrastructure finding is missing or already resolved.');
+      const duplicate = [...city.workOrders.values()].find(({ value }) => (
+        !['completed', 'rejected', 'withdrawn'].includes(value.status)
+        && value.infrastructure?.findings.some((item) => item.assetId === reference.assetId
+          && item.findingId === reference.findingId)
+      ));
+      if (duplicate) fail('CONFLICT', `Infrastructure finding already has open work order ${duplicate.value.id}.`);
+    }
+    await assertInfrastructureTargets(root, infrastructure, city.infrastructure.assets);
+  }
+  if (options.projects.length === 0 && !infrastructure) {
+    fail('PROJECT_REQUIRED', 'Select one or more registered --project IDs or provide an exact --infrastructure scope.');
+  }
   if (city.workOrders.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported draft work-order count.');
   const now = new Date().toISOString();
   const workOrder = validateWorkOrder({
-    schemaVersion: WORK_ORDER_SCHEMA_VERSION,
+    schemaVersion: infrastructure ? INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION : WORK_ORDER_SCHEMA_VERSION,
     id: `WO-${randomUUID()}`,
     cityId: city.config.cityId,
     title: options.title,
     request: options.request,
     acceptanceCriteria: options.criteria,
-    projectIds: options.projects,
+    ...(options.projects.length ? { projectIds: options.projects } : {}),
+    ...(infrastructure ? { infrastructure } : {}),
     status: 'received',
     createdAt: now,
     updatedAt: now,
@@ -1224,6 +1851,7 @@ export async function petition(root, options) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
       checkCityUnchanged(city, current);
+      if (infrastructure) checkInfrastructureUnchanged(city, current, infrastructure.assets.map((asset) => asset.assetId));
       if (current.workOrders.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported draft work-order count.');
       await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder);
     });
@@ -1245,6 +1873,9 @@ export async function transition(root, options) {
     original.value.status, options.to, original.value.acceptanceCriteria, authorizationCurrent(original.value.history),
   );
   if (options.to === 'awaiting-approval') assertDevelopmentReady(city, original.value);
+  if (['in-progress', 'inspection', 'awaiting-approval'].includes(options.to)) {
+    assertInfrastructureScopeCurrent(city, original.value);
+  }
   // Never record history before a linked decision (such as a referral) that left the order bytes unchanged.
   const latestDecision = deliveryDecisions(city, original.value.id).at(-1);
   const now = new Date(Math.max(
@@ -1268,6 +1899,9 @@ export async function transition(root, options) {
       if (options.to === 'awaiting-approval') {
         checkDevelopmentContextUnchanged(city, current);
         assertDevelopmentReady(current, original.value);
+      }
+      if (['in-progress', 'inspection', 'awaiting-approval'].includes(options.to)) {
+        assertInfrastructureScopeCurrent(current, original.value);
       }
       await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
     });
@@ -1301,7 +1935,14 @@ export async function developmentRecord(root, options, kind) {
     if (input.route !== 'needs-clarification' && order.projectIds && !sameScope) {
       fail('INVALID_ARGUMENT', 'Conclusive screening must cover the exact work-order project scope. Resolve scope before screening.');
     }
-    if (input.route !== 'needs-clarification' && !order.projectIds) {
+    if (input.route !== 'needs-clarification' && order.schemaVersion === INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION) {
+      if (!order.infrastructure || (input.projectIds.length === 0 && order.infrastructure.targets.length === 0)) {
+        fail('INVALID_ARGUMENT', 'Conclusive infrastructure screening must cover an exact registered project or infrastructure delivery scope.');
+      }
+      assertInfrastructureScopeCurrent(city, order);
+    } else if (input.route !== 'needs-clarification' && input.projectIds.length === 0) {
+      fail('INVALID_ARGUMENT', 'Conclusive screening needs a registered project or pinned infrastructure delivery scope.');
+    } else if (input.route !== 'needs-clarification' && !order.projectIds) {
       scopedOrder = { ...order, schemaVersion: WORK_ORDER_SCHEMA_VERSION, projectIds: input.projectIds };
     }
     if (input.policyCitations.some((citation) => !city.governanceDigests.policies.some((policy) => policy.path === citation.path))) {
@@ -1347,7 +1988,7 @@ export async function developmentRecord(root, options, kind) {
   const command = { screenings: 'screen-development', applications: 'application-record', assessments: 'assess-application' }[kind];
   return {
     ...mutationOutput(command, root, options.apply, workOrder, city.config.governance),
-    scopeAssigned: !order.projectIds && Boolean(workOrder.projectIds),
+    scopeAssigned: !order.projectIds && Boolean(workOrder.projectIds) && !order.infrastructure,
     development: developmentStatus(city, workOrder),
   };
 }
@@ -1425,7 +2066,10 @@ async function writeDeliveryRecords(root, context, records) {
       fail('CONFLICT', 'The charter or policies changed since this decision was prepared. Review the current text and retry.');
     }
     checkDevelopmentContextUnchanged(city, current);
-    if (decision.outcome === 'authorize') assertDevelopmentReady(current, original.value);
+    if (['authorize', 'accept'].includes(decision.outcome)) {
+      assertInfrastructureScopeCurrent(current, original.value);
+      if (decision.outcome === 'authorize') assertDevelopmentReady(current, original.value);
+    }
     if (current.decisions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported decision count.');
     await atomicRecord(current, 'decisions', `${decision.id}.json`, decision);
     if (!changesOrder) return;
@@ -1503,9 +2147,20 @@ export async function authorize(root, options) {
   if (original.value.status !== 'awaiting-approval') {
     fail('INVALID_TRANSITION', 'Only a work order awaiting approval can receive an authorization decision.');
   }
+  if (original.value.infrastructure && !infrastructurePolicyEnabled(city)) {
+    fail('NO_INFRASTRUCTURE_POLICY', 'Adopt the infrastructure-management policy before authorizing infrastructure delivery.');
+  }
   if (original.value.acceptanceCriteria.length === 0) {
     fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before an authorization decision.');
   }
+  const securityFinding = infrastructureSecurityFinding(city, original.value);
+  if (securityFinding && !reservedMatters.includes('security')) {
+    fail('RESERVED_MATTER', 'A work order linked to a security finding must explicitly classify security as reserved and route it to the resident.');
+  }
+  if (securityFinding && decidedBy === 'city-council' && options.outcome !== 'refer') {
+    fail('RESERVED_MATTER', 'A Council cannot decide a security finding; refer it to the resident.');
+  }
+  if (options.outcome === 'authorize') assertInfrastructureScopeCurrent(city, original.value);
   if (options.outcome === 'authorize') assertDevelopmentReady(city, original.value);
   if (reservedMatters.length !== 0 && (routineClass !== null || (decidedBy === 'city-council' && options.outcome === 'authorize'))) {
     fail('RESERVED_MATTER', 'Reserved matters cannot be authorized by the City Council or under a routine class. The council must refer them to the resident.');
@@ -1538,6 +2193,7 @@ export async function complete(root, options) {
   if (original.value.acceptanceCriteria.length === 0) {
     fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before completion.');
   }
+  assertInfrastructureScopeCurrent(context.city, original.value);
   const records = deliveryRecords(context, {
     kind: 'acceptance',
     outcome: 'accept',

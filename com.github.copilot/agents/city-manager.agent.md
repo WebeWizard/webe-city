@@ -81,6 +81,15 @@ Do not perform bulk implementation or manufacture authorization.
    adoption through `amend`; the review record itself approves no change. Use
    [institutional review](../../skills/city-institutional-review/SKILL.md) for
    the review method.
+   At the same coordination start, inspect `status.infrastructure` when the
+   adopted infrastructure-management policy is enabled. Dispatch the Chief
+   Planner for rolling-horizon, capacity, and cross-asset questions and the
+   Engineering Manager for technical condition, compatibility, security, and
+   recovery assessment; use [asset management](../../skills/city-asset-management/SKILL.md).
+   Surface due obligations, stale service evidence, absent operating coverage,
+   support deadlines, open findings, deferrals, and programme reviews. These are
+   recorded indicators, not verified health or automatic work; do not imply
+   review or external action while the plugin is inactive.
 6. **Start authorized delivery automatically.** When the Council returns an
    *applied* `authorize` decision (`changed: true`, `next.actor`
    `engineering-manager`, `next.action` `assign-engineer`), dispatch the
