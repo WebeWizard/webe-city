@@ -493,8 +493,10 @@ export function validateWorkOrder(value, expectedCityId) {
       ...required, ...(own(value, 'projectIds') ? ['projectIds'] : []), 'infrastructure',
       ...(own(value, 'development') ? ['development'] : []),
     ], 'City work order');
-  } else {
+  } else if (value.schemaVersion === SCHEMA_VERSION) {
     fields(value, [...required, ...(own(value, 'development') ? ['development'] : [])], 'City work order');
+  } else {
+    fail('UNKNOWN_SCHEMA_VERSION', 'City work order uses an unsupported schemaVersion. Restore a compatible version or perform a separately reviewed migration.');
   }
   validateOrderId(value.id);
   cityId(value.cityId, 'City work-order cityId', expectedCityId);
@@ -569,14 +571,22 @@ export function validateDevelopmentInput(kind, value) {
     screenings: ['route', 'projectIds', 'scopeEvidence', 'reason', 'evidence', 'impacts', 'questions', 'policyCitations', 'requirements'],
     applications: ['screeningRevision', 'reason', 'evidence', 'proposal', 'answers', 'artifacts'],
     assessments: ['applicationRevision', 'outcome', 'reason', 'evidence'],
+    statements: ['dimension', 'class', 'staffId', 'screeningRevision', 'scope', 'evidence'],
+    verifications: ['statementRevision', 'staffId', 'outcome', 'reason', 'evidence'],
+    completionNotices: ['permitId', 'conditions', 'evidence'],
+    permitExtensions: ['permitId', 'extensionDays', 'reason', 'decidedBy', 'declaredBy', 'evidence'],
   }[kind];
   if (!keys) fail('INVALID_ARGUMENT', 'Unknown development record kind.');
   object(value, 'Development input');
-  if (Object.keys(value).length !== keys.length || keys.some((key) => !own(value, key))) {
+  const optionalKeys = kind === 'screenings' ? ['permit'] : [];
+  if (keys.some((key) => !own(value, key))
+    || Object.keys(value).some((key) => !keys.includes(key) && !optionalKeys.includes(key))) {
     fail('INVALID_ARGUMENT', 'Development input has missing or unexpected fields.');
   }
-  text(value.reason, 'Development reason', 4000);
-  text(value.evidence, 'Development evidence', 4000);
+  if (own(value, 'reason')) text(value.reason, 'Development reason', 4000);
+  if (own(value, 'evidence') && (kind !== 'permitExtensions' || value.evidence !== null)) {
+    text(value.evidence, 'Development evidence', 4000);
+  }
   if (kind === 'screenings') {
     if (!['lightweight', 'formal', 'needs-clarification'].includes(value.route)) fail('INVALID_ARGUMENT', 'Unknown development route.');
     text(value.scopeEvidence, 'Development scope evidence', 4000);
@@ -616,6 +626,15 @@ export function validateDevelopmentInput(kind, value) {
       fail('INVALID_ARGUMENT', 'Lightweight screening cannot contain material impacts, unresolved questions or formal requirements.');
     }
     if (value.route === 'formal' && value.requirements.length === 0) fail('INVALID_ARGUMENT', 'Formal screening needs proportionate justified requirements.');
+    if (own(value, 'permit')) {
+      fields(value.permit, ['safetyClass', 'structuralClass', 'classRationale'], 'Permit risk classification');
+      for (const key of ['safetyClass', 'structuralClass']) {
+        if (!Number.isInteger(value.permit[key]) || value.permit[key] < 1 || value.permit[key] > 4) {
+          fail('INVALID_ARGUMENT', `${key} must be an integer from 1 to 4.`);
+        }
+      }
+      text(value.permit.classRationale, 'Permit class rationale', 2000);
+    }
   } else if (kind === 'applications') {
     positiveRevision(value.screeningRevision);
     text(value.proposal, 'Assisted proposal', 20000);
@@ -634,9 +653,52 @@ export function validateDevelopmentInput(kind, value) {
       if (!['provided', 'not-applicable'].includes(artifact.disposition)) fail('INVALID_ARGUMENT', 'Artifact disposition must be provided or not-applicable.');
       text(artifact.evidence, 'Artifact evidence or justified non-applicability', 4000);
     }
-  } else {
+  } else if (kind === 'assessments') {
     positiveRevision(value.applicationRevision);
     if (!['ready', 'revise'].includes(value.outcome)) fail('INVALID_ARGUMENT', 'Assessment outcome must be ready or revise.');
+  } else if (kind === 'statements') {
+    if (!['safety', 'structural'].includes(value.dimension) || ![3, 4].includes(value.class)) {
+      fail('INVALID_ARGUMENT', 'Permit statements require a safety or structural dimension and class 3 or 4.');
+    }
+    if (typeof value.staffId !== 'string' || !/^[a-z][a-z0-9-]{1,40}$/u.test(value.staffId)) {
+      fail('INVALID_ARGUMENT', 'Permit statement staffId must be a safe staff ID.');
+    }
+    positiveRevision(value.screeningRevision);
+    text(value.scope, 'Permit statement scope', 2000);
+  } else if (kind === 'verifications') {
+    positiveRevision(value.statementRevision);
+    if (typeof value.staffId !== 'string' || !/^[a-z][a-z0-9-]{1,40}$/u.test(value.staffId)) {
+      fail('INVALID_ARGUMENT', 'Permit verification staffId must be a safe staff ID.');
+    }
+    if (!['verified', 'not-verified'].includes(value.outcome)) fail('INVALID_ARGUMENT', 'Permit verification outcome must be verified or not-verified.');
+  } else if (kind === 'completionNotices') {
+    if (typeof value.permitId !== 'string' || !/^PMT-[0-9a-f-]{36}$/u.test(value.permitId)) {
+      fail('INVALID_ARGUMENT', 'Completion notice must reference a permit ID.');
+    }
+    developmentList(value.conditions, 'Completion notice conditions', 50);
+    uniqueDevelopment(value.conditions, (condition) => condition?.id, 'Completion notice conditions');
+    for (const condition of value.conditions) {
+      fields(condition, ['id', 'status', 'evidence'], 'Completion notice condition');
+      if (typeof condition.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(condition.id)
+        || !['met', 'not-applicable'].includes(condition.status)) {
+        fail('INVALID_ARGUMENT', 'Completion notice condition has an invalid ID or status.');
+      }
+      text(condition.evidence, 'Completion condition evidence', 4000);
+    }
+  } else {
+    if (typeof value.permitId !== 'string' || !/^PMT-[0-9a-f-]{36}$/u.test(value.permitId)) {
+      fail('INVALID_ARGUMENT', 'Permit extension must reference a permit ID.');
+    }
+    if (!Number.isInteger(value.extensionDays) || value.extensionDays < 1 || value.extensionDays > 30) {
+      fail('INVALID_ARGUMENT', 'Permit extensionDays must be an integer from 1 to 30.');
+    }
+    if (!['city-council', 'resident'].includes(value.decidedBy)) fail('INVALID_ARGUMENT', 'Permit extension decider must be city-council or resident.');
+    if (value.decidedBy === 'resident') {
+      text(value.declaredBy, 'Permit extension declaredBy', 200);
+      text(value.evidence, 'Permit extension evidence', 4000);
+    } else if (value.declaredBy !== null || value.evidence !== null) {
+      fail('INVALID_ARGUMENT', 'Council permit extensions must not include resident declaration evidence.');
+    }
   }
   return value;
 }
@@ -650,15 +712,30 @@ export function applicationMissing(screening, application) {
 }
 
 export function validateDevelopment(value, createdAt) {
-  fields(value, ['screenings', 'applications', 'assessments'], 'Work-order development');
-  const offices = { screenings: 'chief-planner', applications: 'development-advisor', assessments: 'chief-planner' };
+  fields(value, [
+    'screenings', 'applications', 'assessments',
+    ...(own(value, 'statements') ? ['statements'] : []),
+    ...(own(value, 'verifications') ? ['verifications'] : []),
+    ...(own(value, 'completionNotices') ? ['completionNotices'] : []),
+    ...(own(value, 'permitExtensions') ? ['permitExtensions'] : []),
+  ], 'Work-order development');
+  const offices = {
+    screenings: 'chief-planner', applications: 'development-advisor', assessments: 'chief-planner',
+    statements: 'engineering-manager', verifications: 'city-auditor', completionNotices: 'engineering-manager',
+    permitExtensions: null,
+  };
   for (const kind of Object.keys(offices)) {
-    developmentList(value[kind], `Development ${kind}`, LIMITS.history);
+    const records = value[kind] ?? (['statements', 'verifications', 'completionNotices', 'permitExtensions'].includes(kind) ? [] : null);
+    if (!records) fail('INVALID_RECORD', `Work-order development is missing ${kind}.`);
+    developmentList(records, `Development ${kind}`, LIMITS.history);
     let previous = createdAt;
-    for (const [index, record] of value[kind].entries()) {
+    for (const [index, record] of records.entries()) {
       object(record, 'Development revision');
       const { revision, recordedAt, sourceOffice, authenticated, provenance: source, snapshot, ...input } = record;
-      if (revision !== index + 1 || sourceOffice !== offices[kind] || authenticated !== false) fail('INVALID_RECORD', 'Development revision or professional source role is invalid.');
+      const sourceValid = kind === 'permitExtensions'
+        ? ['city-council', 'resident'].includes(sourceOffice)
+        : sourceOffice === offices[kind];
+      if (revision !== index + 1 || !sourceValid || authenticated !== false) fail('INVALID_RECORD', 'Development revision or professional source role is invalid.');
       timestamp(recordedAt, 'Development recordedAt');
       if (recordedAt < previous) fail('INVALID_RECORD', 'Development revisions have out-of-order timestamps.');
       previous = recordedAt;
@@ -680,9 +757,27 @@ export function validateDevelopment(value, createdAt) {
         if (input.outcome === 'ready' && applicationMissing(value.screenings[application.screeningRevision - 1], application).length) {
           fail('INVALID_RECORD', 'Ready assessment cannot omit required evidence or resident answers.');
         }
+      } else if (kind === 'statements') {
+        const screening = value.screenings[input.screeningRevision - 1];
+        if (!screening?.permit || screening.permit[`${input.dimension}Class`] !== input.class
+          || recordedAt < screening.recordedAt) fail('INVALID_RECORD', 'Permit statement must match an earlier risk-classified screening.');
+      } else if (kind === 'verifications') {
+        const statement = recordsOf(value, 'statements')[input.statementRevision - 1];
+        if (!statement || statement.class !== 4 || statement.staffId === input.staffId
+          || recordedAt < statement.recordedAt) fail('INVALID_RECORD', 'Verification must independently reference an earlier class 4 statement.');
+      } else if (kind === 'completionNotices') {
+        if (recordedAt < createdAt) fail('INVALID_RECORD', 'Completion notice cannot predate the work order.');
+      } else if (kind === 'permitExtensions') {
+        if (input.decidedBy !== sourceOffice || recordedAt < createdAt) {
+          fail('INVALID_RECORD', 'Permit extension decider, source office, or chronology is invalid.');
+        }
       }
     }
   }
+}
+
+function recordsOf(value, kind) {
+  return value[kind] ?? [];
 }
 
 export function validateDecision(value, expectedCityId) {
@@ -1096,6 +1191,7 @@ function validateDeliveryDecision(value, expectedCityId) {
   fields(value, [
     'schemaVersion', 'id', 'cityId', 'kind', 'workOrderIds', 'outcome', 'decidedBy', 'basis',
     'routineClass', 'reservedMatters', 'reason', 'subject', 'evidence', 'createdAt', 'provenance',
+    ...(own(value, 'permit') ? ['permit'] : []),
   ], 'City decision');
   if (typeof value.id !== 'string' || !decisionPattern.test(value.id)) {
     fail('INVALID_RECORD', 'City decision ID must be DEC- followed by a UUID.');
@@ -1123,11 +1219,58 @@ function validateDeliveryDecision(value, expectedCityId) {
     invalid('reservedMatters must be unique known reserved matters in canonical order.');
   }
   if (value.kind === 'acceptance' && value.reservedMatters.length !== 0) invalid('acceptance does not classify reserved matters.');
+  if (own(value, 'permit')) {
+    if (value.kind !== 'authorization' || value.outcome !== 'authorize') invalid('permit terms are valid only on an authorization.');
+    validatePermitRecord(value.permit);
+  }
   if (value.routineClass === null) {
     if (value.basis === 'routine-policy') invalid('basis routine-policy requires a routineClass.');
   } else if (!ROUTINE_CLASSES.includes(value.routineClass) || value.basis !== 'routine-policy'
     || value.outcome !== 'authorize' || value.reservedMatters.length !== 0) {
     invalid('routineClass is only valid for a council routine-policy authorization without reserved matters.');
+  }
+
+  function validatePermitRecord(permit) {
+    fields(permit, [
+      'permitId', 'safetyClass', 'structuralClass', 'issuedAt', 'conditions', 'rightOfWay',
+      'commencementDeadline', 'inactivityDays',
+    ], 'Permit terms');
+    if (typeof permit.permitId !== 'string' || !/^PMT-[0-9a-f-]{36}$/u.test(permit.permitId)) {
+      fail('INVALID_RECORD', 'Permit ID must be PMT- followed by a UUID.');
+    }
+    for (const key of ['safetyClass', 'structuralClass']) {
+      if (!Number.isInteger(permit[key]) || permit[key] < 1 || permit[key] > 4) {
+        fail('INVALID_RECORD', `${key} must be an integer from 1 to 4.`);
+      }
+    }
+    timestamp(permit.issuedAt, 'Permit issuedAt');
+    calendarDate(permit.commencementDeadline, 'Permit commencementDeadline', 'INVALID_RECORD');
+    if (!Number.isInteger(permit.inactivityDays) || permit.inactivityDays < 1 || permit.inactivityDays > 365) {
+      fail('INVALID_RECORD', 'Permit inactivityDays must be an integer from 1 to 365.');
+    }
+    if (!Array.isArray(permit.conditions) || permit.conditions.length > 50
+      || new Set(permit.conditions.map((condition) => condition?.id)).size !== permit.conditions.length) {
+      fail('INVALID_RECORD', 'Permit conditions must be a bounded array with unique IDs.');
+    }
+    for (const condition of permit.conditions) {
+      fields(condition, ['id', 'description'], 'Permit condition');
+      if (typeof condition.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(condition.id)) {
+        fail('INVALID_RECORD', 'Permit condition ID must be a safe identifier.');
+      }
+      text(condition.description, 'Permit condition description', 2000);
+    }
+    if (!Array.isArray(permit.rightOfWay) || permit.rightOfWay.length > 50
+      || new Set(permit.rightOfWay.map((consent) => consent?.projectId)).size !== permit.rightOfWay.length) {
+      fail('INVALID_RECORD', 'Permit rightOfWay must be bounded and unique by project.');
+    }
+    for (const consent of permit.rightOfWay) {
+      fields(consent, ['projectId', 'consentBy', 'evidence'], 'Right-of-way consent');
+      if (typeof consent.projectId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(consent.projectId)) {
+        fail('INVALID_RECORD', 'Right-of-way projectId must be a safe project ID.');
+      }
+      text(consent.consentBy, 'Right-of-way consentBy', 200);
+      text(consent.evidence, 'Right-of-way consent evidence', 4000);
+    }
   }
   if (value.decidedBy === 'city-council' && value.outcome === 'authorize' && value.reservedMatters.length !== 0) {
     invalid('cannot record a council authorization of a reserved matter; reserved matters are referred to the resident.');

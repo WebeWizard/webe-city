@@ -222,3 +222,14 @@ plugin provenance; screenings also store a context digest. Metadata leaves
 extension preserves work-order schema versions 1/2; no migration is needed. Writes
 reuse mutation locks, atomic replacement, conflict checks and size/history limits.
 Editable local records and hashes are not tamper-proof custody or access controls.
+
+## Building-permit policy
+
+The optional, separately adopted
+[building-permits policy](./building-permits.md) adds risk classes, professional
+statements, permit conditions and expiry, project-consent declarations, and
+completion notices. When that policy is adopted, each screening adds a `permit`
+object with `safetyClass`, `structuralClass` (1–4), and `classRationale`.
+Class-3/4 statements and class-4 independent verification are attached as
+additional development revisions. See the building-permit guide for their CLI
+contracts and the limits of these unauthenticated competency records.

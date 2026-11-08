@@ -45,6 +45,7 @@ const professionalSkills = [
   'systems-integration',
   'institutional-review',
   'workforce-planning',
+  'building-permits',
   'recruitment-and-onboarding',
 ].map((name) => `city-${name}`);
 const lifecycleStates = [
@@ -65,6 +66,7 @@ const policyTemplates = [
   'development-applications',
   'continuity-and-accountability',
   'infrastructure-management',
+  'building-permits',
 ];
 const residentSkills = [
   'city-appeal',
@@ -105,7 +107,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.4.0');
+  assert.equal(manifest.version, '0.5.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -140,7 +142,7 @@ test('the local development marketplace points to the same versioned plugin', as
   const entry = marketplace.plugins[0];
   assert.equal(entry.name, manifest.name);
   assert.equal(entry.version, manifest.version);
-  assert.equal(path.resolve(root, entry.source), root.replace(/\/$/, ''));
+  assert.equal(path.resolve(root, entry.source), path.resolve(root));
 });
 
 test('the thirteen pilot offices have distinct identities and explicit least-tool contracts', async () => {
@@ -318,7 +320,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-seven skills are discoverable, substantive, and correctly scoped', async () => {
+test('all twenty-eight skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -464,9 +466,11 @@ test('agent and skill definitions do not invoke external organization-specific w
 });
 
 test('the distributable contains runtime resources but no development profile or dependencies', () => {
-  const packed = JSON.parse(execFileSync('npm', [
-    'pack', '--dry-run', '--json', '--ignore-scripts',
-  ], {
+  const command = process.platform === 'win32' ? process.env.ComSpec ?? 'cmd.exe' : 'npm';
+  const args = process.platform === 'win32'
+    ? ['/d', '/s', '/c', 'npm.cmd pack --dry-run --json --ignore-scripts']
+    : ['pack', '--dry-run', '--json', '--ignore-scripts'];
+  const packed = JSON.parse(execFileSync(command, args, {
     cwd: root,
     encoding: 'utf8',
     timeout: 30_000,

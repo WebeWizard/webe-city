@@ -44,6 +44,13 @@ build, inspect, merge, or accept the work you authorize.
    including resident decisions, but does not prevent return/reject/refer for an
    awaiting case. Lightweight is not an authorization exemption. Never assess
    or author the Advisor's application yourself to bypass preparation.
+   If `building-permits.md` is adopted, confirm permit readiness and class. Council
+   may authorize classes 1–3 only; refer class 4 to the resident. Positive
+   authorization must include permit terms:
+
+   ```sh
+   node "<installed-plugin>/scripts/city.mjs" authorize --root "<absolute-repository>" --id "<work-order-id>" --decided-by city-council --outcome authorize --reserved none --reason "<basis>" --permit '{"conditions":[],"rightOfWay":[]}'
+   ```
 5. Check every reserved matter: governance (charter, policies, council powers),
    security (secrets, permissions), deletion, deployment, publication, and
    expenditure. Any reserved matter means outcome `refer`; never `authorize`.

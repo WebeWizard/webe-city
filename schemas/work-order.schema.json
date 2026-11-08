@@ -141,7 +141,8 @@
                 "0.1.0",
                 "0.2.0",
                 "0.3.0",
-                "0.4.0"
+                "0.4.0",
+                "0.5.0"
               ]
             }
           }
@@ -260,7 +261,11 @@
       "properties": {
         "screenings": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/screening" } },
         "applications": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/application" } },
-        "assessments": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/assessment" } }
+        "assessments": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/assessment" } },
+        "statements": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/permitStatement" } },
+        "verifications": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/permitVerification" } },
+        "completionNotices": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/completionNotice" } },
+        "permitExtensions": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/permitExtension" } }
       }
     },
     "revision": { "type": "integer", "minimum": 1 },
@@ -319,6 +324,15 @@
               "description": { "$ref": "#/$defs/text", "maxLength": 2000 },
               "reason": { "$ref": "#/$defs/text", "maxLength": 2000 }
             }
+          }
+        },
+        "permit": {
+          "type": "object", "additionalProperties": false,
+          "required": ["safetyClass", "structuralClass", "classRationale"],
+          "properties": {
+            "safetyClass": { "type": "integer", "minimum": 1, "maximum": 4 },
+            "structuralClass": { "type": "integer", "minimum": 1, "maximum": 4 },
+            "classRationale": { "$ref": "#/$defs/text", "maxLength": 2000 }
           }
         }
       },
@@ -384,6 +398,81 @@
         "outcome": { "enum": ["ready", "revise"] },
         "reason": { "$ref": "#/$defs/evidenceText" },
         "evidence": { "$ref": "#/$defs/evidenceText" }
+      }
+    },
+    "permitStatement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "dimension", "class", "staffId", "screeningRevision", "scope", "evidence"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "engineering-manager" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "dimension": { "enum": ["safety", "structural"] },
+        "class": { "type": "integer", "minimum": 3, "maximum": 4 },
+        "staffId": { "$ref": "#/$defs/safeId" },
+        "screeningRevision": { "$ref": "#/$defs/revision" },
+        "scope": { "$ref": "#/$defs/text", "maxLength": 2000 },
+        "evidence": { "$ref": "#/$defs/evidenceText" }
+      }
+    },
+    "permitVerification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "statementRevision", "staffId", "outcome", "reason", "evidence"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "city-auditor" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "statementRevision": { "$ref": "#/$defs/revision" },
+        "staffId": { "$ref": "#/$defs/safeId" },
+        "outcome": { "enum": ["verified", "not-verified"] },
+        "reason": { "$ref": "#/$defs/evidenceText" },
+        "evidence": { "$ref": "#/$defs/evidenceText" }
+      }
+    },
+    "completionNotice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "permitId", "conditions", "evidence"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "const": "engineering-manager" },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "permitId": { "type": "string", "pattern": "^PMT-[0-9a-f-]{36}$" },
+        "conditions": {
+          "type": "array", "maxItems": 50,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "status", "evidence"],
+            "properties": {
+              "id": { "$ref": "#/$defs/safeId" },
+              "status": { "enum": ["met", "not-applicable"] },
+              "evidence": { "$ref": "#/$defs/evidenceText" }
+            }
+          }
+        },
+        "evidence": { "$ref": "#/$defs/evidenceText" }
+      }
+    },
+    "permitExtension": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "recordedAt", "sourceOffice", "authenticated", "provenance", "permitId", "extensionDays", "reason", "decidedBy", "declaredBy", "evidence"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceOffice": { "enum": ["city-council", "resident"] },
+        "authenticated": { "const": false },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "permitId": { "type": "string", "pattern": "^PMT-[0-9a-f-]{36}$" },
+        "extensionDays": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "reason": { "$ref": "#/$defs/evidenceText" },
+        "decidedBy": { "enum": ["city-council", "resident"] },
+        "declaredBy": { "type": ["string", "null"], "maxLength": 200 },
+        "evidence": { "type": ["string", "null"], "maxLength": 4000 }
       }
     },
     "text": {
