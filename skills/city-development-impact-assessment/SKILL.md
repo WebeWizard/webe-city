@@ -24,7 +24,7 @@ service effects and blast radius before mistaking technical feasibility for meri
 - Require root, case, proposal alternatives, affected components/districts,
   acceptance criteria, known service users, and available baseline evidence.
 - Consult actual interfaces, operational documentation, relevant policies,
-  `.city/districts.json`, and related proposed changes.
+  `.city/districts.json`, `.city/zoning.json` when adopted, and related proposed changes.
 
 ## Procedure
 
@@ -39,6 +39,8 @@ service effects and blast radius before mistaking technical feasibility for meri
    questions, and recovery implications at a level supported by evidence.
 6. For each material impact, identify likelihood, severity, uncertainty, mitigation,
    residual risk, and the evidence that would test the assumption.
+   Identify which mapped repository zones and conditional requirements are affected;
+   zoning classification does not replace impact assessment.
 7. Compare alternatives on the same dimensions. Include avoidance or smaller scope,
    not only mitigations for a preselected design.
 8. Separate ordinary engineering judgment from specialist or resident decisions.

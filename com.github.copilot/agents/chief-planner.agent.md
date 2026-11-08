@@ -20,6 +20,10 @@ proposals, not for granting development permission or implementing the proposal.
   and tests.
 - Districts describe declared ownership, not filesystem permissions. Flag absent
   or contradictory ownership rather than inventing a district authority.
+- If zoning is adopted, read `.city/zoning.json` separately from districts and
+  projects. Classify the work-order's declared project directories and exact
+  infrastructure targets with `zoning-check`; unknown or prohibited findings
+  are not ready, and conditional rules require formal review.
 - Leave an unenrolled repository unchanged. Pause on malformed city state.
 
 ## Planning procedure

@@ -20,7 +20,7 @@ adopted policy from explicit draft/legacy advice.
 ## Purpose and inputs
 
 Provide a read-only account of repository-local governance, projects, work orders,
-decisions, workforce, due institutional reviews, and permits.
+decisions, workforce, zoning readiness, due institutional reviews, and permits.
 Require the explicit absolute repository root and any case or district filter.
 Do not infer enrollment, approval, or completion from the installed plugin inventory.
 
@@ -57,7 +57,9 @@ Do not infer enrollment, approval, or completion from the installed plugin inven
 4. Summarize registered project directories and work-order counts by project.
    Identify legacy work orders without project IDs as unassigned. Summarize actual
    states, recent reasons, unresolved evidence, related cases, decisions by kind,
-   and next actor. Do not invent costs, appointments, or progress.
+   and next actor. Report `status.zoning` and each work order's zoning outcome,
+   staleness, and map/check gaps. Do not treat unknown or prohibited findings as
+   permission, or infer costs, appointments, or progress.
 5. Summarize workforce from `status.workforce`: active and retired staff,
    requisitions by status, current work-order assignments, orders without an
    assignment, and generated-file drift. Drift is reported, not enforced; it is

@@ -6,7 +6,7 @@ import {
   INSTITUTIONAL_REVIEW_TRIGGERS, LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
   SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_SCHEMA_VERSION, WORKFORCE_SCHEMA_VERSION,
   WORKFORCE_TOOLS, GENERAL_ENGINEER_ID,
-  DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS, DEVELOPMENT_POLICY,
+  DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS, DEVELOPMENT_POLICY, ZONING_CHANGE_TYPES, ZONING_POLICY,
 } from './constants.mjs';
 import { fail } from './errors.mjs';
 
@@ -24,14 +24,14 @@ const own = (value, key) => Object.hasOwn(value, key);
 
 export const RECORD_TYPES = Object.freeze([
   'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
-  'infrastructure-programme', 'config', 'project', 'district', 'charter', 'policy',
+  'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
 ]);
 export const CANONICAL_RECORD_TYPES = Object.freeze([
   ...RECORD_TYPES, 'requisition', 'staff', 'assignment',
 ]);
 export const RECORD_EXCHANGE_TYPES = Object.freeze([
   'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
-  'infrastructure-programme', 'config', 'project', 'district', 'charter', 'policy',
+  'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
 ]);
 export const RECORD_REQUEST_OUTCOMES = Object.freeze(['found', 'not-found', 'withheld', 'unavailable']);
 
@@ -67,6 +67,9 @@ export function validateRecordId(type, id, label = 'Record ID') {
       break;
     case 'config':
       if (id !== 'config') fail('INVALID_ARGUMENT', `${label} must be config.`);
+      break;
+    case 'zoning':
+      if (id !== 'zoning') fail('INVALID_ARGUMENT', `${label} must be zoning.`);
       break;
     case 'project':
     case 'district':
@@ -306,6 +309,10 @@ export function validateConfig(value) {
   if (value.governance === 'adopted') {
     if (value.adoption === null) fail('INVALID_RECORD', 'Adopted city governance requires an adoption record; use the adopt command.');
     validateAdoption(value.adoption, value.createdAt);
+    if (value.adoption.policies.some((policy) => policy.path === ZONING_POLICY)
+      && !value.adoption.policies.some((policy) => policy.path === DEVELOPMENT_POLICY)) {
+      fail('INVALID_RECORD', 'Adopting zoning requires the development-applications policy for conditional review.');
+    }
   }
   return value;
 }
@@ -332,6 +339,132 @@ export function validateDistricts(value) {
     }
   }
   return value;
+}
+
+function validateZoningPath(value, label) {
+  text(value, label, 500);
+  if (value !== '.' && (isAbsolute(value) || value.includes('\\') || value.includes(':')
+    || value.split('/').some((segment) => !segment || segment === '.' || segment === '..'
+      || segment === '.city' || segment === '.git')
+    || posix.normalize(value) !== value)) {
+    fail('INVALID_RECORD', `${label} must be a normalized repository-relative path outside city and Git metadata.`);
+  }
+}
+
+export function validateZoningMap(value) {
+  version(value, 'City zoning map');
+  fields(value, ['schemaVersion', 'zones'], 'City zoning map');
+  if (!Array.isArray(value.zones) || value.zones.length === 0 || value.zones.length > 100) {
+    fail('INVALID_RECORD', 'City zoning map must contain between 1 and 100 zones.');
+  }
+  const ids = new Set();
+  const paths = [];
+  for (const zone of value.zones) {
+    fields(zone, ['id', 'name', 'path', 'description', 'rules'], 'City zone');
+    if (typeof zone.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(zone.id) || ids.has(zone.id)) {
+      fail('INVALID_RECORD', 'City zone IDs must be unique safe lowercase identifiers.');
+    }
+    ids.add(zone.id);
+    text(zone.name, 'City zone name', 200);
+    text(zone.description, 'City zone description', 2000);
+    validateZoningPath(zone.path, 'City zone path');
+    const normalized = zone.path.normalize('NFC').toLowerCase();
+    for (const existing of paths) {
+      if (normalized === existing || normalized === '.' || existing === '.'
+        || normalized.startsWith(`${existing}/`) || existing.startsWith(`${normalized}/`)) {
+        fail('INVALID_RECORD', 'City zone paths must be disjoint so each delivery scope matches at most one zone.');
+      }
+    }
+    paths.push(normalized);
+    if (!Array.isArray(zone.rules) || zone.rules.length > ZONING_CHANGE_TYPES.length) {
+      fail('INVALID_RECORD', 'City zone rules must be a bounded array of supported change types.');
+    }
+    const changeTypes = new Set();
+    for (const rule of zone.rules) {
+      fields(rule, ['changeType', 'disposition', 'requirements'], 'City zoning rule');
+      if (!ZONING_CHANGE_TYPES.includes(rule.changeType) || changeTypes.has(rule.changeType)) {
+        fail('INVALID_RECORD', 'City zoning rules must use unique supported change types.');
+      }
+      changeTypes.add(rule.changeType);
+      if (!['permitted', 'conditional', 'prohibited'].includes(rule.disposition)) {
+        fail('INVALID_RECORD', 'City zoning rule disposition is unsupported.');
+      }
+      stringArray(rule.requirements, 'Zoning rule requirements', 25, 2000);
+      if ((rule.disposition === 'conditional') !== (rule.requirements.length > 0)) {
+        fail('INVALID_RECORD', 'Conditional zoning rules need requirements; other dispositions must not include them.');
+      }
+    }
+  }
+  return value;
+}
+
+export function validateZoningCheckInput(value) {
+  object(value, 'Zoning check input');
+  const expected = ['changeTypes', 'reason', 'evidence'];
+  if (Object.keys(value).length !== expected.length || expected.some((key) => !own(value, key))) {
+    fail('INVALID_ARGUMENT', 'Zoning check input has missing or unexpected fields.');
+  }
+  if (!Array.isArray(value.changeTypes) || value.changeTypes.length === 0
+    || value.changeTypes.length > ZONING_CHANGE_TYPES.length
+    || new Set(value.changeTypes).size !== value.changeTypes.length
+    || value.changeTypes.some((type) => !ZONING_CHANGE_TYPES.includes(type))) {
+    fail('INVALID_ARGUMENT', 'Zoning changeTypes must be a nonempty array of unique supported change types.');
+  }
+  text(value.reason, 'Zoning check reason', 4000);
+  text(value.evidence, 'Zoning check evidence', 4000);
+  return value;
+}
+
+function validateZoningCheck(value, expectedRevision, createdAt, previousRecordedAt) {
+  fields(value, [
+    'revision', 'recordedAt', 'sourceOffice', 'authenticated', 'provenance', 'snapshot',
+    'changeTypes', 'outcome', 'coverage', 'reason', 'evidence',
+  ], 'Zoning check revision');
+  if (value.revision !== expectedRevision || value.sourceOffice !== 'chief-planner' || value.authenticated !== false) {
+    fail('INVALID_RECORD', 'Zoning check revision or professional source role is invalid.');
+  }
+  timestamp(value.recordedAt, 'Zoning check recordedAt');
+  if (value.recordedAt < createdAt || value.recordedAt < previousRecordedAt) {
+    fail('INVALID_RECORD', 'Zoning check timestamps must follow work-order creation and prior zoning checks.');
+  }
+  provenance(value.provenance, 'Zoning check provenance');
+  digest(value.snapshot, 'Zoning check snapshot');
+  validateZoningCheckInput({
+    changeTypes: value.changeTypes, reason: value.reason, evidence: value.evidence,
+  });
+  if (!['permitted', 'conditional', 'prohibited', 'unknown'].includes(value.outcome)) {
+    fail('INVALID_RECORD', 'Zoning check outcome is unsupported.');
+  }
+  developmentList(value.coverage, 'Zoning coverage', 100);
+  const seenPaths = new Set();
+  for (const scope of value.coverage) {
+    fields(scope, ['path', 'zoneId', 'determinations'], 'Zoning coverage entry');
+    validateZoningPath(scope.path, 'Zoning coverage path');
+    if (seenPaths.has(scope.path)) fail('INVALID_RECORD', 'Zoning coverage paths must be unique.');
+    seenPaths.add(scope.path);
+    if (scope.zoneId !== null && (typeof scope.zoneId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(scope.zoneId))) {
+      fail('INVALID_RECORD', 'Zoning coverage zoneId must be a safe zone ID or null.');
+    }
+    if (!Array.isArray(scope.determinations) || scope.determinations.length !== value.changeTypes.length) {
+      fail('INVALID_RECORD', 'Zoning coverage must include every assessed change type.');
+    }
+    for (const [index, determination] of scope.determinations.entries()) {
+      fields(determination, ['changeType', 'disposition', 'requirements'], 'Zoning determination');
+      if (determination.changeType !== value.changeTypes[index]
+        || !['permitted', 'conditional', 'prohibited', 'unknown'].includes(determination.disposition)) {
+        fail('INVALID_RECORD', 'Zoning determination must match the ordered change types and use a supported disposition.');
+      }
+      stringArray(determination.requirements, 'Zoning determination requirements', 25, 2000);
+      if (determination.disposition !== 'conditional' && determination.requirements.length > 0) {
+        fail('INVALID_RECORD', 'Only conditional zoning determinations may include requirements.');
+      }
+    }
+  }
+  const dispositions = value.coverage.flatMap((scope) => scope.determinations.map((item) => item.disposition));
+  const expectedOutcome = dispositions.includes('prohibited') ? 'prohibited'
+    : dispositions.includes('unknown') || value.coverage.length === 0 ? 'unknown'
+      : dispositions.includes('conditional') ? 'conditional' : 'permitted';
+  if (value.outcome !== expectedOutcome) fail('INVALID_RECORD', 'Zoning check outcome must match its recorded determinations.');
 }
 
 export function validateProjects(value) {
@@ -712,12 +845,8 @@ export function applicationMissing(screening, application) {
 }
 
 export function validateDevelopment(value, createdAt) {
-  fields(value, [
-    'screenings', 'applications', 'assessments',
-    ...(own(value, 'statements') ? ['statements'] : []),
-    ...(own(value, 'verifications') ? ['verifications'] : []),
-    ...(own(value, 'completionNotices') ? ['completionNotices'] : []),
-    ...(own(value, 'permitExtensions') ? ['permitExtensions'] : []),
+  fieldsWithOptional(value, ['screenings', 'applications', 'assessments'], [
+    'zoningChecks', 'statements', 'verifications', 'completionNotices', 'permitExtensions',
   ], 'Work-order development');
   const offices = {
     screenings: 'chief-planner', applications: 'development-advisor', assessments: 'chief-planner',
@@ -772,6 +901,14 @@ export function validateDevelopment(value, createdAt) {
           fail('INVALID_RECORD', 'Permit extension decider, source office, or chronology is invalid.');
         }
       }
+    }
+  }
+  if (own(value, 'zoningChecks')) {
+    developmentList(value.zoningChecks, 'Development zoningChecks', LIMITS.history);
+    let previous = createdAt;
+    for (const [index, record] of value.zoningChecks.entries()) {
+      validateZoningCheck(record, index + 1, createdAt, previous);
+      previous = record.recordedAt;
     }
   }
 }

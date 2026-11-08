@@ -52,6 +52,11 @@ export const DELEGATION_POLICY = 'policies/council-delegation.md';
 export const WORKFORCE_DELEGATION_POLICY = 'policies/workforce-delegation.md';
 export const INSTITUTIONAL_REVIEW_POLICY = 'policies/institutional-review.md';
 export const DEVELOPMENT_POLICY = 'policies/development-applications.md';
+export const ZONING_POLICY = 'policies/zoning.md';
+export const ZONING_CHANGE_TYPES = Object.freeze([
+  'documentation', 'tests', 'bugfix', 'refactor', 'feature', 'public-interface',
+  'dependency', 'data-migration', 'security', 'deletion', 'generated-code',
+]);
 export const PERMIT_POLICY = 'policies/building-permits.md';
 export const PERMIT_COMMENCEMENT_DAYS = 30;
 export const PERMIT_INACTIVITY_DAYS = 30;

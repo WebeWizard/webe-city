@@ -8,7 +8,7 @@ import {
   adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
-  infrastructureProgrammeRecord,
+  infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
   permitExtend,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
@@ -65,6 +65,8 @@ const commands = {
   'screen-development': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'application-record': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'assess-application': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'zoning-map': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
+  'zoning-check': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'permit-statement': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'permit-verification': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'completion-notice': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
@@ -134,6 +136,8 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs zoning-map --root ABS --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs zoning-check --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-statement --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-verification --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs completion-notice --root ABS --id WO-ID --data JSON [--apply]',
@@ -165,6 +169,8 @@ function help() {
     notice: DRAFT_NOTICE,
     notes: [
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
+      'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
+      'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
       'When policies/building-permits.md is adopted, screening adds permit {safetyClass,structuralClass,classRationale}; classes are 1-4 and lightweight is limited to 1-2. Positive authorization requires --permit JSON {conditions,rightOfWay}; it records a 30-day commencement deadline and inactivity period. permit-extend permits at most two extensions of 1-30 days.',
       'permit-statement {dimension,class,staffId,screeningRevision,scope,evidence} is required for each class-3/4 dimension; permit-verification {statementRevision,staffId,outcome,reason,evidence} is additionally required for class 4. completion-notice {permitId,conditions,evidence} addresses every permit condition before inspection. These are unauthenticated records.',
       'Development source roles are fixed: chief-planner screens/independently assesses; development-advisor prepares applications. Provenance is unauthenticated professional evidence, not semantic classification or verified identity. Routes: lightweight|formal|needs-clarification. Assessment outcomes: ready|revise.',
@@ -322,6 +328,10 @@ async function main() {
       return developmentRecord(root, options, 'applications');
     case 'assess-application':
       return developmentRecord(root, options, 'assessments');
+    case 'zoning-map':
+      return zoningMapRecord(root, options);
+    case 'zoning-check':
+      return zoningCheckRecord(root, options);
     case 'permit-statement':
       return developmentRecord(root, options, 'statements');
     case 'permit-verification':
