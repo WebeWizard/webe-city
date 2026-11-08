@@ -70,6 +70,17 @@ policy register; opting in requires a resident adoption or amendment and a
 reviewed map. It does not inspect Git diffs, enforce filesystem permissions, or
 grant delivery authority. See [repository zoning](docs/zoning.md).
 
+The private 0.5.0 permit capability adds an optional resident-adopted
+building-permits policy. It extends development screenings with safety and
+structural classes, records qualified staff statements and independent
+verification for classes 3–4, attaches conditions and deadlines to
+authorization decisions, gates continued work on permit validity, and requires
+a completion notice before inspection. The permit policy is inert until
+adopted; existing orders and decisions remain valid. It does not automate
+neighbour consultation, dispensation registries, retroactive legalization,
+physical inspection, or authenticated professional licensing. See
+[building permits](docs/building-permits.md).
+
 Implementation refinements:
 
 - Local configuration and district declarations use JSON rather than the

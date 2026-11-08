@@ -9,6 +9,7 @@ import {
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
   infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
+  permitExtend,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -66,6 +67,9 @@ const commands = {
   'assess-application': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'zoning-map': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
   'zoning-check': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'permit-statement': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'permit-verification': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'completion-notice': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   migrate: { allowed: ['root', 'apply'], required: ['root'] },
   adopt: {
     allowed: ['root', 'adopted-on', 'declared-by', 'evidence', 'charter-version', 'apply'],
@@ -76,8 +80,12 @@ const commands = {
     required: ['root', 'adopted-on', 'declared-by', 'evidence', 'summary'],
   },
   authorize: {
-    allowed: ['root', 'id', 'decided-by', 'outcome', 'reserved', 'reason', 'routine-class', 'declared-by', 'evidence', 'apply'],
+    allowed: ['root', 'id', 'decided-by', 'outcome', 'reserved', 'reason', 'routine-class', 'declared-by', 'evidence', 'permit', 'apply'],
     required: ['root', 'id', 'decided-by', 'outcome', 'reserved', 'reason'],
+  },
+  'permit-extend': {
+    allowed: ['root', 'id', 'permit-id', 'days', 'decided-by', 'reason', 'declared-by', 'evidence', 'apply'],
+    required: ['root', 'id', 'permit-id', 'days', 'decided-by', 'reason'],
   },
   complete: {
     allowed: ['root', 'id', 'declared-by', 'evidence', 'reason', 'apply'],
@@ -130,6 +138,10 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-map --root ABS --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-check --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs permit-statement --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs permit-verification --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs completion-notice --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs permit-extend --root ABS --id WO-ID --permit-id PMT-ID --days N --decided-by city-council|resident --reason TEXT [--declared-by TEXT --evidence TEXT] [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
@@ -139,7 +151,7 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs migrate --root ABS [--apply]',
       'node <installed-plugin>/scripts/city.mjs adopt --root ABS --adopted-on YYYY-MM-DD --declared-by TEXT --evidence TEXT [--charter-version TEXT] [--apply]',
       'node <installed-plugin>/scripts/city.mjs amend --root ABS --adopted-on YYYY-MM-DD --declared-by TEXT --evidence TEXT --summary TEXT [--charter-version TEXT] [--apply]',
-      'node <installed-plugin>/scripts/city.mjs authorize --root ABS --id ID --decided-by city-council|resident --outcome authorize|reject|return|refer --reserved none|LIST --reason TEXT [--routine-class CLASS] [--declared-by TEXT --evidence TEXT] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs authorize --root ABS --id ID --decided-by city-council|resident --outcome authorize|reject|return|refer --reserved none|LIST --reason TEXT [--routine-class CLASS] [--declared-by TEXT --evidence TEXT] [--permit JSON] [--apply]',
       'node <installed-plugin>/scripts/city.mjs complete --root ABS --id ID --declared-by TEXT --evidence TEXT --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs requisition --root ABS --work-order WO-ID --staff-id ID --title TITLE --reason TEXT --duties TEXT [--competency TEXT repeated] [--standard TEXT repeated] [--tool TOOL repeated] [--check JSON_ARRAY repeated] [--mcp-proposal TEXT repeated] [--apply]',
       'node <installed-plugin>/scripts/city.mjs review-requisition --root ABS --id REQ-ID --outcome endorse|decline --reason TEXT [--apply]',
@@ -159,6 +171,8 @@ function help() {
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
       'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
       'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
+      'When policies/building-permits.md is adopted, screening adds permit {safetyClass,structuralClass,classRationale}; classes are 1-4 and lightweight is limited to 1-2. Positive authorization requires --permit JSON {conditions,rightOfWay}; it records a 30-day commencement deadline and inactivity period. permit-extend permits at most two extensions of 1-30 days.',
+      'permit-statement {dimension,class,staffId,screeningRevision,scope,evidence} is required for each class-3/4 dimension; permit-verification {statementRevision,staffId,outcome,reason,evidence} is additionally required for class 4. completion-notice {permitId,conditions,evidence} addresses every permit condition before inspection. These are unauthenticated records.',
       'Development source roles are fixed: chief-planner screens/independently assesses; development-advisor prepares applications. Provenance is unauthenticated professional evidence, not semantic classification or verified identity. Routes: lightweight|formal|needs-clarification. Assessment outcomes: ready|revise.',
       'A conclusive screening must match an assigned work order scope exactly. For a legacy unassigned v1 order, explicitly selected registered projectIds bind its scope and write v2 (scopeAssigned:true); needs-clarification may leave it unassigned. Active authorized delivery must return to proposed before new development preparation.',
       'Adopted policies/development-applications.md enables current screening before awaiting-approval and positive authorize (resident decisions included). Formal cases additionally need a complete current Advisor application and independent ready Planner assessment. Reject/return/refer remain possible. Older policy sets remain valid; installing does not appoint the Advisor. Draft preparation does not adopt policy.',
@@ -318,6 +332,12 @@ async function main() {
       return zoningMapRecord(root, options);
     case 'zoning-check':
       return zoningCheckRecord(root, options);
+    case 'permit-statement':
+      return developmentRecord(root, options, 'statements');
+    case 'permit-verification':
+      return developmentRecord(root, options, 'verifications');
+    case 'completion-notice':
+      return developmentRecord(root, options, 'completionNotices');
     case 'migrate':
       return migrate(root, options);
     case 'adopt':
@@ -326,6 +346,8 @@ async function main() {
       return amend(root, options);
     case 'authorize':
       return authorize(root, options);
+    case 'permit-extend':
+      return permitExtend(root, options);
     case 'complete':
       return complete(root, options);
     case 'requisition':

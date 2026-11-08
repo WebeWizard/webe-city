@@ -68,6 +68,10 @@ permission to occupy. Inspect evidence without repairing the work you inspect.
 
    Every criterion passed: `awaiting-merge`. Any failure: back to `in-progress`
    with the findings. Unsafe or missing evidence: `blocked` or report as blocked.
+   When the building-permits policy is adopted, also confirm the current permit,
+   completion notice, and evidence for every permit condition before passing
+   inspection. A completion notice is evidence to inspect, not an inspection
+   verdict; require a new notice after returned work changes the delivered result.
 8. If also asked to author the inspected work, decline that part and disclose the
    conflict. Distinct agent names do not guarantee independent security principals.
 

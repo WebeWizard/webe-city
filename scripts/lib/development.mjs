@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { DEVELOPMENT_POLICY } from './constants.mjs';
+import { DEVELOPMENT_POLICY, PERMIT_POLICY, WORKFORCE_DELEGATION_POLICY } from './constants.mjs';
 import { fail } from './errors.mjs';
 import { applicationMissing, authorizationCurrent } from './validation.mjs';
 import { currentZoningCheck, zoningEnabled, zoningStatus } from './zoning.mjs';
@@ -8,6 +8,14 @@ export function developmentEnabled(city) {
   return (city.config.governance === 'adopted'
     && city.config.adoption.policies.some((policy) => policy.path === DEVELOPMENT_POLICY))
     || zoningEnabled(city);
+}
+
+export function permitPolicyEnabled(city) {
+  if (city.config.governance !== 'adopted') return false;
+  const adoptedPolicies = new Set(city.config.adoption.policies.map((policy) => policy.path));
+  return adoptedPolicies.has(PERMIT_POLICY)
+    && adoptedPolicies.has(DEVELOPMENT_POLICY)
+    && adoptedPolicies.has(WORKFORCE_DELEGATION_POLICY);
 }
 
 export function developmentSnapshot(city, order) {
@@ -49,7 +57,7 @@ export function developmentPreparationAllowed(order) {
 }
 
 export function developmentStatus(city, order) {
-  const enabled = developmentEnabled(city);
+  const enabled = developmentEnabled(city) || permitPolicyEnabled(city);
   const zoning = zoningStatus(city, order);
   const actionable = enabled && developmentPreparationAllowed(order);
   const result = (stage, actor, action, extra = {}) => ({
@@ -73,6 +81,17 @@ export function developmentStatus(city, order) {
   }
   const screening = currentScreening(city, order);
   if (!screening) return result('screening-required', 'chief-planner', 'screen-development');
+  if (permitPolicyEnabled(city)) {
+    if (!screening.permit) {
+      return result('permit-classification-required', 'chief-planner', 'screen-development');
+    }
+    if (screening.route === 'lightweight'
+      && Math.max(screening.permit.safetyClass, screening.permit.structuralClass) > 2) {
+      return result('permit-classification-required', 'chief-planner', 'screen-development', {
+        missing: ['Lightweight route is limited to permit classes 1 and 2.'],
+      });
+    }
+  }
   if (screening.route === 'needs-clarification') {
     return result('resident-clarification', 'resident', 'answer-screening-questions', { questions: screening.questions });
   }
@@ -99,11 +118,33 @@ export function developmentStatus(city, order) {
   if (assessment.outcome !== 'ready') {
     return result('advisor-preparation', 'development-advisor', 'revise-application', { missing: [assessment.reason] });
   }
+  if (permitPolicyEnabled(city)) {
+    for (const dimension of ['safety', 'structural']) {
+      const riskClass = screening.permit[`${dimension}Class`];
+      if (riskClass < 3) continue;
+      const statement = (order.development.statements ?? []).find((item) => item.dimension === dimension
+        && item.class === riskClass && item.screeningRevision === screening.revision);
+      if (!statement) {
+        return result('professional-statement', 'engineering-manager', 'record-permit-statement', {
+          missing: [`${dimension} class ${riskClass} requires a qualified professional statement.`],
+        });
+      }
+      if (riskClass === 4) {
+        const verification = (order.development.verifications ?? []).find((item) => item.statementRevision === statement.revision
+          && item.outcome === 'verified');
+        if (!verification) {
+          return result('third-party-verification', 'city-auditor', 'record-permit-verification', {
+            missing: [`${dimension} class 4 statement requires independent verification.`],
+          });
+        }
+      }
+    }
+  }
   return ready('ready-formal');
 }
 
 export function assertDevelopmentReady(city, order) {
-  if (!developmentEnabled(city)) return;
+  if (!developmentEnabled(city) && !permitPolicyEnabled(city)) return;
   const readiness = developmentStatus(city, order);
   if (!readiness.ready) {
     const next = readiness.next ? `${readiness.next.actor} / ${readiness.next.action}` : 'No automatic preparation action';

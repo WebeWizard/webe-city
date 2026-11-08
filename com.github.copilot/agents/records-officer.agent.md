@@ -51,6 +51,10 @@ database that can create powers merely by recording them.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
+   When building permits are adopted, persist Manager-routed `permit-statement`,
+   `permit-verification`, and `completion-notice` commands without changing their
+   professional source or decision. Verify preview output and current permit /
+   screening references before applying.
 6. Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
    records commands (including these intake/development persistence commands)

@@ -6,7 +6,7 @@ import {
   DELIVERY_DECISION_SCHEMA_VERSION, DRAFT_NOTICE, EVIDENCE_RULE, LEGACY_CONFIG_SCHEMA_VERSION, LIMITS,
   INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION,
   INSTITUTIONAL_REVIEW_POLICY, INSTITUTIONAL_REVIEW_TRIGGERS,
-  DEVELOPMENT_POLICY,
+  DEVELOPMENT_POLICY, PERMIT_COMMENCEMENT_DAYS, PERMIT_INACTIVITY_DAYS, PERMIT_MAX_EXTENSIONS,
   OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
   WORK_ORDER_SCHEMA_VERSION,
   governanceNotice, provenance,
@@ -27,6 +27,7 @@ import {
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
 import {
   assertDevelopmentReady, currentScreening, developmentPreparationAllowed, developmentSnapshot, developmentStatus,
+  permitPolicyEnabled,
 } from './development.mjs';
 import {
   assertInfrastructureScopeCurrent, assertInfrastructureTargets, infrastructureSecurityFinding,
@@ -371,6 +372,40 @@ function deliveryDecisions(city, orderId) {
     .sort((first, second) => first.createdAt.localeCompare(second.createdAt) || first.id.localeCompare(second.id));
 }
 
+export function permitStatus(city, order, now = new Date()) {
+  const authorization = deliveryDecisions(city, order.id)
+    .filter((decision) => decision.kind === 'authorization' && decision.outcome === 'authorize' && decision.permit)
+    .at(-1);
+  if (!authorization) return { state: 'none', permit: null };
+  if (order.status === 'completed') return { state: 'completed', permit: authorization.permit };
+  if (!authorizationCurrent(order.history) || Date.parse(order.updatedAt) < Date.parse(authorization.createdAt)) {
+    return { state: 'void', permit: authorization.permit };
+  }
+  const extensions = (order.development?.permitExtensions ?? [])
+    .filter((extension) => extension.permitId === authorization.permit.permitId);
+  const extraDays = extensions.reduce((total, extension) => total + extension.extensionDays, 0);
+  const commencementDeadline = new Date(
+    Date.parse(`${authorization.permit.commencementDeadline}T00:00:00.000Z`) + extraDays * dayMilliseconds,
+  ).toISOString().slice(0, 10);
+  const started = order.history.some((entry) => entry.to === 'in-progress'
+    && Date.parse(entry.timestamp) >= Date.parse(authorization.createdAt));
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(now);
+  const commencementLimit = Date.parse(`${commencementDeadline}T23:59:59.999Z`);
+  const lastActivity = Math.max(
+    Date.parse(order.history.at(-1).timestamp),
+    ...extensions.map((extension) => Date.parse(extension.recordedAt)),
+  );
+  const inactivityLimit = lastActivity + authorization.permit.inactivityDays * dayMilliseconds;
+  const lapsing = !started && nowMs > commencementLimit
+    || ['authorized', 'in-progress', 'blocked'].includes(order.status) && nowMs > inactivityLimit;
+  return {
+    state: lapsing ? 'lapsed' : 'active',
+    permit: { ...authorization.permit, commencementDeadline },
+    extensionCount: extensions.length,
+    extensionsRemaining: Math.max(0, PERMIT_MAX_EXTENSIONS - extensions.length),
+  };
+}
+
 function councilSummary(city) {
   const adopted = city.config.governance === 'adopted';
   const governanceCurrent = adopted && city.drift.matchesAdoptedRevision;
@@ -553,6 +588,14 @@ export function statusOutput(root, city, command = 'status') {
       && !assignments.has(value.id))
     .map((value) => ({ id: value.id, title: value.title }))
     .sort((first, second) => first.id.localeCompare(second.id));
+  const permits = [...city.workOrders.values()].flatMap(({ value }) => {
+    const current = permitStatus(city, value);
+    return current.state === 'none' ? [] : [{
+      workOrderId: value.id, title: value.title, state: current.state, permitId: current.permit.permitId,
+      safetyClass: current.permit.safetyClass, structuralClass: current.permit.structuralClass,
+      commencementDeadline: current.permit.commencementDeadline,
+    }];
+  }).sort((first, second) => first.workOrderId.localeCompare(second.workOrderId));
   return {
     command, root, enrolled: true, governance: city.config.governance, city: citySummary(city),
     council: councilSummary(city),
@@ -581,6 +624,14 @@ export function statusOutput(root, city, command = 'status') {
     institutionalReview: institutionalReviewStatus(city),
     infrastructure: infrastructureStatus(city),
     workforce: workforceStatus(city),
+    permits: {
+      enabled: permitPolicyEnabled(city),
+      total: permits.length,
+      byState: Object.fromEntries(['active', 'lapsed', 'void', 'completed'].map((state) => [
+        state, permits.filter((permit) => permit.state === state).length,
+      ])),
+      records: permits,
+    },
     notice: governanceNotice(city.config.governance),
   };
 }
@@ -1899,6 +1950,7 @@ export async function transition(root, options) {
   checkTransition(
     original.value.status, options.to, original.value.acceptanceCriteria, authorizationCurrent(original.value.history),
   );
+  assertPermitTransition(city, original.value, options.to);
   if (options.to === 'awaiting-approval') assertDevelopmentReady(city, original.value);
   if (['in-progress', 'inspection', 'awaiting-approval'].includes(options.to)) {
     assertInfrastructureScopeCurrent(city, original.value);
@@ -1930,10 +1982,34 @@ export async function transition(root, options) {
       if (['in-progress', 'inspection', 'awaiting-approval'].includes(options.to)) {
         assertInfrastructureScopeCurrent(current, original.value);
       }
+      assertPermitTransition(current, original.value, options.to);
       await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
     });
   }
   return mutationOutput('transition', root, options.apply, workOrder, city.config.governance);
+}
+
+function assertPermitTransition(city, order, target) {
+  if (!permitPolicyEnabled(city)) return;
+  const current = permitStatus(city, order);
+  if (['in-progress', 'inspection'].includes(target) && current.state === 'lapsed') {
+    fail('PERMIT_LAPSED', 'This permit has lapsed. Obtain an allowed permit extension or return the work order for a fresh screening and authorization before delivery continues.');
+  }
+  if (target === 'inspection' && current.state === 'active') {
+    const notice = (order.development?.completionNotices ?? []).at(-1);
+    if (!notice || notice.permitId !== current.permit.permitId) {
+      fail('COMPLETION_NOTICE_REQUIRED', 'Record a completion notice for the current permit before inspection.');
+    }
+    const lastDeliveryRestart = order.history.findLast((entry) => entry.to === 'in-progress')?.timestamp;
+    if (lastDeliveryRestart && notice.recordedAt < lastDeliveryRestart) {
+      fail('COMPLETION_NOTICE_REQUIRED', 'A new completion notice is required after delivery resumes from a failed inspection.');
+    }
+    const expected = current.permit.conditions.map((condition) => condition.id).sort();
+    const supplied = notice.conditions.map((condition) => condition.id).sort();
+    if (JSON.stringify(expected) !== JSON.stringify(supplied)) {
+      fail('PERMIT_CONDITIONS_INCOMPLETE', 'The completion notice must address every current permit condition.');
+    }
+  }
 }
 
 function checkDevelopmentContextUnchanged(before, after) {
@@ -1948,6 +2024,15 @@ function checkDevelopmentContextUnchanged(before, after) {
   }
 }
 
+function requirePermitCompetency(city, staffId, dimension, riskClass) {
+  const staff = city.workforce.staff.get(staffId)?.value;
+  const requisition = staff && city.workforce.requisitions.get(staff.requisitionId)?.value;
+  const competency = `permit-${dimension}-class-${riskClass}`;
+  if (!staff || staff.status !== 'active' || !requisition?.competencies.includes(competency)) {
+    fail('QUALIFIED_STAFF_REQUIRED', `An active staff member with recorded competency ${competency} is required.`);
+  }
+}
+
 export async function developmentRecord(root, options, kind) {
   validateOrderId(options.id);
   const input = validateDevelopmentInput(kind, requestJSON(options.data, 'Development --data'));
@@ -1956,9 +2041,12 @@ export async function developmentRecord(root, options, kind) {
   if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
   const order = original.value;
   let scopedOrder = order;
-  const development = order.development ?? { screenings: [], applications: [], assessments: [] };
+  const development = {
+    screenings: [], applications: [], assessments: [], statements: [], verifications: [], completionNotices: [],
+    ...order.development,
+  };
   const zoningCheck = zoningEnabled(city) ? currentZoningCheck(city, order) : null;
-  if (!developmentPreparationAllowed(order)) {
+  if (kind !== 'completionNotices' && !developmentPreparationAllowed(order)) {
     fail('INVALID_TRANSITION', 'Development preparation is recorded before delivery; reopen or return a case before a new planning cycle.');
   }
   if (kind === 'screenings') {
@@ -1993,12 +2081,29 @@ export async function developmentRecord(root, options, kind) {
     } else if (zoningCheck?.outcome === 'conditional' && input.route === 'lightweight') {
       fail('DEVELOPMENT_NOT_READY', 'A conditional zoning finding requires formal screening and an independently assessed application.');
     }
+    if (permitPolicyEnabled(city)) {
+      if (!input.permit) fail('PERMIT_CLASSIFICATION_REQUIRED', 'The adopted building-permits policy requires safety and structural classes on every screening.');
+      const maximumClass = Math.max(input.permit.safetyClass, input.permit.structuralClass);
+      if (input.route === 'lightweight' && maximumClass > 2) {
+        fail('INVALID_ARGUMENT', 'Lightweight screening is limited to safety and structural classes 1 and 2.');
+      }
+      if (input.impacts.includes('security') && input.permit.safetyClass < 2) {
+        fail('INVALID_ARGUMENT', 'Security impacts require safety class 2 or higher.');
+      }
+      if (input.impacts.some((impact) => ['architecture', 'ownership-boundary', 'public-interface', 'data-migration', 'cross-project'].includes(impact))
+        && input.permit.structuralClass < 2) {
+        fail('INVALID_ARGUMENT', 'Architecture, boundary, interface, migration, and cross-project impacts require structural class 2 or higher.');
+      }
+    }
   } else {
     const screening = currentScreening(city, order);
-    if (!screening || screening.route !== 'formal') fail('STALE_DEVELOPMENT', 'Record a current formal screening before application preparation or assessment.');
+    if (!screening || screening.route === 'needs-clarification') fail('STALE_DEVELOPMENT', 'Record a current conclusive screening before permit records.');
+    if (['applications', 'assessments'].includes(kind) && screening.route !== 'formal') {
+      fail('STALE_DEVELOPMENT', 'Formal application records require a current formal screening.');
+    }
     if (kind === 'applications') {
       if (input.screeningRevision !== screening.revision) fail('STALE_DEVELOPMENT', 'Application must reference the exact current formal screening revision.');
-    } else {
+    } else if (kind === 'assessments') {
       const application = development.applications.at(-1);
       if (!application || application.revision !== input.applicationRevision || application.screeningRevision !== screening.revision) {
         fail('STALE_DEVELOPMENT', 'Independent assessment must reference the exact current application revision.');
@@ -2018,13 +2123,55 @@ export async function developmentRecord(root, options, kind) {
         });
         if (unsatisfied.length) fail('DEVELOPMENT_NOT_READY', 'Conditional zoning requirements need provided application evidence.');
       }
+    } else if (kind === 'statements') {
+      const screening = currentScreening(city, order);
+      const requiredClass = screening?.permit?.[`${input.dimension}Class`];
+      if (!permitPolicyEnabled(city) || !screening?.permit || input.screeningRevision !== screening.revision
+        || input.class !== requiredClass || input.class < 3) {
+        fail('STALE_DEVELOPMENT', 'Permit statement must match a current class 3 or 4 risk classification.');
+      }
+      requirePermitCompetency(city, input.staffId, input.dimension, input.class);
+      if (development.statements.some((statement) => statement.dimension === input.dimension
+        && statement.screeningRevision === screening.revision)) {
+        fail('INVALID_ARGUMENT', 'A permit statement already exists for this risk dimension and screening; re-screen to replace it.');
+      }
+    } else if (kind === 'verifications') {
+      const statement = development.statements[input.statementRevision - 1];
+      if (!statement || statement.class !== 4) {
+        fail('STALE_DEVELOPMENT', 'Independent verification must reference a current class 4 professional statement.');
+      }
+      if (statement.staffId === input.staffId) fail('SEPARATION_OF_DUTIES', 'The professional statement author cannot verify the same statement.');
+      const assignment = currentAssignments(city).get(order.id);
+      if (assignment?.staffId === input.staffId) {
+        fail('SEPARATION_OF_DUTIES', 'The assigned engineer cannot independently verify their own permit statement.');
+      }
+      requirePermitCompetency(city, input.staffId, statement.dimension, statement.class);
+      if (development.verifications.some((verification) => verification.statementRevision === statement.revision)) {
+        fail('INVALID_ARGUMENT', 'This permit statement already has an independent verification.');
+      }
+    } else if (kind === 'completionNotices') {
+      const permit = permitStatus(city, order);
+      if (permit.state !== 'active' || permit.permit.permitId !== input.permitId) {
+        fail('STALE_PERMIT', 'Completion notice must reference the current active permit.');
+      }
+      const expected = permit.permit.conditions.map((condition) => condition.id).sort();
+      const supplied = input.conditions.map((condition) => condition.id).sort();
+      if (JSON.stringify(expected) !== JSON.stringify(supplied)
+        || input.conditions.some((condition) => condition.status !== 'met' && condition.status !== 'not-applicable')) {
+        fail('PERMIT_CONDITIONS_INCOMPLETE', 'Completion notice must address every permit condition exactly once.');
+      }
     }
   }
   const previousTimes = Object.values(development).flat().map((record) => Date.parse(record.recordedAt));
   const recordedAt = new Date(Math.max(Date.now(), Date.parse(order.updatedAt), ...previousTimes)).toISOString();
   const record = {
     ...input, revision: development[kind].length + 1, recordedAt,
-    sourceOffice: kind === 'applications' ? 'development-advisor' : 'chief-planner',
+    sourceOffice: ({
+      applications: 'development-advisor',
+      statements: 'engineering-manager',
+      verifications: 'city-auditor',
+      completionNotices: 'engineering-manager',
+    })[kind] ?? 'chief-planner',
     authenticated: false, provenance: provenance(),
     ...(kind === 'screenings' ? { snapshot: developmentSnapshot(city, scopedOrder) } : {}),
   };
@@ -2140,9 +2287,67 @@ function decisionTimestamp(city, order) {
   )).toISOString();
 }
 
+function validatePermitInput(value, city, order) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).length !== 2 || !Object.hasOwn(value, 'conditions') || !Object.hasOwn(value, 'rightOfWay')) {
+    fail('INVALID_ARGUMENT', 'Permit input must contain exactly conditions and rightOfWay arrays.');
+  }
+  if (!Array.isArray(value.conditions) || value.conditions.length > 50
+    || new Set(value.conditions.map((condition) => condition?.id)).size !== value.conditions.length) {
+    fail('INVALID_ARGUMENT', 'Permit conditions must be a bounded array with unique IDs.');
+  }
+  for (const condition of value.conditions) {
+    if (!condition || typeof condition !== 'object' || Array.isArray(condition)
+      || Object.keys(condition).length !== 2 || !Object.hasOwn(condition, 'id') || !Object.hasOwn(condition, 'description')
+      || typeof condition.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(condition.id)) {
+      fail('INVALID_ARGUMENT', 'Each permit condition requires a safe id and description.');
+    }
+    text(condition.description, 'Permit condition description', 2000);
+  }
+  if (!Array.isArray(value.rightOfWay) || value.rightOfWay.length > 50
+    || new Set(value.rightOfWay.map((consent) => consent?.projectId)).size !== value.rightOfWay.length) {
+    fail('INVALID_ARGUMENT', 'Permit rightOfWay must be a bounded array with unique project IDs.');
+  }
+  for (const consent of value.rightOfWay) {
+    if (!consent || typeof consent !== 'object' || Array.isArray(consent)
+      || Object.keys(consent).length !== 3
+      || !['projectId', 'consentBy', 'evidence'].every((key) => Object.hasOwn(consent, key))
+      || !city.projects.projects.some((project) => project.id === consent.projectId)
+      || order.projectIds?.includes(consent.projectId)) {
+      fail('INVALID_ARGUMENT', 'Right-of-way consent must identify a registered project outside this work order scope.');
+    }
+    text(consent.consentBy, 'Right-of-way consentBy', 200);
+    text(consent.evidence, 'Right-of-way consent evidence', 4000);
+  }
+  const screening = currentScreening(city, order);
+  const crossBoundary = screening?.impacts.some((impact) => ['cross-project', 'ownership-boundary'].includes(impact));
+  if (crossBoundary && value.rightOfWay.length === 0) {
+    fail('RIGHT_OF_WAY_REQUIRED', 'Cross-project or ownership-boundary work needs recorded consent from the affected project owner.');
+  }
+  return value;
+}
+
+function issuePermit(city, order, terms, issuedAt) {
+  const classification = currentScreening(city, order)?.permit;
+  if (!classification) fail('DEVELOPMENT_NOT_READY', 'A current risk classification is required before issuing a permit.');
+  const commencementDeadline = new Date(Date.parse(issuedAt) + PERMIT_COMMENCEMENT_DAYS * dayMilliseconds)
+    .toISOString().slice(0, 10);
+  return {
+    permitId: `PMT-${randomUUID()}`,
+    safetyClass: classification.safetyClass,
+    structuralClass: classification.structuralClass,
+    issuedAt,
+    conditions: terms.conditions,
+    rightOfWay: terms.rightOfWay,
+    commencementDeadline,
+    inactivityDays: PERMIT_INACTIVITY_DAYS,
+  };
+}
+
 function deliveryRecords(context, fields, historyReason) {
   const { city, original, digests } = context;
   const createdAt = decisionTimestamp(city, original.value);
+  const permit = fields.permitInput ? issuePermit(city, original.value, fields.permitInput, createdAt) : null;
   const decision = validateDecision({
     schemaVersion: DELIVERY_DECISION_SCHEMA_VERSION,
     id: `DEC-${randomUUID()}`,
@@ -2161,6 +2366,7 @@ function deliveryRecords(context, fields, historyReason) {
       delegationPolicySha256: digests.policies.find((policy) => policy.path === DELEGATION_POLICY)?.sha256 ?? null,
     },
     evidence: { declaredBy: fields.declaredBy, reference: fields.reference, authenticated: false },
+    ...(permit ? { permit } : {}),
     createdAt,
     provenance: provenance(),
   }, city.config.cityId);
@@ -2279,6 +2485,20 @@ export async function authorize(root, options) {
   if (original.value.acceptanceCriteria.length === 0) {
     fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before an authorization decision.');
   }
+  let permitInput = null;
+  if (options.outcome === 'authorize' && permitPolicyEnabled(city)) {
+    const classification = currentScreening(city, original.value)?.permit;
+    if (classification && Math.max(classification.safetyClass, classification.structuralClass) === 4
+      && decidedBy === 'city-council') {
+      fail('RESERVED_MATTER', 'Class 4 permits are reserved to the resident under the adopted building-permits policy.');
+    }
+    if (options.permit === undefined) {
+      fail('PERMIT_TERMS_REQUIRED', 'An adopted building-permits policy requires --permit JSON with conditions and rightOfWay arrays.');
+    }
+    permitInput = validatePermitInput(requestJSON(options.permit, '--permit'), city, original.value);
+  } else if (options.permit !== undefined) {
+    fail('INVALID_ARGUMENT', '--permit is available only for authorization under the adopted building-permits policy.');
+  }
   const securityFinding = infrastructureSecurityFinding(city, original.value);
   if (securityFinding && !reservedMatters.includes('security')) {
     fail('RESERVED_MATTER', 'A work order linked to a security finding must explicitly classify security as reserved and route it to the resident.');
@@ -2301,9 +2521,94 @@ export async function authorize(root, options) {
     reason: options.reason,
     declaredBy: options['declared-by'] ?? null,
     reference: options.evidence ?? null,
+    permitInput,
   }, (id) => `${HISTORY_REASONS[options.outcome] ?? 'Decision recorded'} by ${decidedBy} in ${id}; recorded, not authenticated.`);
   if (options.apply) await writeDeliveryRecords(root, context, records);
   return deliveryOutput('authorize', root, options.apply, context, records);
+}
+
+export async function permitExtend(root, options) {
+  validateOrderId(options.id);
+  text(options['permit-id'], '--permit-id', 64);
+  const extensionDays = Number(options.days);
+  if (!Number.isSafeInteger(extensionDays) || extensionDays < 1 || extensionDays > 30) {
+    fail('INVALID_ARGUMENT', '--days must be an integer from 1 to 30.');
+  }
+  const decidedBy = options['decided-by'];
+  if (!['city-council', 'resident'].includes(decidedBy)) {
+    fail('INVALID_ARGUMENT', '--decided-by must be city-council or resident.');
+  }
+  text(options.reason, '--reason', 4000);
+  const declaredBy = options['declared-by'] ?? null;
+  const evidence = options.evidence ?? null;
+  if (decidedBy === 'resident') {
+    text(declaredBy, '--declared-by', 200);
+    text(evidence, '--evidence', 4000);
+  } else if (declaredBy !== null || evidence !== null) {
+    fail('INVALID_ARGUMENT', 'Council extensions must not include resident declaration evidence.');
+  }
+  const city = await loadCity(root);
+  if (!permitPolicyEnabled(city)) fail('NO_PERMIT_POLICY', 'Adopt the building-permits policy before extending a permit.');
+  if (decidedBy === 'city-council' && !city.config.adoption.policies.some((policy) => policy.path === DELEGATION_POLICY)) {
+    fail('NO_DELEGATION', `The adopted policies do not include ${DELEGATION_POLICY}; only the resident can decide.`);
+  }
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  const input = {
+    permitId: options['permit-id'], extensionDays, reason: options.reason, decidedBy, declaredBy, evidence,
+  };
+  validatePermitExtensionAllowed(city, original.value, input);
+  const development = {
+    screenings: [], applications: [], assessments: [], statements: [], verifications: [],
+    completionNotices: [], permitExtensions: [], ...original.value.development,
+  };
+  const recordedAt = new Date(Math.max(
+    Date.now(), Date.parse(original.value.updatedAt),
+    ...Object.values(development).flat().map((record) => Date.parse(record.recordedAt)),
+  )).toISOString();
+  const record = {
+    ...input, revision: development.permitExtensions.length + 1, recordedAt,
+    sourceOffice: decidedBy, authenticated: false, provenance: provenance(),
+  };
+  const workOrder = validateWorkOrder({
+    ...original.value, development: { ...development, permitExtensions: [...development.permitExtensions, record] },
+  }, city.config.cityId);
+  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkOrderUnchanged(city, current, original);
+      checkDevelopmentContextUnchanged(city, current);
+      validatePermitExtensionAllowed(current, original.value, input);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+    });
+  }
+  const output = mutationOutput('permit-extend', root, options.apply, workOrder, city.config.governance);
+  return {
+    ...output, extension: record, permit: permitStatus(city, workOrder),
+  };
+}
+
+function validatePermitExtensionAllowed(city, order, input) {
+  const current = permitStatus(city, order);
+  if (!['active', 'lapsed'].includes(current.state) || current.permit?.permitId !== input.permitId) {
+    fail('STALE_PERMIT', 'Permit extension must reference the current active or lapsed permit.');
+  }
+  if (!['authorized', 'in-progress', 'blocked'].includes(order.status)) {
+    fail('INVALID_TRANSITION', 'Permit can be extended only before inspection begins.');
+  }
+  const screening = currentScreening(city, order);
+  if (!screening?.permit || screening.permit.safetyClass !== current.permit.safetyClass
+    || screening.permit.structuralClass !== current.permit.structuralClass) {
+    fail('STALE_DEVELOPMENT', 'Permit extension requires a current risk classification matching the issued permit.');
+  }
+  if (current.extensionCount >= PERMIT_MAX_EXTENSIONS) {
+    fail('PERMIT_EXTENSION_LIMIT', `A permit may be extended at most ${PERMIT_MAX_EXTENSIONS} times.`);
+  }
+  if (Math.max(current.permit.safetyClass, current.permit.structuralClass) === 4 && input.decidedBy !== 'resident') {
+    fail('RESERVED_MATTER', 'Class 4 permit extensions are reserved to the resident.');
+  }
 }
 
 export async function complete(root, options) {

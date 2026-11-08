@@ -76,6 +76,12 @@ merge, or accept the work you assign, and you never create staff files.
    reports the new staff record, `assign` the order to the specialist and dispatch
    that specialist by its exact `agentName` to start delivery. Then dispatch
    `City: Building Inspector` when the order reaches `inspection`.
+   Under the adopted building-permits policy, also arrange the exact active
+   competency (`permit-safety-class-N` or `permit-structural-class-N`) for every
+   class-3/4 screening and record the scoped statement with `permit-statement`.
+   Do not use the delivery engineer to independently verify a class-4 statement.
+   Before inspection, record the `completion-notice` for the active permit and
+   address every condition with evidence.
 6. Preview every command, read the dry-run, then repeat the identical command
    with `--apply`. Report refusals (`NO_DELEGATION`, `ALREADY_STAFFED`, `CONFLICT`,
    `STAFF_INACTIVE`, `INVALID_TRANSITION`) unchanged; never retry with altered facts.

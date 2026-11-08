@@ -7,7 +7,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, test } from 'node:test';
-import { checkOrderUnchanged, institutionalReviewStatus, loadCity } from '../scripts/lib/city.mjs';
+import { checkOrderUnchanged, institutionalReviewStatus, loadCity, permitStatus } from '../scripts/lib/city.mjs';
 import { publishCity } from '../scripts/lib/filesystem.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
@@ -182,14 +182,23 @@ const readJSON = async (location) => JSON.parse(await readFile(location, 'utf8')
 const writeJSON = (location, value) => writeFile(location, `${JSON.stringify(value, null, 2)}\n`);
 
 function screening(overrides = {}) {
-  return {
+  const result = {
     route: 'lightweight', projectIds: ['default-project'],
     scopeEvidence: 'The request concerns the registered default project only.',
     reason: 'Contained repair with no material effects.', evidence: 'Inspected project interfaces and tests.',
     impacts: [], questions: [],
     policyCitations: [{ path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] }],
-    requirements: [], ...overrides,
+    requirements: [],
+    permit: { safetyClass: 1, structuralClass: 1, classRationale: 'Contained, reversible change with no cross-project effects.' },
+    ...overrides,
   };
+  if (!Object.hasOwn(overrides, 'permit')) {
+    if (result.impacts.some((impact) => ['architecture', 'ownership-boundary', 'public-interface', 'data-migration', 'cross-project'].includes(impact))) {
+      result.permit.structuralClass = 2;
+    }
+    if (result.impacts.includes('security')) result.permit.safetyClass = 2;
+  }
+  return result;
 }
 
 function developmentArgs(command, root, id, data, apply = false) {
@@ -374,6 +383,70 @@ test('conditional zoning requires named formal evidence and independent assessme
   assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'ready-formal');
 });
 
+test('adopted zoning and building permits retain independent readiness requirements', async () => {
+  const { root } = await fixture();
+  init(root);
+  await cp(
+    path.join(root, '.city/policy-drafts/zoning.md'),
+    path.join(root, '.city/policies/zoning.md'),
+  );
+  const requirement = 'zoning impact assessment';
+  success(zoningMapArgs(root, [zoningZone('projects/default-project', [
+    zoningRule('bugfix', 'conditional', [requirement]),
+  ])], true));
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  transition(root, order.id, 'proposed');
+  failure(developmentArgs('screen-development', root, order.id, screening()), 'DEVELOPMENT_NOT_READY');
+
+  const formal = screening({
+    route: 'formal', impacts: ['architecture'],
+    requirements: [{
+      id: 'zoning-impact', kind: 'study', description: `Provide a ${requirement}.`,
+      reason: 'Required by the conditional zone rule.',
+    }],
+    permit: {
+      safetyClass: 1, structuralClass: 3,
+      classRationale: 'The proposal changes an architectural boundary.',
+    },
+  });
+  const { permit, ...unclassified } = formal;
+  failure(developmentArgs('screen-development', root, order.id, unclassified), 'PERMIT_CLASSIFICATION_REQUIRED');
+  const screened = recordScreening(root, order.id, formal);
+  const application = success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: screened.workOrder.development.screenings.at(-1).revision,
+    reason: 'Prepared the conditional zoning evidence.', evidence: 'Reviewed the architectural impact.',
+    proposal: 'Change the internal boundary with the mapped impacts assessed.',
+    answers: [], artifacts: [{
+      requirementId: 'zoning-impact', disposition: 'provided',
+      evidence: 'The zoning impact assessment is included in the application.',
+    }],
+  }, true));
+  const assessed = success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: application.workOrder.development.applications.at(-1).revision,
+    outcome: 'ready', reason: 'The conditional zoning evidence meets the screening requirements.',
+    evidence: 'Independently reviewed the impact assessment.',
+  }, true));
+  assert.equal(assessed.development.zoning.outcome, 'conditional');
+  assert.equal(assessed.development.stage, 'professional-statement');
+  assert.equal(assessed.development.ready, false);
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval',
+    '--reason', 'Zoning evidence cannot replace the required permit statement.',
+  ], 'DEVELOPMENT_NOT_READY');
+
+  success(zoningMapArgs(root, [zoningZone('projects/default-project', [
+    zoningRule('bugfix', 'prohibited'),
+  ])], true));
+  const prohibited = success(zoningCheckArgs(root, order.id, ['bugfix'], true));
+  assert.equal(prohibited.development.stage, 'zoning-prohibited');
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'awaiting-approval',
+    '--reason', 'Permit preparation cannot override prohibited zoning.',
+  ], 'DEVELOPMENT_NOT_READY');
+});
+
 test('development screening is proportionate, dry-run, scope-aware and never delivery authority', async () => {
   const { root } = await fixture();
   await adoptedCity(root);
@@ -551,6 +624,7 @@ test('draft preparation is not adoption and older cities require explicit charte
   const policyPath = path.join(root, '.city/policies/development-applications.md');
   const policy = await readFile(policyPath);
   await rm(policyPath);
+  await rm(path.join(root, '.city/policies/building-permits.md'));
   success(adoptArgs(root, ['--apply']));
   const disabled = success(['status', '--root', root]).workOrders.development[0];
   assert.equal(disabled.enabled, false);
@@ -577,6 +651,7 @@ test('development actionability excludes legacy delivery and closed cases after 
   const policyPath = path.join(root, '.city/policies/development-applications.md');
   const policy = await readFile(policyPath);
   await rm(policyPath);
+  await rm(path.join(root, '.city/policies/building-permits.md'));
   success(adoptArgs(root, ['--apply']));
   const authorized = awaitingOrder(root);
   success(authorizeArgs(root, authorized.id, { extra: ['--apply'] }));
@@ -642,6 +717,7 @@ test('development screening accepts adopted project refinements using compatible
       'dependency', 'data-migration', 'security', 'deletion', 'generated-code']
       .map((type) => zoningRule(type, 'permitted')),
   ])], true));
+  await rm(path.join(root, '.city/policies/building-permits.md'));
   success(adoptArgs(root, ['--apply']));
   const order = petition(root);
   transition(root, order.id, 'triaged');
@@ -677,7 +753,7 @@ test('malformed development inputs fail without writes and canonical revisions r
   const before = await snapshot(root);
   for (const patch of [
     { route: 'automatic' }, { impacts: ['unknown'] }, { impacts: ['cost', 'cost'] },
-    { route: 'needs-clarification' }, { route: 'formal' },
+    { route: 'needs-clarification' }, { route: 'formal' }, { evidence: null },
     { projectIds: ['default-project', 'default-project'] },
     { policyCitations: [] }, { requirements: [{ id: 'x', kind: 'unperformed', description: 'Study', reason: 'Missing' }] },
     { policyCitations: [{ path: '../escape.md', section: 'Rules', projectIds: [] }] },
@@ -1146,7 +1222,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.4.0' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.5.0' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -2029,7 +2105,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -2053,7 +2129,9 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0']);
+  assert.equal(order.$defs.development.properties.permitExtensions.items.$ref, '#/$defs/permitExtension');
+  assert.deepEqual(order.$defs.permitExtension.properties.decidedBy.enum, ['city-council', 'resident']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
   assert.deepEqual(decision.properties.schemaVersion.enum, [1, 2]);
   const { proposal, delivery } = decision.$defs;
@@ -2452,6 +2530,100 @@ const completeArgs = (root, id, extra = []) => [
   '--reason', 'Pull request reviewed and merged by the resident.', ...extra,
 ];
 
+test('adopted building permits classify, record conditions, lapse, and gate inspection on completion notice', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = awaitingOrder(root);
+  const classification = screening({ permit: {
+    safetyClass: 1, structuralClass: 1,
+    classRationale: 'Contained, reversible change with no cross-project effects.',
+  } });
+  failure(developmentArgs('screen-development', root, order.id, {
+    ...classification, permit: { ...classification.permit, classRationale: ' ' },
+  }), 'INVALID_ARGUMENT');
+  failure(authorizeArgs(root, order.id, { extra: ['--apply'] }), 'PERMIT_TERMS_REQUIRED');
+  const terms = {
+    conditions: [{ id: 'compatibility', description: 'Preserve the documented interface.' }],
+    rightOfWay: [],
+  };
+  const authorized = success(authorizeArgs(root, order.id, {
+    extra: ['--permit', JSON.stringify(terms), '--apply'],
+  }));
+  assert.equal(authorized.decision.permit.safetyClass, 1);
+  assert.equal(authorized.decision.permit.structuralClass, 1);
+  assert.equal(authorized.decision.permit.inactivityDays, 30);
+  assert.equal(success(['status', '--root', root]).permits.byState.active, 1);
+  transition(root, order.id, 'in-progress');
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'inspection',
+    '--reason', 'Ready to inspect.',
+  ], 'COMPLETION_NOTICE_REQUIRED');
+  const notice = {
+    permitId: authorized.decision.permit.permitId,
+    conditions: [{ id: 'compatibility', status: 'met', evidence: 'Interface tests pass.' }],
+    evidence: 'The condition was checked against the delivered change.',
+  };
+  failure(developmentArgs('completion-notice', root, order.id, { ...notice, evidence: null }, true), 'INVALID_ARGUMENT');
+  success(developmentArgs('completion-notice', root, order.id, notice, true));
+  const city = await loadCity(root);
+  const currentOrder = city.workOrders.get(order.id).value;
+  assert.equal(permitStatus(city, currentOrder).state, 'active');
+  assert.equal(permitStatus(city, currentOrder, new Date(Date.now() + 31 * 86400000)).state, 'lapsed');
+  const extendArgs = ['permit-extend', '--root', root, '--id', order.id,
+    '--permit-id', authorized.decision.permit.permitId, '--days', '30',
+    '--decided-by', 'city-council', '--reason', 'A reviewed dependency delayed commencement.'];
+  const extensionPreview = success(extendArgs);
+  assert.equal(extensionPreview.permit.extensionsRemaining, 1);
+  assert.equal(extensionPreview.extension.evidence, null);
+  const orderSchema = await readJSON(path.join(project, 'schemas/work-order.schema.json'));
+  assert.deepEqual(Object.keys(extensionPreview.extension).sort(), [...orderSchema.$defs.permitExtension.required].sort());
+  assert.deepEqual(Object.keys(extensionPreview.extension).sort(), Object.keys(orderSchema.$defs.permitExtension.properties).sort());
+  success([...extendArgs, '--apply']);
+  success([...extendArgs, '--apply']);
+  failure([...extendArgs, '--apply'], 'PERMIT_EXTENSION_LIMIT');
+  transition(root, order.id, 'inspection');
+  transition(root, order.id, 'in-progress');
+  failure([
+    'transition', '--root', root, '--id', order.id, '--to', 'inspection',
+    '--reason', 'The revised result is ready to inspect.',
+  ], 'COMPLETION_NOTICE_REQUIRED');
+  success(developmentArgs('completion-notice', root, order.id, notice, true));
+  transition(root, order.id, 'inspection');
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('higher-risk development requires matching professional statements before permit readiness', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  const formal = screening({
+    route: 'formal',
+    impacts: ['architecture'],
+    requirements: [{ id: 'design-evidence', kind: 'diagram', description: 'Show the affected module boundaries.', reason: 'Confirm the structural impact.' }],
+    permit: { safetyClass: 1, structuralClass: 3, classRationale: 'The change affects the architecture boundary.' },
+  });
+  recordScreening(root, order.id, formal);
+  success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: 1, reason: 'Proportionate design package.', evidence: 'Boundary diagram reviewed.',
+    proposal: 'Change one module boundary.', answers: [],
+    artifacts: [{ requirementId: 'design-evidence', disposition: 'provided', evidence: 'docs/design.md' }],
+  }, true));
+  success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: 1, outcome: 'ready', reason: 'All requirements are addressed.',
+    evidence: 'Checked the diagram against the affected modules.',
+  }, true));
+  const readiness = success(['status', '--root', root]).workOrders.development.find((item) => item.id === order.id);
+  assert.equal(readiness.stage, 'professional-statement');
+  assert.deepEqual(readiness.next, { actor: 'engineering-manager', action: 'record-permit-statement' });
+  failure(developmentArgs('permit-statement', root, order.id, {
+    dimension: 'structural', class: 3, staffId: 'unknown-staff', screeningRevision: 1,
+    scope: 'Module boundary', evidence: 'Reviewed the design.',
+  }, true), 'QUALIFIED_STAFF_REQUIRED');
+});
+
 async function adoptedCity(root) {
   init(root);
   await cp(
@@ -2470,6 +2642,7 @@ async function adoptedCity(root) {
       }],
     }), '--apply',
   ]);
+  await rm(path.join(root, '.city/policies/building-permits.md'));
   success(adoptArgs(root, ['--apply']));
 }
 
@@ -2508,7 +2681,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.4.0' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.5.0' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -2651,6 +2824,7 @@ test('authorize and complete refuse draft governance, drift and missing council 
 
   const undelegated = await fixture('undelegated');
   init(undelegated.root);
+  await rm(path.join(undelegated.root, '.city/policies/building-permits.md'));
   await rm(path.join(undelegated.root, '.city/policies/council-delegation.md'));
   success(zoningMapArgs(undelegated.root, [zoningZone('.', [
     zoningRule('bugfix', 'permitted'),
@@ -2860,7 +3034,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.4.0');
+  assert.equal(output.decision.provenance.plugin.version, '0.5.0');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -2870,7 +3044,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.4.0');
+  assert.equal(output.plugin.version, '0.5.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));

@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.4.0 ships thirteen offices, 27 skills, explicit project registration,
+Plugin 0.5.0 ships thirteen offices, 28 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
 `city-delivery-authorization`. The 0.3.0 workforce process separates line
@@ -52,9 +52,17 @@ authorization; old policy sets and earlier delivery remain valid. Automated test
 and smoke cover lightweight and formal Advisor/independent-Planner routes. Office
 sources and policy citations are professional unauthenticated evidence, not an NLP
 classifier, runtime-verified identity or external permit.
+The optional building-permits policy extends those records without changing
+work-order or decision schema versions: it records two risk classes, qualified
+staff statements and independent verification for higher classes, permit
+conditions and deadlines, and a completion notice before inspection. The policy
+is inert until adopted; old authorizations remain valid. Structured
+dispensations, neighbour consultation, retroactive legalization and physical
+inspection are not implemented. See the
+[building-permits guide](./building-permits.md).
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0, 0.3.0, or 0.4.0.
+repeated for 0.2.0, 0.3.0, 0.4.0, or 0.5.0.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -136,7 +144,7 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.3.0 remain valid under 0.4.0. Plugin 0.1.0 cannot read
+Records written by 0.1.0 through 0.4.0 remain valid under 0.5.0. Plugin 0.1.0 cannot read
 0.2.0 delivery states (`authorized` through `completed`) or schemaVersion 2
 decisions, and its hook denies such a city. Plugin 0.2.0 cannot read schemaVersion
 2 work orders, which require project IDs; 0.4.0 also adds schemaVersion 3

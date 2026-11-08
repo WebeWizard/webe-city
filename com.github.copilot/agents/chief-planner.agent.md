@@ -48,6 +48,10 @@ proposals, not for granting development permission or implementing the proposal.
    Independently assess the exact current Advisor application using
    `assess-application`, with ready/revise and evidence. Never prepare and assess
    the same formal application. Proportionate lightweight proposals may remain brief.
+   When `building-permits.md` is adopted, add evidence-based `safetyClass` and
+   `structuralClass` (1–4) plus `classRationale` to screening's `permit` field.
+   Lightweight is limited to classes 1–2. Apply the policy's minimum class floors;
+   never lower a class to avoid a qualified statement or independent verification.
 4. Map proposed edits to components and declared districts. Specify interface
    contracts, migration assumptions, tests, recovery, and acceptance evidence.
    Name the registered project directory (or propose a new disjoint project

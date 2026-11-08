@@ -20,7 +20,7 @@ adopted policy from explicit draft/legacy advice.
 ## Purpose and inputs
 
 Provide a read-only account of repository-local governance, projects, work orders,
-decisions, workforce, zoning readiness, and due institutional reviews.
+decisions, workforce, zoning readiness, due institutional reviews, and permits.
 Require the explicit absolute repository root and any case or district filter.
 Do not infer enrollment, approval, or completion from the installed plugin inventory.
 
@@ -73,6 +73,10 @@ Do not infer enrollment, approval, or completion from the installed plugin inven
    run; residents need not invoke that office. The CLI has no background
    scheduler, so do not claim the trigger was evaluated while the plugin was
    inactive.
+   Report `status.permits` only when the building-permits policy is adopted.
+   Distinguish active, lapsed, void, and completed permits; a lapsed permit needs
+   a fresh screening and authorization before delivery resumes. Expiry is
+   evaluated on status or lifecycle commands, not by a background scheduler.
 7. List orders awaiting the resident first: Council referrals of reserved matters
    (still `awaiting-approval`) and `awaiting-merge` orders ready for `complete`.
    Keep `awaiting-approval` distinct from authorized and `awaiting-merge` distinct

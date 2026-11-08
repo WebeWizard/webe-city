@@ -38,13 +38,19 @@ function development(commandName, root, id, data, apply = true) {
 }
 
 function screen(root, id, projectId, extra = {}) {
+  const impacts = extra.impacts ?? [];
   return development('screen-development', root, id, {
     route: 'lightweight', projectIds: [projectId],
     scopeEvidence: 'The request is contained in the selected registered project.',
     reason: 'Contained documentation repair without material effects.',
     evidence: 'Reviewed existing source interfaces and project facts.',
-    impacts: [], questions: [], requirements: [],
+    impacts, questions: [], requirements: [],
     policyCitations: [{ path: 'policies/development-applications.md', section: 'Baseline materiality', projectIds: [] }],
+    permit: {
+      safetyClass: impacts.includes('security') ? 2 : 1,
+      structuralClass: impacts.some((impact) => ['architecture', 'ownership-boundary', 'public-interface', 'data-migration', 'cross-project'].includes(impact)) ? 2 : 1,
+      classRationale: 'The change is bounded to the registered project and has no higher risk classification.',
+    },
     ...extra,
   });
 }
@@ -83,6 +89,14 @@ function checkZoning(root, id, changeType) {
   assert.equal(result.zoning.outcome, 'permitted');
   return result;
 }
+
+function completionNotice(root, id, permitId) {
+  return development('completion-notice', root, id, {
+    permitId, conditions: [], evidence: 'All permit conditions have been addressed.',
+  });
+}
+
+const permitTerms = JSON.stringify({ conditions: [], rightOfWay: [] });
 
 const temporary = path.join(pluginRoot, `.smoke-${randomUUID()}`);
 try {
@@ -246,7 +260,8 @@ try {
   }
   command(cli, [
     'authorize', '--root', second, '--id', websiteOrder.id, '--decided-by', 'city-council',
-    '--outcome', 'authorize', '--reserved', 'none', '--reason', 'Website scope is routine and bounded.', '--apply',
+    '--outcome', 'authorize', '--reserved', 'none', '--reason', 'Website scope is routine and bounded.',
+    '--permit', permitTerms, '--apply',
   ]);
   const requisitionArgs = [
     'requisition', '--root', second, '--work-order', websiteOrder.id, '--staff-id', 'website-specialist',
@@ -327,6 +342,7 @@ try {
   const authorizeArgs = [
     'authorize', '--root', third, '--id', delivery.id, '--decided-by', 'city-council', '--outcome', 'authorize',
     '--reserved', 'none', '--routine-class', 'documentation', '--reason', 'Routine documentation within delegated scope.',
+    '--permit', permitTerms,
   ];
   const awaitingDelivery = await readFile(deliveryPath, 'utf8');
   assert.equal(command(cli, authorizeArgs).dryRun, true);
@@ -335,6 +351,7 @@ try {
   assert.equal(authorization.basis, 'routine-policy');
   assert.equal(authorization.evidence.authenticated, false);
   for (const state of ['in-progress', 'inspection', 'awaiting-merge']) {
+    if (state === 'inspection') completionNotice(third, delivery.id, authorization.permit.permitId);
     move(state);
     assert.deepEqual(command(hook, [], { input: hookInput(third) }), {});
   }
@@ -395,11 +412,15 @@ try {
     evidence: 'Reviewed current contract requirement and resident compatibility choice.',
   }).development.stage, 'ready-formal');
   formalMove('awaiting-approval');
-  command(cli, [
+  const formalAuthorization = command(cli, [
     'authorize', '--root', third, '--id', formal.id, '--decided-by', 'city-council',
-    '--outcome', 'authorize', '--reserved', 'none', '--reason', 'Current formal packet and independent assessment support delivery.', '--apply',
-  ]);
-  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) formalMove(state);
+    '--outcome', 'authorize', '--reserved', 'none', '--reason', 'Current formal packet and independent assessment support delivery.',
+    '--permit', permitTerms, '--apply',
+  ]).decision;
+  for (const state of ['in-progress', 'inspection', 'awaiting-merge']) {
+    if (state === 'inspection') completionNotice(third, formal.id, formalAuthorization.permit.permitId);
+    formalMove(state);
+  }
   command(cli, [
     'complete', '--root', third, '--id', formal.id, '--declared-by', 'Smoke resident',
     '--evidence', 'Resident-reviewed pull request, no runtime study claimed.',

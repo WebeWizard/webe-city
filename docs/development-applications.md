@@ -28,6 +28,9 @@ When the [zoning policy](./zoning.md) is adopted, a current zoning map and
 work-order finding are additional readiness prerequisites. A conditional finding
 requires formal screening and an independently ready assessment; prohibited or
 unknown findings are not ready for authorization.
+If [building permits](./building-permits.md) are also adopted, their risk
+classifications, professional statements, and independent verification remain
+additional requirements; satisfying zoning does not replace them.
 
 The [development policy](../templates/repository/.city/policies/development-applications.md)
 requires formal applications for material development: new projects/substantial
@@ -227,3 +230,14 @@ plugin provenance; screenings also store a context digest. Metadata leaves
 extension preserves work-order schema versions 1/2; no migration is needed. Writes
 reuse mutation locks, atomic replacement, conflict checks and size/history limits.
 Editable local records and hashes are not tamper-proof custody or access controls.
+
+## Building-permit policy
+
+The optional, separately adopted
+[building-permits policy](./building-permits.md) adds risk classes, professional
+statements, permit conditions and expiry, project-consent declarations, and
+completion notices. When that policy is adopted, each screening adds a `permit`
+object with `safetyClass`, `structuralClass` (1–4), and `classRationale`.
+Class-3/4 statements and class-4 independent verification are attached as
+additional development revisions. See the building-permit guide for their CLI
+contracts and the limits of these unauthenticated competency records.
