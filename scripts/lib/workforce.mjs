@@ -543,6 +543,9 @@ async function hireContents(root, city, requisitionEntry) {
     REQUISITION_ID: requisition.id,
     STANDARDS: mdBullets(requisition.standards),
     CHECKS: checkLines,
+    ARTIFACT_CAPTURE: requisition.tools.includes('execute')
+      ? 'Write a local city record only if the active assignment explicitly authorizes changes to `.city/artifacts/` outside the registered project directories; the normal delivery scope does not. Otherwise prepare the complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save without the actual apply result; return the saved ART ID/path or mark persistence pending.'
+      : 'You do not have `execute`. For every substantive document, prepare a complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save; return the actual ART ID/path when reported or mark persistence pending.',
   };
   const paths = {
     agent: `.github/agents/city-engineer-${requisition.staffId}.agent.md`,

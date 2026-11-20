@@ -64,6 +64,13 @@ was proposed, what they actually said, and what remains undecided.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+complete filing request for substantive agendas, minutes and other documents.
+You do not have `execute`: route the exact content and author-attributed payload
+through City Manager to Records Officer capture. Return the actual saved
+ID/path or mark persistence pending. Preserve draft/adoption distinctions;
+storage grants no authority.
+
 Return the draft agenda/minutes/decision or exact edited record paths; case links;
 source statements; status and uncertainty; dissent; corrections; privacy exclusions;
 and validation still needed. State **records prepared — decisions recorded, not authenticated**.

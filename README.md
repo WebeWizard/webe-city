@@ -21,9 +21,9 @@ An open-source license and publisher have not been selected.
   Clerk, Chief Planner, Development Advisor, Engineering Manager, Human Resources
   Officer, Municipal Software Engineer, Building Inspector, Records Officer, City Auditor, and
   Performance and Innovation Officer.
-- Twenty-three professional skills drawn from real municipal competencies,
+- Twenty-four professional skills drawn from real municipal competencies,
   including development applications, asset management, delivery authorization,
-  and building permits (28 skills total).
+  records capture, and building permits (29 skills total).
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
 - Draft charter and operating procedures for authority, policy, services,
@@ -43,6 +43,19 @@ An open-source license and publisher have not been selected.
   malformed or incompatible city records.
 
 No RSG or rsgdev component is required.
+
+## Persistent agent documents
+
+Authors use the `city-records-capture` skill to file substantive plans,
+architecture, diagrams and other documents in `.city/artifacts/` when their
+tools and authority permit; agents without `execute` submit complete filing
+requests for Records Officer capture. `artifact-record` stores full content with
+stable IDs, source attribution, document category, case links and append-only
+revision links. `records-list --type artifact --search TEXT` discovers documents;
+`records-get` retrieves full content. Categories do not mean approval. The
+repository-owned library survives chat and plugin-cache turnover; saving a
+document does not authorize delivery.
+See the [artifact library contract and municipal adaptation](./docs/artifact-library.md).
 
 ## Proportionate development applications
 

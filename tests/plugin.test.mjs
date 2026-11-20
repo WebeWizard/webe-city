@@ -38,6 +38,7 @@ const professionalSkills = [
   'minute-taking',
   'plan-checking',
   'records-appraisal',
+  'records-capture',
   'records-management',
   'risk-based-auditing',
   'software-development',
@@ -320,7 +321,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-eight skills are discoverable, substantive, and correctly scoped', async () => {
+test('all twenty-nine skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -393,6 +394,12 @@ test('project data contracts keep project directories distinct from districts', 
     'items', 'status', 'createdAt', 'updatedAt', 'history', 'responses', 'provenance',
   ]);
   assert.deepEqual(requestSchema.properties.status.enum, ['open', 'resolved', 'cancelled']);
+  const artifactSchema = await json('schemas/artifact.schema.json');
+  assert.equal(artifactSchema.additionalProperties, false);
+  assert.deepEqual(artifactSchema.properties.recordCategory.enum, [
+    'working-draft', 'filed-work-product', 'proposed-instrument',
+  ]);
+  assert.equal(artifactSchema.required.includes('recordCategory'), false, 'legacy records remain schema-readable');
   const reviewSchema = await json('schemas/institutional-review.schema.json');
   assert.equal(reviewSchema.additionalProperties, false);
   assert.ok(reviewSchema.required.includes('triggers'));
@@ -400,6 +407,28 @@ test('project data contracts keep project directories distinct from districts', 
   assert.deepEqual(reviewSchema.properties.recommendations.items.properties.route.enum, [
     'administrative', 'council', 'resident',
   ]);
+});
+
+test('all offices and generated engineers require durable document handoffs', async () => {
+  for (const name of agentIds) {
+    const contents = await readFile(path.join(root, `com.github.copilot/agents/${name}.agent.md`), 'utf8');
+    const { metadata } = await customization(path.join(root, `com.github.copilot/agents/${name}.agent.md`));
+    assert.match(contents, /city-records-capture\/SKILL\.md/, name);
+    assert.match(contents, /persistence\s+pending|mark it pending/, name);
+    if (metadata.tools.includes('execute')) {
+      assert.match(contents, /artifact-record|artifact[\s-]+CLI|filing request/i, name);
+    } else {
+      assert.match(contents, /filing request/i, name);
+    }
+  }
+  const generated = await readFile(path.join(root, 'templates/workforce/agent.md'), 'utf8');
+  assert.match(generated, /{{ARTIFACT_CAPTURE}}/);
+  assert.match(generated, /city-records-capture/);
+  const workforce = await readFile(path.join(root, 'scripts/lib/workforce.mjs'), 'utf8');
+  assert.match(workforce, /requisition\.tools\.includes\('execute'\)/);
+  assert.match(workforce, /filing request/);
+  assert.match(workforce, /active assignment explicitly authorizes changes/);
+  assert.match(workforce, /You do not have `execute`/);
 });
 
 test('development contracts preserve compatible work orders and distinct professional roles', async () => {
@@ -513,6 +542,7 @@ test('the distributable contains runtime resources but no development profile or
     'schemas/infrastructure-asset.schema.json',
     'schemas/infrastructure-programme.schema.json',
     'schemas/records-request.schema.json',
+    'schemas/artifact.schema.json',
     'schemas/requisition.schema.json',
     'schemas/staff.schema.json',
     'schemas/assignment.schema.json',
@@ -531,6 +561,7 @@ test('the distributable contains runtime resources but no development profile or
     'docs/development-applications.md',
     'docs/zoning.md',
     'docs/infrastructure-plan.md',
+    'docs/artifact-library.md',
     ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
     ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),
   ]) {

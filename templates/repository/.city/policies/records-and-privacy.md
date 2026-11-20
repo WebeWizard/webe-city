@@ -14,10 +14,18 @@
 | Operations | Work orders, inspection evidence, releases, incidents, and unfinished obligations |
 | Resources | Capacity, proposed/authorized/committed/actual resources, assets, dependencies, and suppliers |
 | Appointments | Authorized role definitions/versions, delegation, permission changes, handovers, and retirement |
+| Agent work products | Plans, architecture, studies, specifications, reports, and other substantive outputs, with author, category, case/revision links, and content |
 
 These are logical record families, not a requirement for six new databases or directories. The pilot runtime supports governance, work-order, and decision records (proposal, authorization, and acceptance); other record types remain proposed requirements.
 
 Keep one canonical record for each matter and link related evidence. Issues, dashboards, and conversation summaries may point to it, not become independently maintained state. The installed plugin contains shared definitions/skills; local records belong to the selected repository and never to its plugin cache or another city.
+
+The `.city/artifacts/` register is a repository-local document catalogue, not an
+approval or access-control system. Its categories for work in progress, completed
+professional outputs, and proposed instruments describe intended use only; none
+establishes adoption, approval, or authenticated authorship. Older artifacts
+without a category remain unclassified until an explicit, reviewed correction;
+readers must not infer a category from their age or content.
 
 ## Capture and preservation
 

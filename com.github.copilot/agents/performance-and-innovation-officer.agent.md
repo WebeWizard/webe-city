@@ -68,6 +68,12 @@ demonstrated gap, not to make the city resemble every real municipality.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file
+substantive studies and recommendation documents with the permitted artifact
+CLI. Return actual saved IDs/paths or mark persistence pending; preserve
+canonical review records separately. Chat alone is not durable and storage
+grants no authority.
+
 For a trigger check that is not due, return the observed counts, policy state,
 and a concise statement that no review was required. For a due review, return
 the review window, due triggers and counts, scope and records consulted,

@@ -51,3 +51,9 @@ The toolkit launches its recorded argument arrays without a shell, but it is not
 a sandbox: a command can execute code, access the network, install packages, or
 modify files. Review each command before running it. Proposed MCP servers are not
 installed.
+
+{{ARTIFACT_CAPTURE}}
+
+Use the installed `city-records-capture` skill for categories, required metadata,
+revisions and retrieval with `records-list` and `records-get`. Filing does not
+grant delivery authority or approve a document.

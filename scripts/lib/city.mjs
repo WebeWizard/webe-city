@@ -23,6 +23,7 @@ import {
   validateProjects, validateRecordId, validateRecordsRequest, validateState, validateWorkOrder,
   validateDevelopmentInput, applicationMissing, validateZoningMap, validateZoningCheckInput,
   validateInfrastructureWorkScope,
+  validateArtifact, validateArtifactInput,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
 import {
@@ -145,6 +146,19 @@ export async function loadCity(root, required = true) {
   const institutionalReviews = await readRecords(
     cityPath, 'institutional-reviews', validateInstitutionalReview, config.cityId, true,
   );
+  const artifacts = await readRecords(cityPath, 'artifacts', validateArtifact, config.cityId, true);
+  for (const { value: artifact } of artifacts.records.values()) {
+    if (artifact.workOrderId && !orders.records.has(artifact.workOrderId)) {
+      fail('INVALID_RECORD', 'Artifact references a missing work order.');
+    }
+    if (artifact.supersedes) {
+      const previous = artifacts.records.get(artifact.supersedes)?.value;
+      if (!previous || previous.workOrderId !== artifact.workOrderId
+        || Date.parse(previous.createdAt) >= Date.parse(artifact.createdAt)) {
+        fail('INVALID_RECORD', 'Artifact must supersede an earlier artifact for the same work order.');
+      }
+    }
+  }
   const infrastructureRoot = path.join(cityPath, 'infrastructure');
   const infrastructureRootInfo = await inspect(infrastructureRoot);
   if (infrastructureRootInfo && (!infrastructureRootInfo.isDirectory() || infrastructureRootInfo.isSymbolicLink())) {
@@ -292,6 +306,7 @@ export async function loadCity(root, required = true) {
     decisions: decisions.records,
     recordsRequests: recordsRequests.records,
     institutionalReviews: institutionalReviews.records,
+    artifacts: artifacts.records,
     infrastructure: {
       assets: infrastructureAssets.records,
       programme: infrastructureProgramme,
@@ -303,6 +318,7 @@ export async function loadCity(root, required = true) {
       'work-orders': orders.identity, decisions: decisions.identity,
       'records-requests': recordsRequests.identity,
       'institutional-reviews': institutionalReviews.identity,
+      artifacts: artifacts.identity,
       'infrastructure/assets': infrastructureAssets.identity,
       ...(infrastructureRootInfo ? { infrastructure: infrastructureRootInfo } : {}),
       ...workforce.directoryIdentities,
@@ -1085,17 +1101,64 @@ export async function reviewRecord(root, options) {
 
 const requestOutcomes = new Set(['found', 'not-found', 'withheld', 'unavailable']);
 
+export async function artifactRecord(root, options) {
+  const input = validateArtifactInput(parseJSON(Buffer.from(options.data), 'Artifact input'));
+  const city = await loadCity(root);
+  const makeRecord = (current) => {
+    if (current.artifacts.size >= LIMITS.records) fail('SIZE_LIMIT', 'City artifact library is full.');
+    if (input.workOrderId && !current.workOrders.has(input.workOrderId)) {
+      fail('NOT_FOUND', 'Artifact work order does not exist.');
+    }
+    const previous = input.supersedes ? current.artifacts.get(input.supersedes)?.value : null;
+    if (input.supersedes && !previous) fail('NOT_FOUND', 'Superseded artifact does not exist.');
+    if (previous && previous.workOrderId !== input.workOrderId) {
+      fail('INVALID_ARGUMENT', 'Superseded artifact must belong to the same work order.');
+    }
+    const artifact = validateArtifact({
+      schemaVersion: SCHEMA_VERSION, id: `ART-${randomUUID()}`, cityId: current.config.cityId,
+      ...input,
+      createdAt: new Date(Math.max(Date.now(), previous ? Date.parse(previous.createdAt) + 1 : 0)).toISOString(),
+      authenticated: false, provenance: provenance(),
+    }, current.config.cityId);
+    if (Buffer.byteLength(encodeJSON(artifact)) > LIMITS.fileBytes) {
+      fail('SIZE_LIMIT', 'Encoded artifact exceeds the supported local file size.');
+    }
+    return artifact;
+  };
+  let artifact = makeRecord(city);
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      if (input.supersedes
+        && !current.artifacts.get(input.supersedes)?.bytes.equals(city.artifacts.get(input.supersedes).bytes)) {
+        fail('CONFLICT', 'Superseded artifact changed since preview.');
+      }
+      artifact = makeRecord(current);
+      await ensureDirectories(current.path, 'artifacts', 'City artifact library');
+      current.directoryIdentities.artifacts = await directory(path.join(current.path, 'artifacts'), 'City artifact library');
+      await atomicRecord(current, 'artifacts', `${artifact.id}.json`, artifact);
+    });
+  }
+  return {
+    command: 'artifact-record', root, dryRun: !options.apply, changed: Boolean(options.apply),
+    wouldWrite: true, artifact, path: `.city/artifacts/${artifact.id}.json`,
+    notice: governanceNotice(city.config.governance),
+  };
+}
+
 function requestJSON(value, label) {
   return parseJSON(Buffer.from(value, 'utf8'), label);
 }
 
-function recordItem(type, id, relativePath, bytes, data, status = null, relatedRecords = [], label = null) {
+function recordItem(type, id, relativePath, bytes, data, status = null, relatedRecords = [], label = null, recordCategory = null) {
   return {
     meta: {
       type, id, path: relativePath, status, sha256: sha256(bytes),
       relatedRecords: relatedRecords.sort((first, second) => first.type.localeCompare(second.type)
         || first.id.localeCompare(second.id)),
       ...(label ? { label } : {}),
+      ...(recordCategory ? { recordCategory } : {}),
     },
     bytes,
     data,
@@ -1104,6 +1167,14 @@ function recordItem(type, id, relativePath, bytes, data, status = null, relatedR
 
 async function canonicalRecords(city) {
   const records = [];
+  const artifactsByOrder = new Map();
+  for (const { value } of city.artifacts.values()) {
+    if (value.workOrderId) {
+      const related = artifactsByOrder.get(value.workOrderId) ?? [];
+      related.push({ type: 'artifact', id: value.id });
+      artifactsByOrder.set(value.workOrderId, related);
+    }
+  }
   const decisionsByOrder = new Map();
   for (const { value } of city.decisions.values()) {
     for (const orderId of value.workOrderIds) {
@@ -1146,6 +1217,7 @@ async function canonicalRecords(city) {
         ...(requestsByOrder.get(value.id) ?? []),
         ...(workforceByOrder.get(value.id) ?? []),
         ...(infrastructureByOrder.get(value.id) ?? []),
+        ...(artifactsByOrder.get(value.id) ?? []),
       ], value.title));
   }
   for (const { value, bytes } of city.decisions.values()) {
@@ -1162,6 +1234,16 @@ async function canonicalRecords(city) {
   for (const { value, bytes } of city.institutionalReviews.values()) {
     records.push(recordItem('institutional-review', value.id,
       `.city/institutional-reviews/${value.id}.json`, bytes, value, null, [], value.summary));
+  }
+  for (const { value, bytes } of city.artifacts.values()) {
+    const related = [
+      ...(value.workOrderId ? [{ type: 'work-order', id: value.workOrderId }] : []),
+      ...(value.supersedes ? [{ type: 'artifact', id: value.supersedes }] : []),
+      ...[...city.artifacts.values()].filter(({ value: next }) => next.supersedes === value.id)
+        .map(({ value: next }) => ({ type: 'artifact', id: next.id })),
+    ];
+    records.push(recordItem('artifact', value.id, `.city/artifacts/${value.id}.json`,
+      bytes, value, null, related, value.title, value.recordCategory ?? 'legacy-unclassified'));
   }
   for (const { value, bytes } of city.infrastructure.assets.values()) {
     const related = [];
@@ -1257,6 +1339,9 @@ function validateAnyRecordId(id) {
   if (/^IR-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'institutional-review', id };
   }
+  if (/^ART-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    return { type: 'artifact', id };
+  }
   if (/^IA-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'infrastructure-asset', id };
   }
@@ -1286,6 +1371,12 @@ function validateRecordFilters(options) {
   if (options.project !== undefined && !/^[a-z][a-z0-9-]{0,63}$/u.test(options.project)) {
     fail('INVALID_ARGUMENT', '--project must be a registered project ID.');
   }
+  if (options.search !== undefined) {
+    text(options.search, '--search', 200);
+    if (options.type && options.type !== 'artifact') {
+      fail('INVALID_ARGUMENT', '--search can only be used with artifact records.');
+    }
+  }
   if (options.status !== undefined && ![
     ...STATUSES, 'open', 'resolved', 'cancelled', 'draft', 'adopted', 'proposed',
   ].includes(options.status)) {
@@ -1304,7 +1395,11 @@ export async function recordsList(root, options) {
   const { limit, offset, selector } = validateRecordFilters(options);
   const city = await loadCity(root);
   const all = await canonicalRecords(city);
+  const search = options.search?.normalize('NFKC').toLocaleLowerCase('en');
   const matching = all.filter(({ meta, data }) => {
+    if (search && (meta.type !== 'artifact'
+      || ![meta.label, data.kind, data.sourceOffice, data.recordCategory, data.content]
+        .some((value) => value?.normalize('NFKC').toLocaleLowerCase('en').includes(search)))) return false;
     if (options.type && meta.type !== options.type) return false;
     if (selector && (meta.id !== selector.id || (selector.type && meta.type !== selector.type))) return false;
     if (options['work-order']
@@ -1618,6 +1713,7 @@ export async function validate(root) {
       staff: city.workforce.staff.size,
       assignments: city.workforce.assignments.size,
       institutionalReviews: city.institutionalReviews.size,
+      artifacts: city.artifacts.size,
       infrastructureAssets: city.infrastructure.assets.size,
       infrastructureProgramme: Number(Boolean(city.infrastructure.programme)),
       zoningMap: Number(Boolean(city.zoning)),
@@ -2644,7 +2740,9 @@ function preserved(city) {
   return {
     'work-orders': [...city.workOrders.keys()].sort(),
     decisions: [...city.decisions.keys()].sort(),
-    unchanged: ['districts.json', 'charter.md', 'instruction-fragment.md', 'policies/', 'work-orders/', 'decisions/']
+    artifacts: [...city.artifacts.keys()].sort(),
+    unchanged: ['districts.json', 'charter.md', 'instruction-fragment.md', 'policies/', 'work-orders/', 'decisions/',
+      ...(city.directoryIdentities.artifacts ? ['artifacts/'] : [])]
       .map((name) => `.city/${name}`),
   };
 }

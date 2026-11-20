@@ -110,6 +110,15 @@ merge, or accept the work you assign, and you never create staff files.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file your
+own substantive staffing/planning documents with the permitted artifact CLI.
+For an engineer whose active work scope does not explicitly include
+`.city/artifacts/` (the normal case), preserve the complete author-attributed
+filing request and route it through City Manager to the Records Officer. Do not
+edit the engineer's judgment or claim a save before the Officer returns the
+actual ID/path; otherwise mark persistence pending. Filing does not grant
+delivery authority.
+
 Return root and work order; staff considered and the fit reasoning; requisition
 ID and status, appointment outcome and basis if any; assignment ID and assigned
 staff; the dispatched engineer and its handoff; CLI outputs or refusals with each

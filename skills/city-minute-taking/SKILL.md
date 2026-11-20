@@ -39,6 +39,13 @@ agent proposals and distinguish a record of discussion from authenticated approv
 8. Correct through an attributed addendum or superseding record that preserves
    the original, its status, the change, and the reason.
 
+## Persistent meeting records
+
+Use [records capture](../city-records-capture/SKILL.md) for substantive agendas,
+minutes and supporting papers. Mark unapproved minutes `working-draft` and
+decision papers `proposed-instrument`; retain actual adopted decisions in their
+canonical structured register. Filing alone never records a vote or adoption.
+
 ## Structured result and evidence
 
 Return draft minutes with source/coverage, participants as evidenced, agenda items,

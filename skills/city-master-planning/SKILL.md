@@ -49,6 +49,13 @@ do not force code into physical-city metaphors or treat the map as approval.
 8. Submit the master-plan proposal and any requested ownership/policy changes
    separately for resident consideration.
 
+## Persistent work products
+
+Use [records capture](../city-records-capture/SKILL.md) for the full master-plan
+proposal and any separately requested ownership or policy proposal. Mark it
+`proposed-instrument`; filing does not adopt it. Return the actual artifact
+ID/path or a complete pending filing request.
+
 ## Structured result and evidence
 
 Return current-state evidence, component/interface map, known drift, alternatives,

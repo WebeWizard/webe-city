@@ -16,21 +16,23 @@ const orderPattern = new RegExp(`^WO-${uuid}$`);
 const decisionPattern = new RegExp(`^DEC-${uuid}$`);
 const recordsRequestPattern = new RegExp(`^RR-${uuid}$`);
 const institutionalReviewPattern = new RegExp(`^IR-${uuid}$`);
+const artifactPattern = new RegExp(`^ART-${uuid}$`);
 const infrastructureAssetPattern = new RegExp(`^IA-${uuid}$`);
 const requisitionPattern = new RegExp(`^REQ-${uuid}$`);
 const assignmentPattern = new RegExp(`^ASN-${uuid}$`);
+const artifactCategories = ['working-draft', 'filed-work-product', 'proposed-instrument'];
 const staffIdPattern = /^[a-z][a-z0-9-]{1,40}$/u;
 const own = (value, key) => Object.hasOwn(value, key);
 
 export const RECORD_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'artifact', 'infrastructure-asset',
   'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
 ]);
 export const CANONICAL_RECORD_TYPES = Object.freeze([
   ...RECORD_TYPES, 'requisition', 'staff', 'assignment',
 ]);
 export const RECORD_EXCHANGE_TYPES = Object.freeze([
-  'work-order', 'decision', 'records-request', 'institutional-review', 'infrastructure-asset',
+  'work-order', 'decision', 'records-request', 'institutional-review', 'artifact', 'infrastructure-asset',
   'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
 ]);
 export const RECORD_REQUEST_OUTCOMES = Object.freeze(['found', 'not-found', 'withheld', 'unavailable']);
@@ -49,6 +51,9 @@ export function validateRecordId(type, id, label = 'Record ID') {
       break;
     case 'institutional-review':
       if (!institutionalReviewPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an institutional-review ID.`);
+      break;
+    case 'artifact':
+      if (!artifactPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an artifact ID.`);
       break;
     case 'infrastructure-asset':
       if (!infrastructureAssetPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be an infrastructure asset ID.`);
@@ -114,6 +119,46 @@ export function text(value, label, maximum) {
     || value.length > maximum || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value)) {
     fail('INVALID_ARGUMENT', `${label} must be nonempty trimmed text of at most ${maximum} characters, without control characters.`);
   }
+}
+
+export function validateArtifactInput(value, allowLegacyCategory = false) {
+  const required = ['title', 'kind', 'format', 'content', 'sourceOffice', 'workOrderId', 'supersedes'];
+  fields(value, allowLegacyCategory && !own(value, 'recordCategory')
+    ? required : [...required, 'recordCategory'], 'Artifact input');
+  text(value.title, 'Artifact title', 500);
+  text(value.kind, 'Artifact kind', 100);
+  text(value.sourceOffice, 'Artifact source office', 200);
+  if (own(value, 'recordCategory') && !artifactCategories.includes(value.recordCategory)) {
+    fail('INVALID_ARGUMENT', `Artifact recordCategory must be one of ${artifactCategories.join(', ')}.`);
+  }
+  if (!['markdown', 'text', 'mermaid', 'json'].includes(value.format)) {
+    fail('INVALID_ARGUMENT', 'Artifact format must be markdown, text, mermaid, or json.');
+  }
+  if (typeof value.content !== 'string' || !value.content.trim()
+    || Buffer.byteLength(value.content) > LIMITS.fileBytes
+    || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value.content)) {
+    fail('INVALID_ARGUMENT', 'Artifact content must be nonempty text without control characters within the local file size limit.');
+  }
+  if (value.format === 'json') parseJSON(Buffer.from(value.content), 'Artifact JSON content');
+  if (value.workOrderId !== null) validateRecordId('work-order', value.workOrderId);
+  if (value.supersedes !== null) validateRecordId('artifact', value.supersedes);
+  return value;
+}
+
+export function validateArtifact(value, cityId) {
+  version(value, 'Artifact');
+  fieldsWithOptional(value, [
+    'schemaVersion', 'id', 'cityId', 'title', 'kind', 'format', 'content',
+    'sourceOffice', 'workOrderId', 'supersedes', 'createdAt', 'authenticated', 'provenance',
+  ], ['recordCategory'], 'Artifact');
+  validateRecordId('artifact', value.id);
+  if (value.cityId !== cityId) fail('INVALID_RECORD', 'Artifact belongs to another city.');
+  const { schemaVersion, id, cityId: owner, createdAt, authenticated, provenance: source, ...input } = value;
+  validateArtifactInput(input, true);
+  timestamp(createdAt, 'Artifact timestamp');
+  if (authenticated !== false) fail('INVALID_RECORD', 'Artifact attribution is not authenticated.');
+  provenance(source, 'Artifact provenance');
+  return value;
 }
 
 function timestamp(value, label) {

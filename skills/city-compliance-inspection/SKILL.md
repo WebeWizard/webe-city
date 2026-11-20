@@ -42,6 +42,14 @@ author, without fixing defects or treating a passing test as authorization.
 8. Return reproducible findings for Clerk recording. Do not edit source, tests,
    plans, records, or controls, even through terminal commands.
 
+## Persistent inspection reports
+
+Use [records capture](../city-records-capture/SKILL.md) to file the full
+inspection report and evidence references. Keep the report's source and exact
+revision; a filed report is not itself a completion or authorization decision.
+If the Inspector lacks `execute`, provide a complete filing request rather than
+claiming a CLI write.
+
 ## Structured result and evidence
 
 Return root/case/revision, review type, criterion-to-evidence matrix, commands and

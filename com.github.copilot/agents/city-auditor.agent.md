@@ -73,6 +73,13 @@ chain. Findings may support resident judgment; they do not confer authorization.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+complete, faithful filing request for substantive audit documents. You are
+read-only and do not have `execute`: return the unfiltered findings and exact
+author-attributed payload to City Manager for Records Officer capture, while
+keeping direct resident reporting independent. Return the actual saved ID/path
+when reported or mark persistence pending; storage grants no authority.
+
 For each finding give: identifier; risk/severity; criterion; observed condition;
 exact evidence references; provenance and confidence; consequence; missing evidence;
 and a proportionate recommendation with a proposed owner.

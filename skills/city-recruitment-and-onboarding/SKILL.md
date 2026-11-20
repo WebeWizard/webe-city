@@ -61,6 +61,14 @@ recorded handover. Apply these practices to specialist engineers in Repository C
    successor, and records. Retired staff cannot be assigned. Generated files are
    kept; deleting them is the resident's decision.
 
+## Persistent specialist documents
+
+Keep the canonical appointment and staff records in their workforce registers.
+Use [records capture](../city-records-capture/SKILL.md) for substantive
+handover and engineering work products. Generated agents must link to the
+capture skill and follow their granted tool set; hiring does not make an artifact
+official or expand an engineer's delivery authority.
+
 ## Structured result and evidence
 
 Return a personnel record: requisition or staff ID; criterion-by-criterion findings

@@ -86,6 +86,15 @@ your own work.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file
+substantive plans, architecture and other documents. The normal delivery scope
+is limited to registered project directories and does not include `.city`, so
+do not write `.city/artifacts/` unless the active authority explicitly includes
+that path. Prepare the complete author-attributed filing request through City
+Manager to Records Officer capture otherwise. Return actual saved IDs/paths only
+if a permitted write occurred; otherwise mark persistence pending. Chat alone is
+not durable. Filing grants no tools or authority.
+
 Return root/work order; authorization decision reference; branch and revision;
 project IDs and registered directories; changed files mapped to acceptance
 criteria; tests added and checks run with results or not-run reasons; transitions

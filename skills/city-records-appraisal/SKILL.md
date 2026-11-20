@@ -39,6 +39,10 @@ from case history that must survive staff, plugin, and policy changes.
    Obtain a separate resident decision for retention-policy or disposition changes.
 8. Provide a reversible preservation proposal where possible and document residual
    risks, ownership uncertainty, and specialist advice still needed.
+9. Include artifact records in the inventory. Their `recordCategory` is intended
+   use, not authority; legacy records without the field are
+   `legacy-unclassified`. Do not infer formal status or retention periods from a
+   category. Apply holds and the adopted schedule, if any; otherwise preserve.
 
 ## Structured result and evidence
 

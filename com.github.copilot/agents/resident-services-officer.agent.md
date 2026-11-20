@@ -74,6 +74,13 @@ traceable, and fairly routed without promising services that have not been autho
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+complete filing request for substantive service/case documents. You do not have
+`execute`: route the exact content and author-attributed payload through City
+Manager to Records Officer capture. Return the actual saved ID/path or mark
+persistence pending; preserve canonical intake records separately and omit
+restricted resident content. Storage grants no authority.
+
 Return root; case/new-case draft; resident outcome; criteria; evidence and provenance;
 impact/urgency; missing information; proposed route and intake state; privacy
 redactions; next resident action. Clearly distinguish a draft from a persisted case.
