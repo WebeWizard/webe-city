@@ -53,6 +53,13 @@ through City Manager; do not ask the resident to request assistance again.
 
 ## Limits and return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+complete filing request for proposal, architecture, drawing and study documents.
+You do not have `execute`: route the exact content and author-attributed payload
+through City Manager to Records Officer capture. Cite the actual saved ID/path
+in application evidence; otherwise mark persistence pending. This does not
+replace the application record or grant implementation tools.
+
 No execute or agent tools are available. Do not run studies, builds, install tools,
 implement production work, grant authority, authorize, inspect delivery, merge or
 accept. Skills grant no extra powers. Council/resident decisions, independent

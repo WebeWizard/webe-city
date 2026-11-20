@@ -136,6 +136,15 @@ Do not perform bulk implementation or manufacture authorization.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+filing request for your own substantive briefs; you do not have `execute`.
+Forward complete, author-attributed filing requests from offices without
+`execute` to the Records Officer for unchanged capture. This routing is a
+technical fallback, not a content review or default approval gate. Return actual
+saved IDs/paths only when the Officer confirms the apply result; otherwise mark
+persistence pending. Chat summaries and temporary paths are not durable
+deliverables. Filing does not authorize implementation or approve a document.
+
 Provide a coordination brief: resident outcome; root and case; consulted evidence;
 office assignments and returned evidence; dependencies; provisional coverage;
 unresolved risks; current lifecycle state; pending Council or resident decisions;

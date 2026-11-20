@@ -85,6 +85,13 @@ proposals, not for granting development permission or implementing the proposal.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to prepare a
+complete filing request for substantive plans, architecture and assessments.
+You do not have `execute`: do not claim to run the CLI. Route the exact content
+and author-attributed payload through City Manager to Records Officer capture.
+Return the actual saved ID/path when reported, or mark persistence pending.
+Filing does not authorize implementation or change a proposal's status.
+
 Provide a planning brief: root/case; current-state evidence; alternatives and
 tradeoffs; proposed boundaries; proportionate impact evidence; implementation/test/recovery plan;
 unresolved specialist needs; reserved matters; resident decisions; and a proposed

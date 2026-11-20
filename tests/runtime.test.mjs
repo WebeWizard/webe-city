@@ -7,7 +7,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, test } from 'node:test';
-import { checkOrderUnchanged, institutionalReviewStatus, loadCity, permitStatus } from '../scripts/lib/city.mjs';
+import { artifactRecord, checkOrderUnchanged, institutionalReviewStatus, loadCity, permitStatus } from '../scripts/lib/city.mjs';
 import { publishCity } from '../scripts/lib/filesystem.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
@@ -921,6 +921,153 @@ test('records can be listed and fetched in batches with linked provenance and ha
   assert.equal(fetched.records[0].record.status, 'triaged');
   assert.equal(fetched.records[0].sha256, listed.records[0].sha256);
   assert.deepEqual(fetched.records[0].linked, []);
+});
+
+test('artifact library persists full documents, discovers case links and preserves superseded content', async () => {
+  const { root } = await fixture();
+  init(root);
+  const order = petition(root);
+  const input = {
+    title: 'API architecture', kind: 'architecture', format: 'markdown',
+    content: '# API architecture\n\n  Preserve indentation and a final newline.\n',
+    sourceOffice: 'municipal-software-engineer', workOrderId: order.id, supersedes: null,
+    recordCategory: 'filed-work-product',
+  };
+  const args = ['artifact-record', '--root', root, '--data', JSON.stringify(input)];
+  const before = await snapshot(root);
+  const preview = success(args);
+  assert.equal(preview.dryRun, true);
+  assert.equal(preview.changed, false);
+  assert.deepEqual(await snapshot(root), before);
+  const saved = success([...args, '--apply']);
+  assert.equal(saved.changed, true);
+  assert.equal(saved.artifact.content, input.content);
+  assert.equal(saved.artifact.authenticated, false);
+  const originalBytes = await readFile(path.join(root, saved.path));
+  const revised = success([
+    'artifact-record', '--root', root, '--data',
+    JSON.stringify({ ...input, content: '# Revised architecture\n', supersedes: saved.artifact.id }), '--apply',
+  ]);
+  assert.notEqual(revised.artifact.id, saved.artifact.id);
+  assert.deepEqual(await readFile(path.join(root, saved.path)), originalBytes);
+  assert.deepEqual(await readFile(recordPath(root, order.id)), Buffer.from(`${JSON.stringify(order, null, 2)}\n`));
+  const listing = success([
+    'records-list', '--root', root, '--type', 'artifact',
+    '--work-order', order.id, '--project', 'default-project', '--limit', '1',
+  ]);
+  assert.equal(listing.total, 2);
+  assert.equal(listing.nextOffset, 1);
+  assert.equal(listing.records[0].label, input.title);
+  assert.equal(listing.records[0].recordCategory, input.recordCategory);
+  assert.equal(listing.records[0].status, null);
+  assert.equal(success([
+    'records-list', '--root', root, '--type', 'artifact', '--search', 'preserve indentation',
+  ]).total, 1);
+  assert.equal(success([
+    'records-list', '--root', root, '--type', 'artifact', '--search', 'REVISED ARCHITECTURE',
+  ]).total, 1);
+  failure([
+    'records-list', '--root', root, '--type', 'work-order', '--search', 'architecture',
+  ], 'INVALID_ARGUMENT');
+  assert.equal(success([
+    'records-list', '--root', root, '--type', 'artifact', '--offset', '1', '--limit', '1',
+  ]).records.length, 1);
+  const fetched = success(['records-get', '--root', root, '--id', saved.artifact.id, '--linked']).records[0];
+  assert.equal(fetched.record.content, input.content);
+  assert.equal(fetched.sha256, createHash('sha256').update(originalBytes).digest('hex'));
+  assert.ok(fetched.linked.some((record) => record.id === revised.artifact.id));
+  const linkedOrder = success(['records-get', '--root', root, '--id', order.id, '--linked']).records[0];
+  assert.equal(linkedOrder.linked.filter((record) => record.type === 'artifact').length, 2);
+  const requested = success([
+    'records-request', '--root', root, '--requested-by', 'City Manager',
+    '--purpose', 'Retrieve the saved design.', '--item',
+    JSON.stringify({ type: 'artifact', id: saved.artifact.id, description: input.title }), '--apply',
+  ]);
+  success([
+    'records-resolve', '--root', root, '--id', requested.recordsRequest.id,
+    '--resolved-by', 'Records Officer', '--reason', 'Retrieved full design.',
+    '--response', JSON.stringify({
+      item: 0, outcome: 'found',
+      references: [{ type: fetched.type, id: fetched.id, path: fetched.path, sha256: fetched.sha256 }],
+      explanation: 'Saved architecture document.',
+    }), '--apply',
+  ]);
+  assert.equal(success(['validate', '--root', root]).records.artifacts, 2);
+});
+
+test('artifact input rejects missing sources, bad links, formats and oversized encoded documents without writes', async () => {
+  const { root } = await fixture();
+  init(root);
+  const input = {
+    title: 'City-wide plan', kind: 'plan', format: 'text', content: 'A complete plan.\n',
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'proposed-instrument',
+  };
+  const saved = success(['artifact-record', '--root', root, '--data', JSON.stringify(input), '--apply']);
+  const order = petition(root);
+  const before = await snapshot(root);
+  for (const [changes, code] of [
+    [{ sourceOffice: '' }, 'INVALID_ARGUMENT'],
+    [{ recordCategory: 'approved' }, 'INVALID_ARGUMENT'],
+    [{ recordCategory: undefined }, 'INVALID_RECORD'],
+    [{ content: ' \n ' }, 'INVALID_ARGUMENT'],
+    [{ format: 'html' }, 'INVALID_ARGUMENT'],
+    [{ format: 'json', content: '{' }, 'MALFORMED_JSON'],
+    [{ workOrderId: `WO-${randomUUID()}` }, 'NOT_FOUND'],
+    [{ supersedes: `ART-${randomUUID()}` }, 'NOT_FOUND'],
+    [{ supersedes: saved.artifact.id, workOrderId: order.id }, 'INVALID_ARGUMENT'],
+    [{ supersedes: '../outside' }, 'INVALID_ARGUMENT'],
+    [{ approval: true }, 'INVALID_RECORD'],
+  ]) {
+    failure(['artifact-record', '--root', root, '--data', JSON.stringify({ ...input, ...changes }), '--apply'], code);
+  }
+  const oversized = JSON.stringify({ ...input, content: '\\'.repeat(130900) });
+  assert.ok(Buffer.byteLength(oversized) < 256 * 1024, 'Input fits but encoded record metadata exceeds the bound.');
+  await assert.rejects(
+    artifactRecord(root, { data: oversized, apply: true }),
+    { code: 'SIZE_LIMIT' },
+  );
+  assert.deepEqual(await snapshot(root), before);
+});
+
+test('artifact validation rejects broken revision links and unsafe library paths', async () => {
+  const { root } = await fixture();
+  init(root);
+  const input = {
+    title: 'Design', kind: 'plan', format: 'text', content: 'Full design.',
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'working-draft',
+  };
+  const saved = success(['artifact-record', '--root', root, '--data', JSON.stringify(input), '--apply']);
+  const record = saved.artifact;
+  await writeFile(path.join(root, saved.path), JSON.stringify({ ...record, supersedes: record.id }));
+  failure(['validate', '--root', root], 'INVALID_RECORD');
+  await writeFile(path.join(root, saved.path), JSON.stringify(record));
+  const { root: other } = await fixture('unsafe library');
+  init(other);
+  await symlink(path.join(root, '.city/artifacts'), path.join(other, '.city/artifacts'), 'dir');
+  failure(['artifact-record', '--root', other, '--data', JSON.stringify(input), '--apply'], 'UNSAFE_PATH');
+});
+
+test('legacy artifacts remain readable and are not silently assigned a category', async () => {
+  const { root } = await fixture();
+  init(root);
+  const input = {
+    title: 'Legacy plan', kind: 'plan', format: 'text', content: 'Original content.',
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'working-draft',
+  };
+  const saved = success(['artifact-record', '--root', root, '--data', JSON.stringify(input), '--apply']);
+  const artifactPath = path.join(root, '.city/artifacts', `${saved.artifact.id}.json`);
+  const legacy = { ...saved.artifact };
+  delete legacy.recordCategory;
+  await writeJSON(artifactPath, legacy);
+  assert.equal(success(['validate', '--root', root]).records.artifacts, 1);
+  const listed = success(['records-list', '--root', root, '--type', 'artifact']);
+  assert.equal(listed.records[0].recordCategory, 'legacy-unclassified');
+  const fetched = success(['records-get', '--root', root, '--id', saved.artifact.id]).records[0];
+  assert.equal(fetched.record.recordCategory, undefined);
+  assert.equal(fetched.record.content, input.content);
 });
 
 test('institutional reviews are policy-gated, due from adopted thresholds, previewed, recorded and reset', async () => {
@@ -3121,13 +3268,13 @@ test('status lists only referrals from the current awaiting-approval period', as
   assert.deepEqual(success(['status', '--root', root]).workOrders.awaitingResidentDecision.map((entry) => entry.referredBy), [second.id]);
 });
 
-function workforceRequisitionArgs(root, order, staffId = 'website-specialist') {
+function workforceRequisitionArgs(root, order, staffId = 'website-specialist', tools = ['edit']) {
   return [
     'requisition', '--root', root, '--work-order', order.id, '--staff-id', staffId,
     '--title', 'Website Specialist', '--reason', 'A specialist is needed for bounded website work.',
     '--duties', 'Improve the registered website project while preserving existing behavior.',
     '--competency', 'Accessible responsive design', '--standard', 'Preserve existing behavior.',
-    '--tool', 'edit', '--check', '["node","-e","process.exit(0)"]',
+    ...tools.flatMap((tool) => ['--tool', tool]), '--check', '["node","-e","process.exit(0)"]',
     '--mcp-proposal', 'Propose an optional design review server; install nothing.',
   ];
 }
@@ -3157,7 +3304,7 @@ test('workforce records are optional and status exposes the bundled general engi
   const validated = success(['validate', '--root', root]);
   assert.deepEqual(validated.records, {
     projects: 0, workOrders: 0, decisions: 0, recordsRequests: 0,
-    requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0,
+    requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0, artifacts: 0,
     infrastructureAssets: 0, infrastructureProgramme: 0, zoningMap: 0,
   });
   assert.deepEqual(validated.workforce.drift, []);
@@ -3232,7 +3379,7 @@ test('HR declines and appointment declines are terminal history transitions', as
   assert.equal(appointmentDeclined.record.appointment, null);
   assert.deepEqual(success(['validate', '--root', root]).records, {
     projects: 1, workOrders: 1, decisions: 0, recordsRequests: 0,
-    requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0,
+    requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0, artifacts: 0,
     infrastructureAssets: 0, infrastructureProgramme: 0,
     zoningMap: 1,
   });
@@ -3316,6 +3463,8 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   const agentFile = hiringPreview.files.find((file) => file.path.endsWith('.agent.md'));
   assert.match(agentFile.content, /agents: \[\]/u);
   assert.match(agentFile.content, /tools: \["read","search","edit"\]/u);
+  assert.match(agentFile.content, /You do not have `execute`/u);
+  assert.match(agentFile.content, /complete author-attributed filing request/u);
   assert.match(agentFile.content, /status\.workforce\.assignments/u);
   assert.match(agentFile.content, /never authorize, complete/u);
   assert.equal((await readJSON(path.join(root, '.city/workforce/requisitions', `${requested.id}.json`))).status, 'approved');
@@ -3397,6 +3546,23 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   failure(assignmentArgs.concat('--apply'), 'STAFF_INACTIVE');
   failure(workforceRequisitionArgs(root, order), 'ALREADY_STAFFED');
   assert.ok(await lstat(path.join(root, staff.files[0].path)));
+
+  const executeOrder = await authorizedWorkforceOrder(root);
+  const executeRequest = workforceRequisitionArgs(root, executeOrder, 'document-specialist', ['edit', 'execute']);
+  const executeRequisition = success([...executeRequest, '--apply']).record;
+  success([
+    'review-requisition', '--root', root, '--id', executeRequisition.id,
+    '--outcome', 'endorse', '--reason', 'The specialist scope is appropriately bounded.', '--apply',
+  ]);
+  success([
+    'appoint', '--root', root, '--id', executeRequisition.id,
+    '--outcome', 'approve', '--reason', 'Approve the specialist appointment under delegation.', '--apply',
+  ]);
+  const executePreview = success(['hire', '--root', root, '--id', executeRequisition.id]);
+  const executeAgent = executePreview.files.find((file) => file.path.endsWith('.agent.md'));
+  assert.match(executeAgent.content, /tools: \["read","search","edit","execute"\]/u);
+  assert.match(executeAgent.content, /active assignment explicitly authorizes changes to `\.city\/artifacts\/`/u);
+  assert.match(executeAgent.content, /prepare the complete author-attributed filing request/u);
 
   const generatedAgentPath = path.join(root, staff.files.find((file) => file.path.endsWith('.agent.md')).path);
   const missingFilePath = path.join(root, staff.files.find((file) => file.path.endsWith('practice.md')).path);

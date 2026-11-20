@@ -50,6 +50,13 @@ a proposal is coherent and reviewable without rewriting it into compliance.
 8. Return findings to the Clerk for recording and the resident for consideration.
    The inspector does not repair the plan or approve the author's work.
 
+## Persistent plans and findings
+
+Use [records capture](../city-records-capture/SKILL.md) for substantial plan
+checks and findings. An artifact's `recordCategory` describes intended use only;
+`legacy-unclassified`, working and proposed documents are not evidence of
+approval. Verify any claimed decision in its canonical structured record.
+
 ## Structured result and evidence
 
 Return root/case/revision, review scope, requirement-to-plan matrix, evidence

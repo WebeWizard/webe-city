@@ -24,6 +24,11 @@ governance section.
    Review its check commands and side effects first. `shell: false` is not a sandbox.
 5. Record progress through the permitted in-progress and inspection states. Refer
    reserved matters to the resident.
+6. Preserve substantive plans, architecture, studies and handovers using the
+   installed `city-records-capture` skill. File directly only when the granted
+   tools and active authority permit the local record operation; otherwise return
+   the full author-attributed filing request. A filed document is not approval
+   or delivery authority.
 
 ## Applicable standards
 

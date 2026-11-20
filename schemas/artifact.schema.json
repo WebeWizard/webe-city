@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City artifact",
+  "description": "Full repository-local document content with attributed source, intended-use category, and optional case/revision links. Categories are not approval status; recordCategory may be absent on legacy artifacts. Not authenticated authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "cityId", "title", "kind", "format", "content", "sourceOffice", "workOrderId", "supersedes", "createdAt", "authenticated", "provenance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/artifactId" },
+    "cityId": { "type": "string", "format": "uuid" },
+    "title": { "$ref": "#/$defs/text", "maxLength": 500 },
+    "kind": { "$ref": "#/$defs/text", "maxLength": 100 },
+    "recordCategory": {
+      "description": "Intended-use classification only; absent on legacy records and never an approval or authentication status.",
+      "enum": ["working-draft", "filed-work-product", "proposed-instrument"]
+    },
+    "format": { "enum": ["markdown", "text", "mermaid", "json"] },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 262144,
+      "pattern": "\\S",
+      "not": { "pattern": "[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]" }
+    },
+    "sourceOffice": { "$ref": "#/$defs/text", "maxLength": 200 },
+    "workOrderId": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }
+      ]
+    },
+    "supersedes": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/artifactId" }] },
+    "createdAt": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$" },
+    "authenticated": { "const": false },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "plugin"],
+      "properties": {
+        "source": { "const": "local-draft" },
+        "plugin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "const": "repository-city" },
+            "version": { "enum": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"] }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifactId": { "type": "string", "pattern": "^ART-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "not": { "pattern": "[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]" }
+    }
+  }
+}

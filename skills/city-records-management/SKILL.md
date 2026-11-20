@@ -19,6 +19,14 @@ Municipal records management preserves authentic context, findability, and
 accountability across a record's lifecycle. Repository City keeps canonical case
 and proposal records in the target repository, not the installed plugin cache.
 
+Use [records capture](../city-records-capture/SKILL.md) for author-side filing
+instructions. The Records Officer receives filing requests when authors cannot
+run the packaged CLI, then captures the supplied content unchanged and attributes
+it to the authoring office. This is recordkeeping, not content review or approval.
+Use `records-list --type artifact` to discover documents and `records-get` to
+retrieve their full content. Existing artifacts without a category remain
+legacy-unclassified; do not silently relabel them.
+
 ## Triggers and inputs
 
 - Use for record creation/review, corrections, broken references, handoffs, or recovery.
@@ -47,19 +55,24 @@ and proposal records in the target repository, not the installed plugin cache.
    than treating the earlier digest as immutable proof.
 5. Preserve relevant source references, including who/what supplied evidence and
    whether identity or integrity was actually established.
-6. Keep canonical records repository-local. Link external presentations such as
+6. For a routed filing request, validate required metadata, repository root,
+   content format, work-order and supersession references. Preview the exact
+   `artifact-record` operation. Do not edit the author's content, change the
+   authoring office, or infer a formal status. Apply only after the record operation
+   is explicitly confirmed; report the ID/path only from the actual apply result.
+7. Keep canonical records repository-local. Link external presentations such as
    issues without maintaining a competing independent source of truth.
-7. Minimize personal data, secrets, and duplicated raw logs in city records.
+8. Minimize personal data, secrets, and duplicated raw logs in city records.
    Apply authorized access rules without claiming control of all application data.
-8. Make only explicitly requested, schema-compatible edits. Never add unsupported
+9. Make only explicitly requested, schema-compatible edits. Never add unsupported
    approval/adoption fields or hand-edit state to bypass CLI validation. A charter
    or policy revision after adoption is recorded only through `amend`, never by
    hand-editing `adoption` or its `history`.
-9. Preserve adverse findings and uncertainty. Use attributed corrections or
+10. Preserve adverse findings and uncertainty. Use attributed corrections or
    superseding records; do not silently rewrite history or erase a dispute.
-10. Inventory backup/recovery prerequisites and references. Distinguish an available
+11. Inventory backup/recovery prerequisites and references. Distinguish an available
    backup from a tested restore, and a supplied digest from verified integrity.
-11. Pass retention/disposition questions to records appraisal. Unknown policy,
+12. Pass retention/disposition questions to records appraisal. Unknown policy,
    unresolved holds, or unclear ownership means preserve and escalate.
 
 ## Structured result and evidence
@@ -71,8 +84,10 @@ performed or still needed. Do not invent timestamps, hashes, or execution result
 
 ## Escalation and limits
 
-- Records Officer/Clerk may edit within their role, but have no terminal access.
-  Supply a validation request rather than claiming a CLI check was run.
+- Records Officer/Clerk may edit within their role.
+  Records Officer may execute the packaged records CLI, including
+  `artifact-record`, for the exact selected root; Clerk supplies a persistence/
+  validation request rather than claiming a CLI check was run.
 - This skill grants no tools, deletion rights, authority, or access privileges.
   Hashes and local provenance are not authenticated human consent.
 - A records request is not an access grant. Do not copy restricted content into a

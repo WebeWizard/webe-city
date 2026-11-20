@@ -38,6 +38,13 @@ authority, scope, records, and controls rather than merely counting completed fo
 8. Report directly to the resident and supply findings to City Clerk for recording.
    Do not let delivery management suppress or approve the audit conclusion.
 
+## Persistent audit reports
+
+Use [records capture](../city-records-capture/SKILL.md) for complete audit
+reports, findings, evidence and limitations. Preserve adverse findings without
+filtering. Read-only auditors submit a filing request through City Manager;
+filing must not depend on the delivery chain's approval.
+
 ## Structured result and evidence
 
 Return objective/scope, criteria sources, risks, sample and exclusions, procedures,

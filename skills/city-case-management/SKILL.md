@@ -47,12 +47,17 @@ Delivery starts only after a recorded City Council or resident authorization.
    and what the resident should expect next. Do not promise completion dates.
 8. Preserve context across handoffs and record a reason for rejection, withdrawal,
    or reopening without erasing earlier evidence.
+9. For previously filed work products, use `records-list --type artifact
+   --work-order WO-ID` or `--search TEXT` to find canonical IDs. Use
+   `records-get --id ART-ID` for exact content and open readable content in an
+   appropriate host viewer. Keep access controls in the repository's actual
+   storage; do not copy restricted content into a case summary.
 
 ## Structured result and evidence
 
 Return `root`, `case_id_or_draft`, `title`, `resident_need`, `criteria`,
 `observations_with_sources`, `related_cases`, `proposed_route`, `intake_state`,
-`missing_information`, and `next_resident_action`.
+`missing_information`, `related_artifacts`, and `next_resident_action`.
 Mark whether persistence occurred and cite the actual CLI result if it did.
 
 ## Escalation and limits

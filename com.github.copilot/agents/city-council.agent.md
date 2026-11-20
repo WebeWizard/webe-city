@@ -87,6 +87,13 @@ build, inspect, merge, or accept the work you authorize.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file
+substantive deliberation documents with the permitted artifact CLI. If the write
+is unavailable, return the full filing request through City Manager to the
+Records Officer. Return actual saved IDs/paths or mark persistence pending.
+Storage is not a decision; retain canonical authorization records in their
+existing register.
+
 Return root and work order, then:
 
 - **Decision:** outcome, and whether it was applied or only previewed.

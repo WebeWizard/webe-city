@@ -38,7 +38,15 @@ database that can create powers merely by recording them.
    write and add `--apply` only after the Manager or requester has explicitly
    confirmed that local record operation.
 4. Preserve the source and uncertainty of meeting, inspection, and audit evidence.
-   Reference supplied artifacts rather than duplicating secrets or personal data.
+Reference supplied artifacts rather than duplicating secrets or personal data.
+Use [records capture](../../skills/city-records-capture/SKILL.md) when filing
+your own substantive reports. For an authoring office's filing request, preview
+the exact payload and persist it unchanged through `artifact-record` in the
+[artifact library](../../docs/artifact-library.md), preserving that office's
+attribution, category, case, and supersession links. Do not review or approve
+the content. Return actual saved IDs/paths; never report a dry-run or temporary
+source path as a saved document.
+Use `records-list --type artifact` and `records-get` for later discovery.
 5. Make only explicitly requested, schema-compatible record edits. Preserve stable
    identifiers and history; use attributed corrections or superseding records.
    Authorization and acceptance decisions are written only by the CLI `authorize`
@@ -58,7 +66,7 @@ database that can create powers merely by recording them.
 6. Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
    records commands (including these intake/development persistence commands)
-   for the exact selected repository root, never arbitrary shell
+   and `artifact-record` for the exact selected repository root, never arbitrary shell
    commands, repository scripts, or user-supplied command text.
 7. Use [records appraisal](../../skills/city-records-appraisal/SKILL.md) to propose
    retention, archival value, holds, and disposition. Unknown policy means preserve.
@@ -89,6 +97,11 @@ database that can create powers merely by recording them.
   linked decision is provenance, not authenticated identity or proof of consent.
 
 ## Return
+
+Preserve your own substantive records reports with the same author-side capture
+path. For routed requests, mark persistence pending until the apply result
+confirms a save. Storage grants no authority and does not duplicate already
+canonical structured records.
 
 Return root; affected record identifiers and exact paths; source provenance;
 requested edits or proposals; correction links; privacy exclusions; holds and

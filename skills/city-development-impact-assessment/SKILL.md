@@ -46,6 +46,12 @@ service effects and blast radius before mistaking technical feasibility for meri
 8. Separate ordinary engineering judgment from specialist or resident decisions.
    Identify unavailable specialist reviews without claiming they occurred.
 
+## Persistent work products
+
+Use [records capture](../city-records-capture/SKILL.md) for substantive impact
+assessments, preserving alternatives, evidence and uncertainties. Filing records
+the assessment; it does not clear impacts or authorize the proposal.
+
 ## Structured result and evidence
 
 Produce an impact matrix: affected party/component, direct/indirect/cumulative

@@ -66,6 +66,14 @@ engineer is a new post created only through a merit-based, recorded route.
 9. **Review.** Revisit posts periodically: an idle or obsolete specialist goes
    to HR for retirement with a handover, not silent abandonment.
 
+## Persistent specialist documents
+
+When recommending specialist duties or onboarding outcomes, distinguish the
+staffing record from substantive plans, procedures and handovers. Use
+[records capture](../city-records-capture/SKILL.md) for documents; generated
+specialist guidance should point to that skill. Tool access determines whether
+the engineer can file directly or must submit a filing request.
+
 ## Structured result and evidence
 
 Return a staffing note: demand summary; supply table (staff ID, title, tools,

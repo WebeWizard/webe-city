@@ -38,6 +38,15 @@ from assertions about resident identity, authority, approvals, or successful del
 8. Record a conclusion with bounded confidence and explicit limitations.
    Do not invent checks, timestamps, identities, or execution results.
 
+## Artifact category and status
+
+When evaluating an artifact, treat `working-draft`, `filed-work-product`, and
+`proposed-instrument` as author-supplied intended-use metadata, not approval,
+authentication, or evidence that a decision-maker adopted the content.
+`legacy-unclassified` means the old record has no category. Confirm any formal
+decision independently in its canonical decision record and assess provenance,
+scope and content separately.
+
 ## Structured result and evidence
 
 Return an evidence matrix: claim, criterion, artifact/location, source type,

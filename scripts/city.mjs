@@ -10,6 +10,7 @@ import {
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
   infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
   permitExtend,
+  artifactRecord,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
 import { rootDirectory } from './lib/filesystem.mjs';
@@ -41,10 +42,11 @@ const commands = {
     required: ['root', 'id', 'name', 'path', 'description'],
   },
   'records-list': {
-    allowed: ['root', 'type', 'id', 'work-order', 'project', 'status', 'limit', 'offset'],
+    allowed: ['root', 'type', 'id', 'work-order', 'project', 'status', 'search', 'limit', 'offset'],
     required: ['root'],
   },
   'records-get': { allowed: ['root', 'id', 'linked'], required: ['root', 'id'] },
+  'artifact-record': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
   'records-request': {
     allowed: ['root', 'requested-by', 'source-office', 'purpose', 'related-work-order', 'item', 'apply'],
     required: ['root', 'requested-by', 'purpose', 'item'],
@@ -142,8 +144,9 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs permit-verification --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs completion-notice --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-extend --root ABS --id WO-ID --permit-id PMT-ID --days N --decided-by city-council|resident --reason TEXT [--declared-by TEXT --evidence TEXT] [--apply]',
-      'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--limit N] [--offset N]',
+      'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--search TEXT] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
+      'node <installed-plugin>/scripts/city.mjs artifact-record --root ABS --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-resolve --root ABS --id RR-ID --resolved-by OFFICE --response JSON [--response JSON repeated] --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-cancel --root ABS --id RR-ID --cancelled-by OFFICE --reason TEXT [--apply]',
@@ -168,6 +171,7 @@ function help() {
     delegationPolicy: `.city/${DELEGATION_POLICY}`,
     notice: DRAFT_NOTICE,
     notes: [
+      'artifact-record persists full document content in .city/artifacts/ with ART-UUID IDs. Strict data: {title,kind,format,content,sourceOffice,workOrderId,supersedes,recordCategory}; recordCategory is working-draft|filed-work-product|proposed-instrument; format is markdown|text|mermaid|json. The categories describe intended use, not approval; no artifact category or link establishes formal adoption. workOrderId and supersedes may be null. Legacy artifacts without recordCategory remain readable as legacy-unclassified. records-list --type artifact --search TEXT searches title, kind, source office and content with stable ID ordering and pagination; records-get retrieves full content. Storage/attribution is not approval. See docs/artifact-library.md.',
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
       'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
       'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
@@ -312,6 +316,8 @@ async function main() {
       return recordsList(root, options);
     case 'records-get':
       return recordsGet(root, options);
+    case 'artifact-record':
+      return artifactRecord(root, options);
     case 'records-request':
       return recordsRequest(root, options);
     case 'records-resolve':

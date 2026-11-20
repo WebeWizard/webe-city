@@ -90,6 +90,12 @@ You never assign work, approve appointments, or deliver engineering changes.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file
+substantive staffing and handover documents with the permitted artifact CLI.
+Omit restricted personnel content. Return actual saved IDs/paths or mark
+persistence pending; keep canonical workforce records in their existing
+register. Storage grants no authority.
+
 Return root and requisition or staff ID; review findings per criterion; the
 outcome applied or only previewed; for a hire, a hiring packet listing every
 generated file path, the tools granted, the checks, and MCP proposals for the

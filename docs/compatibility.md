@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.5.0 ships thirteen offices, 28 skills, explicit project registration,
+Plugin 0.5.0 ships thirteen offices, 29 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
 `city-delivery-authorization`. The 0.3.0 workforce process separates line

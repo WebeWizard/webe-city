@@ -95,6 +95,13 @@ locations, case/state summary, pending questions, blockers, and next actions.
 Identify which facts came from CLI output versus a limited file read.
 If commands were not run, say so explicitly.
 
+For substantive documents, browse `records-list --type artifact` and narrow by
+`--work-order` or `--search TEXT`; use `records-get --id ART-ID` for exact
+content. A category is intended-use metadata, never a formal status or approval.
+When no CLI execute tool is available, provide the resident with the canonical
+ID/path and a safe viewer route from the returned record; do not copy restricted
+content into the status summary.
+
 ## Limits
 
 This skill grants no execution or edit permission. Status is read-only and cannot

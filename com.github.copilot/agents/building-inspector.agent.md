@@ -93,6 +93,12 @@ permission to occupy. Inspect evidence without repairing the work you inspect.
 
 ## Return
 
+Use [records capture](../../skills/city-records-capture/SKILL.md) to file
+substantive inspection reports directly with the permitted artifact CLI. If the
+write is unavailable, return the full filing request through City Manager to the
+Records Officer. Return actual saved IDs/paths or mark persistence pending; filing
+does not authorize implementation or change your inspection finding.
+
 Return root/case/revision; review type; criterion-to-evidence matrix; exact commands,
 exit results, and not-run checks; findings with file locations and reproducible
 observations; conflicts; missing controls; and the overall scoped verdict.

@@ -50,12 +50,26 @@ happens only for work orders carrying a recorded authorization decision.
 8. Hand off to an independent Inspector. After a failed inspection, fix only the
    findings within scope. Never authorize, inspect, merge, or complete your own work.
 
+## Persistent work products
+
+Use [records capture](../city-records-capture/SKILL.md) for substantive proposals,
+architecture, plans and studies. A working or proposed category is descriptive,
+not delivery authorization. Preserve full content and cite the returned artifact
+ID/path. `.city/artifacts/` is outside registered project directories; unless the
+active work order explicitly authorizes that path, prepare a complete filing
+request instead of writing to the city register.
+
 ## Structured result and evidence
 
 Return root/case, behavioral diagnosis, source locations, proposed change scope,
 test matrix, expected failing assertion, proposed verification commands,
 diagnostics actually run with results, compatibility concerns, and recovery plan.
 Distinguish observed results from expectations.
+
+Return the full document and exact author-attributed filing request if the
+assigned work scope does not include `.city/artifacts/`. Report actual saved
+IDs/paths only when a permitted operation confirms persistence; conversation
+text is not a durable file.
 
 ## Escalation and limits
 
