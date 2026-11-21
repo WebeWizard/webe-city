@@ -3467,6 +3467,100 @@ test('concurrent requisitions for one staff ID serialize without leaving duplica
   assert.equal((await readdir(path.join(root, '.city'))).includes('.mutation-lock'), false);
 });
 
+test('read-only hires prepare bundled-policy class-3 safety evidence without relaxing delivery assignment', async () => {
+  const { root } = await fixture();
+  init(root);
+  const policy = await readFile(path.join(root, '.city/policies/workforce-delegation.md'), 'utf8');
+  assert.match(policy, /## Pre-authorization safety statement preparation/u);
+  assert.match(policy, /before\ndelivery authorization, without a delivery assignment/u);
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  recordScreening(root, order.id, screening({
+    route: 'formal', impacts: ['architecture'],
+    requirements: [{ id: 'safety-evidence', kind: 'study', description: 'Assess the safety boundary.', reason: 'Support class-3 safety review.' }],
+    permit: { safetyClass: 3, structuralClass: 2, classRationale: 'The safety boundary needs qualified evidence.' },
+  }));
+  success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: 1, reason: 'Prepare the safety package.', evidence: 'Safety boundary study.',
+    proposal: 'Update the scoped module.', answers: [],
+    artifacts: [{ requirementId: 'safety-evidence', disposition: 'provided', evidence: 'Safety boundary study.' }],
+  }, true));
+  success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: 1, outcome: 'ready', reason: 'The application requirements are addressed.',
+    evidence: 'Checked the study against the scoped module.',
+  }, true));
+  const orderBefore = await readFile(recordPath(root, order.id));
+  const readiness = () => success(['status', '--root', root]).workOrders.development.find((item) => item.id === order.id);
+  assert.equal(readiness().stage, 'professional-statement');
+
+  for (const [index, tools] of [[], ['edit'], ['execute'], ['edit', 'execute']].entries()) {
+    const args = workforceRequisitionArgs(root, order, `safety-specialist-${index}`, tools);
+    args.push('--competency', 'permit-safety-class-3');
+    const requested = success([...args, '--apply']).record;
+    failure(['hire', '--root', root, '--id', requested.id, '--apply'], 'INVALID_TRANSITION');
+    success([
+      'review-requisition', '--root', root, '--id', requested.id, '--outcome', 'endorse',
+      '--reason', 'Independent review confirms the specialist need and minimum tools.', '--apply',
+    ]);
+    failure(['hire', '--root', root, '--id', requested.id, '--apply'], 'INVALID_TRANSITION');
+    success([
+      'appoint', '--root', root, '--id', requested.id, '--outcome', 'approve',
+      '--reason', 'Approve the endorsed appointment within the adopted amendment.', '--apply',
+    ]);
+    const beforePreview = await snapshot(root);
+    const preview = success(['hire', '--root', root, '--id', requested.id]);
+    assert.deepEqual(await snapshot(root), beforePreview);
+    const agent = preview.files.find((file) => file.path.endsWith('.agent.md')).content;
+    const skill = preview.files.find((file) => file.path.endsWith('/SKILL.md')).content;
+    for (const content of [agent, skill]) {
+      assert.doesNotMatch(content, /\{\{[A-Z_]+\}\}/u);
+      if (tools.length === 0) {
+        assert.match(content, /before delivery authorization, without a delivery assignment/u);
+        assert.match(content, /current adopted, drift-free workforce delegation policy permits/u);
+        assert.match(content, /independent HR endorsement and manager-approved appointment/u);
+        assert.ok(content.includes(requested.id));
+        assert.ok(content.includes(order.id));
+        assert.match(content, /permit-safety-class-3/u);
+        assert.match(content, /matching statement for that screening revision is still outstanding/u);
+        assert.match(content, /no current delivery authorization/u);
+        assert.match(content, /Completed, rejected, and withdrawn orders are ineligible/u);
+        assert.match(content, /manager must request this bounded preparation/u);
+        assert.match(content, /Do not edit files, execute commands \(including the check toolkit\)/u);
+        assert.match(content, /class 4, structural statements,\nindependent verification, or reserved matters/u);
+        assert.match(content, /complete author-attributed filing request/u);
+      } else {
+        assert.match(content, /Pre-authorization evidence preparation is unavailable with this tool set/u);
+        assert.doesNotMatch(content, /### Limited pre-authorization evidence preparation/u);
+      }
+    }
+    assert.match(agent, /Deliver work only when the work order is `authorized` or `in-progress`/u);
+    assert.match(agent, /status\.workforce\.assignments/u);
+    assert.match(agent, /only if granted `execute`/u);
+    assert.match(skill, /## Delivery procedure/u);
+    const hired = success(['hire', '--root', root, '--id', requested.id, '--apply']).record;
+    if (tools.length === 0) assert.deepEqual(hired.tools, ['read', 'search']);
+    for (const file of hired.files) {
+      assert.equal(sha256(await readFile(path.join(root, file.path))), file.sha256);
+      const previewFile = preview.files.find((item) => item.path === file.path);
+      assert.equal(await readFile(path.join(root, file.path), 'utf8'), previewFile.content);
+    }
+    failure([
+      'assign', '--root', root, '--work-order', order.id, '--staff', hired.id,
+      '--reason', 'Evidence preparation is not delivery authorization.', '--apply',
+    ], 'INVALID_TRANSITION');
+    assert.deepEqual(await readFile(recordPath(root, order.id)), orderBefore);
+  }
+  assert.deepEqual(success(['status', '--root', root]).workforce.assignments, []);
+  assert.deepEqual(success(['validate', '--root', root]).workforce.drift, []);
+  success(developmentArgs('permit-statement', root, order.id, {
+    dimension: 'safety', class: 3, staffId: 'safety-specialist-0', screeningRevision: 1,
+    scope: 'The screened module safety boundary.', evidence: 'Read-only specialist safety study, filed by the manager.',
+  }, true));
+  assert.equal(readiness().stage, 'ready-formal');
+  assert.equal((await readJSON(recordPath(root, order.id))).status, 'triaged');
+});
+
 test('requisition, HR review, delegated appointment, hire preview and exclusive generation work end to end', async () => {
   const { root } = await fixture();
   await adoptedCity(root);

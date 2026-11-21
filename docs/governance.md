@@ -61,6 +61,17 @@ delivery authority.
 
 **Specialist workforce records.** `requisition` -> `review-requisition` -> `appoint` -> `hire` -> `assign` -> `retire`. Requisitions, appointments, staff, and assignments are local `.city/workforce/` records. A hire previews and then creates `.github/agents/` and `.github/skills/` files plus a staff record; it never overwrites existing files. Generated specialists receive only `read`, `search`, `edit`, and `execute`. The fixed check runner launches configured argument arrays with `shell: false`, but is not a sandbox: a configured program may execute code, access the network, install packages, or modify files, so HR and the resident should review each command and its side effects. MCP servers remain proposals only. Missing or edited generated files are reported as drift, not enforced. Retired staff files are retained; deletion is a separate resident decision.
 
+The bundled workforce delegation policy permits read/search-only
+pre-authorization class-3 safety preparation under the
+[building-permits workflow](building-permits.md#workflow). The generated exception
+requires HR endorsement, manager approval, active drift-free qualified staff,
+and a bounded manager request on the requisition's work order. It bypasses only
+the delivery gate for statement preparation, not `assign`, authorization, or
+lifecycle transitions. A resident may amend the permission away; existing
+cities adopt the revised policy with `amend` before it applies.
+Existing generated files are not rewritten by an upgrade; reconcile them through
+a reviewed replacement hire rather than bypassing their recorded digests.
+
 **Not supplied:** authenticated identity, a trusted external approval verifier, protected merge integration, runtime-enforced separation of duties, or operational recovery arrangements. Separation of duties is defined by agent definitions and tool lists, not enforced by the runtime. The runtime never runs git, merges, pushes, or deploys; branch protection and review controls remain the repository's own. A hand-edited decision file or “approved” field is not a decision: `validate` requires every entry into `authorized` or `completed` to match exactly one decision record, and vice versa.
 
 ## Runtime and initialization contract

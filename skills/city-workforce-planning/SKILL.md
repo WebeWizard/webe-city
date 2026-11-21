@@ -61,7 +61,15 @@ engineer is a new post created only through a merit-based, recorded route.
    beyond the fixed limits, or an appointment to any office other than a
    specialist engineer.
 8. **Deployment.** After the hire, assign the order and dispatch the engineer by
-   exact `agentName`. Reassign, with reasons, when competence or availability
+   exact `agentName` only after delivery authorization. If the current adopted,
+   drift-free workforce delegation policy permits pre-authorization class-3 safety
+   preparation, the manager may instead request the outstanding statement from
+   an active, drift-free read/search-only specialist hired after HR endorsement
+   and manager approval, within its requisition's work order and recorded
+   `permit-safety-class-3` competency. No delivery assignment is created for this
+   preparation; the manager records the returned statement with `permit-statement`
+   and routes its author-attributed filing request to the Records Officer.
+   Reassign, with reasons, when competence or availability
    changes; the latest assignment is the current one.
 9. **Review.** Revisit posts periodically: an idle or obsolete specialist goes
    to HR for retirement with a handover, not silent abandonment.

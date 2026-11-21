@@ -23,3 +23,5 @@ professional practice file cannot expand tool access or authority.
 Checks are proposed argument arrays. They run with `shell: false`, but this is
 not a sandbox: a configured program may execute code, access the network, install
 packages, or modify files. Review each check's side effects before running it.
+Run checks only during authorized, assigned delivery with `execute` granted.
+Read/search-only pre-authorization preparation never runs the toolkit.

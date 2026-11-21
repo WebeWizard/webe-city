@@ -79,6 +79,15 @@ merge, or accept the work you assign, and you never create staff files.
    Under the adopted building-permits policy, also arrange the exact active
    competency (`permit-safety-class-N` or `permit-structural-class-N`) for every
    class-3/4 screening and record the scoped statement with `permit-statement`.
+   If the current adopted, drift-free workforce delegation policy permits pre-authorization
+   class-3 safety preparation, dispatch an active, drift-free read/search-only
+   specialist after independent HR endorsement, manager approval and hire, for
+   that outstanding statement on its requisition's work order only. Request
+   bounded evidence preparation, not delivery; do not call `assign` before
+   authorization. Receive its statement and author-attributed filing request,
+   record `permit-statement`, and route durable filing to the Records Officer.
+   This exception grants no edits, execution, lifecycle changes, authorization,
+   class-4 work, structural statements, or independent verification.
    Do not use the delivery engineer to independently verify a class-4 statement.
    Before inspection, record the `completion-notice` for the active permit and
    address every condition with evidence.
