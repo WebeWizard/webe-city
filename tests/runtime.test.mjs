@@ -2131,7 +2131,7 @@ test('hook discovers physical ancestors, stops at nested git boundaries and isol
 });
 
 test('hook explicitly denies partial, unknown-version and malformed enrolled records', async () => {
-  for (const mode of ['partial', 'unknown', 'record', 'missing-record-directory', 'not-directory']) {
+  for (const mode of ['partial', 'unknown', 'record', 'not-directory']) {
     const { root } = await fixture();
     if (mode === 'partial') await mkdir(path.join(root, '.city'));
     else if (mode === 'not-directory') await writeFile(path.join(root, '.city'), 'not a directory');
@@ -2146,7 +2146,6 @@ test('hook explicitly denies partial, unknown-version and malformed enrolled rec
         const order = petition(root);
         await writeFile(recordPath(root, order.id), '{malformed');
       }
-      if (mode === 'missing-record-directory') await rm(path.join(root, '.city/decisions'), { recursive: true });
     }
     const before = await snapshot(root);
     const result = hookResult(payload(root));
@@ -2798,6 +2797,65 @@ function awaitingOrder(root) {
   for (const state of ['triaged', 'proposed', 'awaiting-approval']) transition(root, order.id, state);
   return order;
 }
+
+test('missing empty record directories allow tools and are created only by confirmed writes', async () => {
+  const { root } = await fixture();
+  await adoptedCity(root);
+  registerDefaultProject(root);
+  for (const name of ['work-orders', 'decisions', 'records-requests']) {
+    await rm(path.join(root, '.city', name), { recursive: true });
+  }
+  const before = await snapshot(root);
+  assert.deepEqual(hookResult(payload(root)), {});
+  assert.equal(success(['validate', '--root', root]).records.decisions, 0);
+  assert.equal(success(['records-list', '--root', root, '--type', 'work-order']).total, 0);
+  success(['init', '--root', root, '--apply']);
+  const petitionArgs = [
+    'petition', '--root', root, '--title', 'First case', '--request', 'Create a case.',
+    '--project', 'default-project', '--criterion', 'The case exists.',
+  ];
+  success(petitionArgs);
+  assert.deepEqual(await snapshot(root), before, 'reads, hook and previews must not repair directories');
+  const order = success([...petitionArgs, '--apply']).workOrder;
+  assert.ok((await lstat(path.join(root, '.city/work-orders'))).isDirectory());
+  success([
+    'zoning-check', '--root', root, '--id', order.id, '--data',
+    JSON.stringify({ changeTypes: ['bugfix'], reason: 'A bounded change.', evidence: 'Reviewed the case scope.' }),
+    '--apply',
+  ]);
+  for (const state of ['triaged', 'proposed', 'awaiting-approval']) transition(root, order.id, state);
+  const authorization = authorizeArgs(root, order.id);
+  success(authorization);
+  await assert.rejects(lstat(path.join(root, '.city/decisions')), { code: 'ENOENT' });
+  success([...authorization, '--apply']);
+  assert.ok((await lstat(path.join(root, '.city/decisions'))).isDirectory());
+  assert.equal(success(['validate', '--root', root]).records.decisions, 1);
+  success([
+    'records-request', '--root', root, '--requested-by', 'City Manager',
+    '--purpose', 'Find the first case.', '--item',
+    JSON.stringify({ type: 'work-order', id: order.id, description: 'First case' }), '--apply',
+  ]);
+  assert.ok((await lstat(path.join(root, '.city/records-requests'))).isDirectory());
+  await rm(path.join(root, '.city/decisions'), { recursive: true });
+  assert.equal(hookResult(payload(root)).permissionDecision, 'deny', 'lost referenced decisions remain corruption');
+});
+
+test('missing-directory support still refuses symlinks and non-directory record paths', async () => {
+  for (const name of ['work-orders', 'decisions']) {
+    for (const unsafe of ['symlink', 'file']) {
+      const { root, directory } = await fixture();
+      init(root);
+      const location = path.join(root, '.city', name);
+      await rm(location, { recursive: true });
+      if (unsafe === 'symlink') await symlink(directory, location, 'dir');
+      else await writeFile(location, 'Not a record directory.');
+      const before = await snapshot(root);
+      failure(['validate', '--root', root], 'UNSAFE_PATH');
+      assert.equal(hookResult(payload(root)).permissionDecision, 'deny');
+      assert.deepEqual(await snapshot(root), before);
+    }
+  }
+});
 
 test('a council-authorized order completes the full delivery lifecycle with linked, unauthenticated decisions', async () => {
   const { root } = await fixture();

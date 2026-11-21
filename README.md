@@ -46,6 +46,14 @@ No RSG or rsgdev component is required.
 
 ## Persistent agent documents
 
+Empty record directories can disappear after a Git checkout because Git does not
+track them. Missing `.city/work-orders/` or `.city/decisions/` is treated as an
+empty register, so it does not lock tools out through the hook. The first
+confirmed record write creates its destination directory; previews and reads
+write nothing. Existing records referencing lost entries still fail validation,
+as do symlinks and non-directory paths. Restore lost records from reviewed
+backups rather than replacing them with empty directories.
+
 Authors use the `city-records-capture` skill to file substantive plans,
 architecture, diagrams and other documents in `.city/artifacts/` when their
 tools and authority permit; agents without `execute` submit complete filing

@@ -2,6 +2,22 @@
 
 **DRAFT — 0.5.0 pilot.** The supplied templates propose responsibilities; none is adopted policy, an appointed employee, a human decision, or permission to deliver until a resident adopts them. Plugin installation is not city founding. Local initialization is paperwork, not enrollment or proof of consent. Once governance is adopted, the runtime records delivery authorization and acceptance decisions; those decisions are recorded, not authenticated.
 
+## Missing empty record directories
+
+Git does not preserve empty directories. The runtime therefore accepts absent
+record directories as empty registers and safely creates the target directory
+on the first confirmed record write. Read-only validation, the hook, and dry-runs
+do not modify the layout. Existing records must still have valid references:
+losing a decision referenced by work-order history remains a validation error,
+not an empty-register recovery. Symlinks, files in place of directories, missing
+governance files, and malformed records still fail closed.
+
+No hook bypass or manual initialization is needed for an empty register.
+Use the usual scoped command (for example, `authorize` for the first decision),
+review its preview, then apply it under the normal authority rules. Missing
+nonempty registers require reviewed backup recovery; never fabricate their
+contents or reinitialize the city.
+
 ## What is provided, and what is not
 
 The [charter template](../templates/repository/.city/charter.md) proposes resident sovereignty, limited jurisdiction, proportional administration, independent inspection/audit, privacy, and appeals. It defines a default roster of thirteen pilot offices, including Development Advisor, Engineering Manager, Human Resources Officer and Performance and Innovation Officer, appointed to bundled definitions only upon valid adoption of that exact charter. The initial resident's identity remains unverified: the charter treats repository access as the source of authority. These appointments grant no actual tool permissions; delivery authority arises only from a recorded authorization decision for a specific work order.
