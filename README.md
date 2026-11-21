@@ -154,9 +154,9 @@ overwritten. Agent definitions and check settings are local repository assets;
 review them before applying the hire.
 
 Read/search-only hires can prepare an outstanding class-3 safety statement before
-delivery authorization, without a delivery assignment, only if the target's
-current adopted, drift-free policy explicitly permits it. This is not granted
-by the bundled policy. The active specialist must have independent HR endorsement,
+delivery authorization, without a delivery assignment, as the bundled workforce
+delegation policy permits once adopted. A resident may amend this away. The
+active specialist must have independent HR endorsement,
 manager approval, matching `permit-safety-class-3` competency, and a manager
 request tied to its requisition's work order and current screening. It returns
 evidence and a filing request to the manager; it cannot edit, execute, file,

@@ -53,7 +53,7 @@ recorded handover. Apply these practices to specialist engineers in Repository C
    (`node .github/skills/city-engineering-<id>/scripts/run-checks.mjs --root ABS`),
    and that the fixed governance section overrides the specialty text. Hand the
    staff ID to the Engineering Manager for assignment; do not assign it yourself.
-   For read/search-only staff, explain the generated policy-dependent class-3
+   For read/search-only staff, explain the generated workforce-policy class-3
    safety preparation exception: HR endorsement and manager approval do not
    themselves grant it. No toolkit execution or direct filing is permitted;
    preparation returns evidence and an author-attributed filing request to the

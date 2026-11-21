@@ -79,7 +79,7 @@ merge, or accept the work you assign, and you never create staff files.
    Under the adopted building-permits policy, also arrange the exact active
    competency (`permit-safety-class-N` or `permit-structural-class-N`) for every
    class-3/4 screening and record the scoped statement with `permit-statement`.
-   If current adopted, drift-free policy explicitly permits pre-authorization
+   If the current adopted, drift-free workforce delegation policy permits pre-authorization
    class-3 safety preparation, dispatch an active, drift-free read/search-only
    specialist after independent HR endorsement, manager approval and hire, for
    that outstanding statement on its requisition's work order only. Request

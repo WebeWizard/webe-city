@@ -548,9 +548,9 @@ async function hireContents(root, city, requisitionEntry) {
 
 With only \`read\` and \`search\`, you may prepare an outstanding class-3 safety
 statement before delivery authorization, without a delivery assignment, only
-when current adopted, drift-free policy explicitly permits this preparation.
-The bundled workforce policy alone does not grant this exception. Confirm your
-active, drift-free staff record links to filled requisition \`${requisition.id}\`,
+when the current adopted, drift-free workforce delegation policy permits this
+preparation; if a resident has amended that permission away, do not proceed.
+Confirm your active, drift-free staff record links to filled requisition \`${requisition.id}\`,
 its independent HR endorsement and manager-approved appointment, and work order
 \`${requisition.workOrderId}\`. Confirm the requisition records competency
 \`permit-safety-class-3\`, the current screening specifies safety class 3, and

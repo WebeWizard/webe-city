@@ -3467,17 +3467,12 @@ test('concurrent requisitions for one staff ID serialize without leaving duplica
   assert.equal((await readdir(path.join(root, '.city'))).includes('.mutation-lock'), false);
 });
 
-test('read-only hires prepare policy-permitted class-3 safety evidence without relaxing delivery assignment', async () => {
+test('read-only hires prepare bundled-policy class-3 safety evidence without relaxing delivery assignment', async () => {
   const { root } = await fixture();
   init(root);
-  const policyPath = path.join(root, '.city/policies/workforce-delegation.md');
-  await writeFile(policyPath, `${await readFile(policyPath, 'utf8')}
-## Resident amendment
-An HR-endorsed, manager-approved, read/search-only specialist may prepare an
-outstanding class-3 safety statement for its requisition's work order before
-delivery authorization, on a bounded manager request. No delivery, edits,
-execution, lifecycle changes, authorization or independent verification is permitted.
-`);
+  const policy = await readFile(path.join(root, '.city/policies/workforce-delegation.md'), 'utf8');
+  assert.match(policy, /## Pre-authorization safety statement preparation/u);
+  assert.match(policy, /before\ndelivery authorization, without a delivery assignment/u);
   success(adoptArgs(root, ['--apply']));
   const order = petition(root);
   transition(root, order.id, 'triaged');
@@ -3522,7 +3517,7 @@ execution, lifecycle changes, authorization or independent verification is permi
       assert.doesNotMatch(content, /\{\{[A-Z_]+\}\}/u);
       if (tools.length === 0) {
         assert.match(content, /before delivery authorization, without a delivery assignment/u);
-        assert.match(content, /current adopted, drift-free policy explicitly permits/u);
+        assert.match(content, /current adopted, drift-free workforce delegation policy permits/u);
         assert.match(content, /independent HR endorsement and manager-approved appointment/u);
         assert.ok(content.includes(requested.id));
         assert.ok(content.includes(order.id));

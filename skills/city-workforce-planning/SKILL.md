@@ -61,8 +61,8 @@ engineer is a new post created only through a merit-based, recorded route.
    beyond the fixed limits, or an appointment to any office other than a
    specialist engineer.
 8. **Deployment.** After the hire, assign the order and dispatch the engineer by
-   exact `agentName` only after delivery authorization. If current adopted,
-   drift-free policy explicitly permits pre-authorization class-3 safety
+   exact `agentName` only after delivery authorization. If the current adopted,
+   drift-free workforce delegation policy permits pre-authorization class-3 safety
    preparation, the manager may instead request the outstanding statement from
    an active, drift-free read/search-only specialist hired after HR endorsement
    and manager approval, within its requisition's work order and recorded

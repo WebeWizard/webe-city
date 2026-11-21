@@ -18,7 +18,8 @@ The resident delegates to the Engineering Manager the limited authority to
 appoint a specialist engineering agent, but only after Human Resources has
 reviewed and endorsed a specific requisition. The Engineering Manager must
 record an approve or decline decision with its reason. It may appoint only
-specialist engineers needed for an identified, authorized work order; it cannot
+specialist engineers needed for an identified, authorized work order, or for the
+pre-authorization class-3 safety statement preparation described below; it cannot
 appoint other municipal offices, alter this delegation, increase tool
 permissions, or approve its own requisition without independent HR review.
 
@@ -74,14 +75,25 @@ overwritten. A generated-file digest is recorded so `status` and `validate`
 can report missing or hand-edited files as drift. Drift is reported, not
 enforced; it does not authenticate a hire or grant new authority.
 
-This bundled policy does not permit pre-authorization evidence preparation.
-A resident may explicitly amend and adopt it to permit a read/search-only,
-HR-endorsed, manager-approved specialist to prepare an outstanding class-3 safety
-statement for its requisition's work order before delivery authorization. Such
-an amendment must keep preparation separate from delivery, assignment, edits,
-execution, lifecycle changes, authorization, and independent verification.
-The plugin's `docs/building-permits.md` documents the generated instruction
-limits; the runtime does not interpret policy prose.
+## Pre-authorization safety statement preparation
+
+A building permit's class-3 safety statement must exist before delivery can be
+authorized. This policy therefore permits a read/search-only specialist, hired
+after independent HR endorsement and the Engineering Manager's approved
+appointment, with recorded competency `permit-safety-class-3`, to prepare an
+outstanding class-3 safety statement for its requisition's work order before
+delivery authorization, without a delivery assignment, on a bounded request
+from the Engineering Manager.
+
+The specialist reads and searches only the scoped evidence, then returns the
+statement and an author-attributed filing request to the Engineering Manager,
+who records it with `permit-statement` and routes durable filing to the Records
+Officer. Preparation is not delivery: the specialist does not edit files,
+execute commands, record the statement, change lifecycle state, or authorize
+anything. It does not extend to class-4 or structural statements, independent
+verification, or reserved matters. Delivery still requires current
+authorization and assignment. A resident may remove this permission by
+amendment; the runtime does not interpret policy prose.
 
 ## Assignment, review, retirement, and revocation
 
