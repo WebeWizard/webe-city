@@ -189,8 +189,14 @@ export async function atomicRecord(city, recordDirectory, filename, content, exp
   const recordPath = path.join(city.path, recordDirectory);
   const target = path.join(recordPath, filename);
   const staged = path.join(city.path, `.pending-${randomUUID()}`);
-  const recordIdentity = city.directoryIdentities[recordDirectory];
   await assertIdentity(city.path, city.identity, 'City directory');
+  let recordIdentity = city.directoryIdentities[recordDirectory];
+  if (!recordIdentity) {
+    await ensureDirectories(city.path, recordDirectory, 'City record directory');
+    await assertIdentity(city.path, city.identity, 'City directory');
+    recordIdentity = await directory(recordPath, 'City record directory');
+    city.directoryIdentities[recordDirectory] = recordIdentity;
+  }
   await assertIdentity(recordPath, recordIdentity, 'City record directory');
   const stagedInfo = await exclusiveFile(staged, encodeJSON(content));
   try {

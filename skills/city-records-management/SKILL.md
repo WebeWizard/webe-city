@@ -29,6 +29,12 @@ legacy-unclassified; do not silently relabel them.
 
 ## Triggers and inputs
 
+Empty record directories may be absent after checkout. The runtime treats
+missing registers as empty and creates the destination on a confirmed record
+write, so no manual `mkdir` or hook bypass is needed. Missing referenced records,
+malformed records, symlinks, and non-directory paths still require reviewed
+recovery. Do not reinitialize an existing city or invent replacement decisions.
+
 - Use for record creation/review, corrections, broken references, handoffs, or recovery.
 - Require explicit root, record IDs, source artifacts, requested action, applicable
   record schema, retention/access policy, and any hold or privacy concern.

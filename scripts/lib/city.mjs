@@ -138,8 +138,8 @@ export async function loadCity(root, required = true) {
   await governanceLayout(cityPath);
   const currentGovernanceDigests = await governanceDigests(cityPath);
   const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, currentGovernanceDigests) : null;
-  const orders = await readRecords(cityPath, 'work-orders', validateWorkOrder, config.cityId);
-  const decisions = await readRecords(cityPath, 'decisions', validateDecision, config.cityId);
+  const orders = await readRecords(cityPath, 'work-orders', validateWorkOrder, config.cityId, true);
+  const decisions = await readRecords(cityPath, 'decisions', validateDecision, config.cityId, true);
   const recordsRequests = await readRecords(
     cityPath, 'records-requests', validateRecordsRequest, config.cityId, true,
   );
