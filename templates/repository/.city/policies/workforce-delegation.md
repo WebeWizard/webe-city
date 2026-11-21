@@ -74,6 +74,15 @@ overwritten. A generated-file digest is recorded so `status` and `validate`
 can report missing or hand-edited files as drift. Drift is reported, not
 enforced; it does not authenticate a hire or grant new authority.
 
+This bundled policy does not permit pre-authorization evidence preparation.
+A resident may explicitly amend and adopt it to permit a read/search-only,
+HR-endorsed, manager-approved specialist to prepare an outstanding class-3 safety
+statement for its requisition's work order before delivery authorization. Such
+an amendment must keep preparation separate from delivery, assignment, edits,
+execution, lifecycle changes, authorization, and independent verification.
+The plugin's `docs/building-permits.md` documents the generated instruction
+limits; the runtime does not interpret policy prose.
+
 ## Assignment, review, retirement, and revocation
 
 Only active staff may be assigned. The Engineering Manager assigns a specialist

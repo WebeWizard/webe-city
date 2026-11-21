@@ -30,6 +30,21 @@ pipeline; it does not create a second approval route.
 3. Classes 3 and 4 need matching competencies in active engineer staff records.
    Class 4 also needs a second qualified verifier. Labels are unauthenticated
    local records, not licences.
+   A target may explicitly adopt a workforce-policy amendment permitting a
+   read/search-only specialist, hired after independent HR endorsement and
+   manager approval, to prepare an outstanding class-3 safety statement before
+   delivery authorization. Generated instructions require current, drift-free
+   adoption, active drift-free staff, `permit-safety-class-3` competency, the
+   requisition's work order, its current screening revision, and a bounded manager
+   request. No delivery assignment is needed for this preparation; `assign`
+   still refuses unauthorized orders. The specialist returns evidence and an
+   author-attributed filing request; the Engineering Manager records
+   `permit-statement` and routes durable filing to the Records Officer. No edits,
+   execution, lifecycle transitions, class-4 or structural work, verification,
+   or delivery authority are granted. This adapts professional preparation of
+   application evidence, not commencement of permitted building work.
+   The bundled workforce policy does not grant this exception; the runtime
+   records sequencing but does not interpret policy prose or authenticate actors.
 4. Council may authorize classes 1–3 under its adopted delegation; class 4 is
    resident-reserved. Authorization includes permit conditions and any
    affected-project consent declarations.

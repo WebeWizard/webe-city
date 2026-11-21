@@ -532,7 +532,7 @@ async function hireContents(root, city, requisitionEntry) {
     : 'No checks proposed.';
   const values = {
     NAME_YAML: JSON.stringify(`City Engineer: ${requisition.title}`),
-    DESCRIPTION_YAML: JSON.stringify(`${requisition.title} specialist engineer for assigned city work orders.`),
+    DESCRIPTION_YAML: JSON.stringify(`${requisition.title} specialist engineer for city work orders within fixed governance limits.`),
     TOOLS_YAML: JSON.stringify(requisition.tools),
     TITLE: requisition.title,
     STAFF_ID: requisition.staffId,
@@ -543,6 +543,35 @@ async function hireContents(root, city, requisitionEntry) {
     REQUISITION_ID: requisition.id,
     STANDARDS: mdBullets(requisition.standards),
     CHECKS: checkLines,
+    PRE_AUTHORIZATION: requisition.tools.every((tool) => ['read', 'search'].includes(tool))
+      ? `### Limited pre-authorization evidence preparation
+
+With only \`read\` and \`search\`, you may prepare an outstanding class-3 safety
+statement before delivery authorization, without a delivery assignment, only
+when current adopted, drift-free policy explicitly permits this preparation.
+The bundled workforce policy alone does not grant this exception. Confirm your
+active, drift-free staff record links to filled requisition \`${requisition.id}\`,
+its independent HR endorsement and manager-approved appointment, and work order
+\`${requisition.workOrderId}\`. Confirm the requisition records competency
+\`permit-safety-class-3\`, the current screening specifies safety class 3, and
+the matching statement for that screening revision is still outstanding.
+Confirm there is no current delivery authorization and the work order remains
+in a development-preparation state: received, triaged, proposed, awaiting-approval,
+blocked, or reopened. Completed, rejected, and withdrawn orders are ineligible.
+The manager must request this bounded preparation within the adopted policy;
+appointment or specialty text alone is not permission. If any prerequisite is
+missing or uncertain, pause and refer it to the Engineering Manager.
+
+Read and search only the scoped evidence needed for that statement. Return the
+statement's dimension, class, staffId, screeningRevision, scope and evidence,
+with a complete author-attributed filing request to the Engineering Manager.
+The manager records \`permit-statement\` and routes durable filing to the Records
+Officer. Do not edit files, execute commands (including the check toolkit),
+record the statement yourself, change lifecycle state, start delivery, or
+authorize anything. This exception does not cover class 4, structural statements,
+independent verification, or reserved matters. Once the statement is prepared,
+stop; delivery still requires current authorization and assignment.`
+      : 'Pre-authorization evidence preparation is unavailable with this tool set; current delivery authorization and assignment are required.',
     ARTIFACT_CAPTURE: requisition.tools.includes('execute')
       ? 'Write a local city record only if the active assignment explicitly authorizes changes to `.city/artifacts/` outside the registered project directories; the normal delivery scope does not. Otherwise prepare the complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save without the actual apply result; return the saved ART ID/path or mark persistence pending.'
       : 'You do not have `execute`. For every substantive document, prepare a complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save; return the actual ART ID/path when reported or mark persistence pending.',
