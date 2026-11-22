@@ -69,6 +69,11 @@ engineer is a new post created only through a merit-based, recorded route.
    `permit-safety-class-3` competency. No delivery assignment is created for this
    preparation; the manager records the returned statement with `permit-statement`
    and routes its author-attributed filing request to the Records Officer.
+   For class-3 implementation, assess delivery duties separately: assign an
+   active specialist when the work requires defined expertise, or requisition a
+   delivery-capable specialist if none fits. A read/search-only statement
+   preparer cannot implement the work, and class 3 alone does not justify a new
+   post.
    Reassign, with reasons, when competence or availability
    changes; the latest assignment is the current one.
 9. **Review.** Revisit posts periodically: an idle or obsolete specialist goes

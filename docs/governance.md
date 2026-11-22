@@ -1,6 +1,6 @@
 # Governance and institutional memory
 
-**DRAFT — 0.5.1 pilot.** The supplied templates propose responsibilities; none is adopted policy, an appointed employee, a human decision, or permission to deliver until a resident adopts them. Plugin installation is not city founding. Local initialization is paperwork, not enrollment or proof of consent. Once governance is adopted, the runtime records delivery authorization and acceptance decisions; those decisions are recorded, not authenticated.
+**DRAFT — 0.5.2 pilot.** The supplied templates propose responsibilities; none is adopted policy, an appointed employee, a human decision, or permission to deliver until a resident adopts them. Plugin installation is not city founding. Local initialization is paperwork, not enrollment or proof of consent. Once governance is adopted, the runtime records delivery authorization and acceptance decisions; those decisions are recorded, not authenticated.
 
 ## Missing empty record directories
 
@@ -69,6 +69,8 @@ and a bounded manager request on the requisition's work order. It bypasses only
 the delivery gate for statement preparation, not `assign`, authorization, or
 lifecycle transitions. A resident may amend the permission away; existing
 cities adopt the revised policy with `amend` before it applies.
+For class-3 implementation, the manager separately assesses delivery expertise;
+a read/search-only statement preparer is not an implementation engineer.
 Existing generated files are not rewritten by an upgrade; reconcile them through
 a reviewed replacement hire rather than bypassing their recorded digests.
 

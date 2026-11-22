@@ -46,6 +46,16 @@ certifications. All records remain `authenticated: false`. If no qualified
 staff member exists, pause and seek a resident decision about staffing; do not
 lower the class to avoid the requirement.
 
+For class-3 delivery, assess implementation staffing separately from statement
+preparation. Assign an active specialist when the implementation duties require
+defined specialist expertise; otherwise, ordinary work may be assigned to the
+bundled general engineer. A statement competency alone does not establish
+delivery fit, and a read/search-only specialist hired for pre-authorization
+safety preparation cannot implement the work. If the required delivery expertise
+is not available, requisition a delivery-capable specialist under the workforce
+delegation policy before starting delivery. Class 3 by itself does not justify
+creating a post.
+
 ## Permit decision, scope, and terms
 
 The adopted development policy must establish readiness before a work order
