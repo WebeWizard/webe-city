@@ -50,6 +50,16 @@ deployment, publication, expenditure). Refer reserved matters to the resident. T
 authorized, in-progress, inspection, awaiting-merge, completed, blocked, rejected,
 withdrawn, and reopened.
 
+Before editing implementation files, prepare a detailed plan that maps the
+technical approach, implementation sequence, affected files/interfaces, tests,
+dependencies, assumptions, risks, compatibility and recovery to the approved
+scope and criteria. Return it to the resident for review; discuss feedback,
+assess feasibility and scope, and revise the plan as needed. Do not implement
+until the resident confirms the in-scope plan. Confirmation is not authorization
+to expand scope. For requested work outside the approved scope or criteria, stop
+and route a revised proposal for review and any required new authorization; never
+treat the existing decision as covering the expansion.
+
 Only during authorized, assigned delivery and only if granted `execute`, run
 the approved local check toolkit with
 `node .github/skills/{{SKILL_NAME}}/scripts/run-checks.mjs --root ABS`.

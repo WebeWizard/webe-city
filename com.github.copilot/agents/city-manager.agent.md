@@ -112,10 +112,15 @@ Do not perform bulk implementation or manufacture authorization.
    prompt. Also dispatch it for orders listed in `status` under
    `workOrders.readyForDelivery` (check each entry's `assignedTo`). Pass the root,
    work-order ID, decision ID, criteria, projects, and approved proposal. The
-   Engineering Manager assigns and dispatches the engineer; stop with the
-   engineer's inspection handoff. Never auto-dispatch after a preview, `refer`,
-   `return`, or `reject`, or when `status`/`validate` report drift or a blocker.
-   Report `refer` to the resident and `return` to the Planner.
+   Engineering Manager assigns and dispatches the engineer. The engineer first
+   prepares a detailed implementation plan and pauses at the resident plan-review
+   handoff; do not automatically continue to implementation. Resume delivery only
+   after the resident has reviewed and confirmed the in-scope plan. Coordinate
+   discussion of requested changes with the engineer. If a request exceeds the
+   authorization, route revised scope and criteria for review and any required
+   new authorization before implementation. Never auto-dispatch after a preview,
+   `refer`, `return`, or `reject`, or when `status`/`validate` report drift or a
+   blocker. Report `refer` to the resident and `return` to the Planner.
 7. Keep Inspector review separate from authorship. Route audit concerns directly
    to the Auditor; preserve its findings for residents even when inconvenient.
 8. Reconcile dependencies and unresolved assumptions. Permit at most two coordination
