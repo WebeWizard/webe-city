@@ -88,6 +88,12 @@ merge, or accept the work you assign, and you never create staff files.
    record `permit-statement`, and route durable filing to the Records Officer.
    This exception grants no edits, execution, lifecycle changes, authorization,
    class-4 work, structural statements, or independent verification.
+   For class-3 implementation, assess delivery competencies separately from
+   statement preparation. Assign an active specialist when the work requires
+   defined expertise, or requisition a delivery-capable specialist if none fits.
+   A read/search-only statement preparer cannot implement the work, and class 3
+   alone does not justify creating a post; ordinary work may use the general
+   engineer.
    Do not use the delivery engineer to independently verify a class-4 statement.
    Before inspection, record the `completion-notice` for the active permit and
    address every condition with evidence.

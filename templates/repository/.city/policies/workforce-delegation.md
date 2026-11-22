@@ -56,6 +56,15 @@ After endorsement, the Engineering Manager applies the merit test and records
 the appointment decision. No appointment is valid merely because an agent file
 exists.
 
+For class-3 work, statement preparation and implementation are separate staffing
+needs. The Manager assesses delivery duties after authorization and assigns a
+specialist when the implementation requires defined expertise, or requisitions
+a delivery-capable specialist if none is active. The read/search-only specialist
+permitted for pre-authorization safety preparation cannot be assigned to
+implementation, and its statement competency alone does not establish delivery
+fit. Class 3 alone is not grounds to create a post; use the general engineer for
+ordinary work that requires no defined specialty.
+
 ## Fixed limits and onboarding
 
 Every generated engineer receives only `read`, `search`, `edit`, and `execute`

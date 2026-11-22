@@ -69,6 +69,8 @@ and a bounded manager request on the requisition's work order. It bypasses only
 the delivery gate for statement preparation, not `assign`, authorization, or
 lifecycle transitions. A resident may amend the permission away; existing
 cities adopt the revised policy with `amend` before it applies.
+For class-3 implementation, the manager separately assesses delivery expertise;
+a read/search-only statement preparer is not an implementation engineer.
 Existing generated files are not rewritten by an upgrade; reconcile them through
 a reviewed replacement hire rather than bypassing their recorded digests.
 

@@ -108,7 +108,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.5.2');
+  assert.equal(manifest.version, '0.5.3');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -267,9 +267,14 @@ test('workforce policy favors required specialization over generalist capability
   const workforcePlanning = await readFile(path.join(root, 'skills/city-workforce-planning/SKILL.md'), 'utf8');
   const recruitment = await readFile(path.join(root, 'skills/city-recruitment-and-onboarding/SKILL.md'), 'utf8');
   const delegation = await readFile(path.join(root, 'templates/repository/.city/policies/workforce-delegation.md'), 'utf8');
+  const permits = await readFile(path.join(root, 'templates/repository/.city/policies/building-permits.md'), 'utf8');
+  const permitSkill = await readFile(path.join(root, 'skills/city-building-permits/SKILL.md'), 'utf8');
   assert.match(workforcePlanning, /if a work order requires specialized expertise and no active specialist has\s+it, that is a gap/i);
   assert.match(recruitment, /general capability alone does not count\s+as a fit/i);
   assert.match(delegation, /building a\s+React website requires React expertise/i);
+  assert.match(permits, /For class-3 delivery, assess implementation staffing separately from statement\s+preparation/i);
+  assert.match(permits, /read\/search-only specialist hired for pre-authorization\s+safety preparation cannot implement the work/i);
+  assert.match(permitSkill, /For class-3 work, assess delivery staffing separately from statement\s+preparation/i);
 });
 
 test('every listed lifecycle names the full set of runtime states', async () => {
