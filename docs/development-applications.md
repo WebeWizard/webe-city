@@ -97,6 +97,13 @@ blocker. These commands append revisions rather than editing an existing
 screening or statement; do not create an artifact as a substitute for the
 requested structured record.
 
+The `screen-development` preview validates the screening input and current city
+state without writing. A separate `validate` command is not a prerequisite to
+applying a successful preview, though the Records Officer may run it for the
+selected root when requested. Review the preview and obtain the required
+confirmation before `--apply`; apply rechecks current state and may still fail.
+Report the exact command and error if a check or write fails.
+
 ### Screening — fixed source `chief-planner`
 
 All keys shown are required. A lightweight example:

@@ -66,6 +66,10 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
+   The `screen-development` preview validates the submitted screening and current
+   city state; a separate `validate` command is not a prerequisite for applying
+   a successful preview. Apply still rechecks the current state and may fail if
+   it changed. Report the exact command and error when a check or write fails.
    These commands append revisions; they do not amend an existing screening or
    statement. Do not file a duplicate artifact to substitute for a structured
    record. If the requested destination or payload is unclear, stop and clarify.
@@ -75,12 +79,15 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    screening references before applying.
 6. On Manager request, run the packaged CLI `status` for the selected root and
    return the requested case's current lifecycle and development `actionable`,
-   `stage`, `next`, missing evidence and questions. Report failures unchanged.
+   `stage`, `next`, missing evidence and questions. The read-only `validate`
+   command is also permitted for the selected root; return its actual result.
+   Report failures unchanged.
    Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
-   `status` and records commands (including these intake/development persistence commands)
-   and `artifact-record` for the exact selected repository root, never arbitrary shell
-   commands, repository scripts, or user-supplied command text.
+   `status`, `validate`, and records commands (including these intake/development
+   persistence commands) and `artifact-record` for the exact selected repository
+   root, never arbitrary shell commands, repository scripts, or user-supplied
+   command text.
 7. Use [records appraisal](../../skills/city-records-appraisal/SKILL.md) to propose
    retention, archival value, holds, and disposition. Unknown policy means preserve.
 8. Document recovery prerequisites and proposed restore checks without claiming
