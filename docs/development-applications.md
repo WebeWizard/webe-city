@@ -90,6 +90,12 @@ node "<installed-plugin>/scripts/city.mjs" assess-application --root "<repositor
 RSO/Advisor/Planner, which have no execute tool, prepare commands for Records
 Officer through Manager. The Officer persists the supplied professional finding,
 not its own substitute assessment, and returns the actual canonical revision.
+The package does not install a `city` executable on PATH. Use the actual absolute
+installed plugin path in the examples; the hook's `PLUGIN_ROOT` is not guaranteed
+to be available in an agent shell. If the path is unknown, stop and report the
+blocker. These commands append revisions rather than editing an existing
+screening or statement; do not create an artifact as a substitute for the
+requested structured record.
 
 ### Screening — fixed source `chief-planner`
 

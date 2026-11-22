@@ -108,7 +108,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.5.1');
+  assert.equal(manifest.version, '0.5.2');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -486,6 +486,10 @@ test('development coordination continues through persisted independent assessmen
 
   const records = await readFile(path.join(agentsPath, 'records-officer.agent.md'), 'utf8');
   assert.match(records, /On Manager request, run the packaged CLI `status`/);
+  assert.match(records, /node "<installed-plugin>\/scripts\/city\.mjs"/);
+  assert.match(records, /does not provide a `city` command\s+on PATH/);
+  assert.match(records, /append revisions; they do not amend an existing screening or\s+statement/);
+  assert.match(records, /do not file a duplicate artifact/i);
   const advisor = await readFile(path.join(agentsPath, 'development-advisor.agent.md'), 'utf8');
   assert.match(advisor, /interim handoff, not a request for the resident/);
   assert.match(advisor, /invoked directly without a coordinating caller[\s\S]*cannot dispatch/);

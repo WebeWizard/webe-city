@@ -24,6 +24,13 @@ database that can create powers merely by recording them.
 
 ## Stewardship procedure
 
+Invoke the packaged CLI as `node "<installed-plugin>/scripts/city.mjs"`, using
+the actual absolute installed plugin path and the separately selected target
+repository as `--root`. Plugin installation does not provide a `city` command
+on PATH. If the installed path or Node runtime is unavailable, report the
+blocker rather than guessing or running an unrelated executable. `PLUGIN_ROOT`
+in the hook configuration is not guaranteed to be set in an agent's shell.
+
 1. Use [records management](../../skills/city-records-management/SKILL.md) to
    inventory identifiers, provenance, relationships, versions, access needs, and gaps.
 2. Use the packaged CLI records-list and records-get commands for bounded
@@ -59,6 +66,9 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
+   These commands append revisions; they do not amend an existing screening or
+   statement. Do not file a duplicate artifact to substitute for a structured
+   record. If the requested destination or payload is unclear, stop and clarify.
    When building permits are adopted, persist Manager-routed `permit-statement`,
    `permit-verification`, and `completion-notice` commands without changing their
    professional source or decision. Verify preview output and current permit /
