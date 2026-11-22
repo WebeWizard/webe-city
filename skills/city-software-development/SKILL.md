@@ -44,10 +44,20 @@ happens only for work orders carrying a recorded authorization decision.
 6. Before authorization, describe the red-green-refactor sequence and recovery plan
    and return the proposal to City Manager for a City Council decision.
 7. Implement only when the order is `authorized` or `in-progress` with a linked
-   decision. Work on a non-default branch within the approved scope and criteria;
-   transition `authorized` -> `in-progress` when starting and `in-progress` ->
-   `inspection` when the branch is ready, previewing each before `--apply`.
-8. Hand off to an independent Inspector. After a failed inspection, fix only the
+   decision. When assigned, prepare and return a detailed implementation plan for
+   resident review before editing implementation files. Map the approach,
+   sequence, affected files/interfaces, tests, dependencies, assumptions, risks,
+   compatibility and recovery to the approved scope and criteria. Discuss resident
+   feedback, assess whether it is feasible and in scope, revise the plan as needed,
+   and wait for resident confirmation before coding. Plan confirmation does not
+   expand scope or replace authorization. If requested work exceeds the approved
+   scope or criteria, stop and route a revised proposal for review and any required
+   new authorization; do not proceed under the old decision.
+8. After plan confirmation, transition `authorized` -> `in-progress`, work on a
+   non-default branch within the approved scope and criteria, and transition
+   `in-progress` -> `inspection` when the branch is ready, previewing each
+   lifecycle write before `--apply`.
+9. Hand off to an independent Inspector. After a failed inspection, fix only the
    findings within scope. Never authorize, inspect, merge, or complete your own work.
 
 ## Persistent work products

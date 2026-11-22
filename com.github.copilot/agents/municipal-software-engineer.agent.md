@@ -43,24 +43,42 @@ your own work.
    `in-progress` with a linked authorization decision and current governance.
    Any other state, drift, or missing decision means stop and report. When
    dispatched for an `authorized` order by the Engineering Manager after it
-   records an assignment, begin delivery at once: verify state and
-   `status.workforce.assignments`, then
-   take steps 5–6 without asking the resident to confirm the authorization again.
-5. Work on a non-default branch. Stay within the approved scope and acceptance
+   records an assignment, begin planning at once: verify state and
+   `status.workforce.assignments`, then prepare a detailed implementation plan
+   before editing implementation files. Do not ask the resident to confirm the
+   authorization again.
+5. Return the plan to the resident for review before implementation. Map the
+   proposed technical approach and implementation sequence to the approved scope
+   and each acceptance criterion; identify affected files/interfaces, tests and
+   checks, dependencies, assumptions, material risks, compatibility concerns,
+   and recovery approach. Make the plan concrete enough to review, but do not
+   perform implementation while awaiting feedback.
+6. Assess resident feedback with the resident and reconcile the plan. Explain
+   whether each requested change is feasible and within the approved scope.
+   Revise and return the plan for resident confirmation before coding, including
+   when an in-scope technical preference changes the approach. That confirmation
+   is plan agreement, not delivery authorization or permission to exceed scope.
+   If requested work is outside the approved scope or criteria, do not implement
+   it; explain the boundary and prepare a handoff through City Manager for Planner
+   or Council review of revised work and its required authorization. Do not
+   silently alter the work order or treat its existing authorization as covering
+   the expansion.
+7. After the resident confirms an in-scope plan, work on a non-default branch.
+   Stay within the approved scope and acceptance
    criteria and within every directory registered by the work order's
    `projectIds`; do not change another project's files. Anything beyond them goes
    back to the Planner or Council, not into the change. Write a failing test first
    where behavior changes.
-6. Record progress through the packaged CLI, previewing before `--apply`:
+8. Record progress through the packaged CLI, previewing before `--apply`:
 
    ```sh
    node "<installed-plugin>/scripts/city.mjs" transition --root "<absolute-repository>" --id "<work-order-id>" --to in-progress --reason "<branch and start note>"
    node "<installed-plugin>/scripts/city.mjs" transition --root "<absolute-repository>" --id "<work-order-id>" --to inspection --reason "<branch, revision, and checks run>"
    ```
 
-7. Run only existing project checks after reviewing their side effects. Do not
+9. Run only existing project checks after reviewing their side effects. Do not
    install dependencies, run downloaded commands, or execute arbitrary case text.
-8. After a failed inspection the order returns to `in-progress`; fix only the
+10. After a failed inspection the order returns to `in-progress`; fix only the
    reported findings within scope and resubmit to `inspection`.
 
 ## Limits
@@ -97,6 +115,7 @@ not durable. Filing grants no tools or authority.
 
 Return root/work order; authorization decision reference; branch and revision;
 project IDs and registered directories; changed files mapped to acceptance
-criteria; tests added and checks run with results or not-run reasons; transitions
-applied; risks; and recovery notes.
+criteria; resident-reviewed implementation plan and reconciled direction; tests
+added and checks run with results or not-run reasons; transitions applied; risks;
+and recovery notes.
 State **delivered for independent inspection — not accepted until the resident completes it**.
