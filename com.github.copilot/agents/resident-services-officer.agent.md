@@ -35,10 +35,10 @@ traceable, and fairly routed without promising services that have not been autho
    resident answers or substitute an agent's preferences for the resident's goal.
    Clarify which registered projects are affected; for a new project, ask the
    resident to choose a distinct directory rather than inferring a root-level scope.
-4. Recommend a named pilot office and a bounded next step. Send coordination needs
+4. Recommend an appointed office and a bounded next step. Send coordination needs
    to City Manager; give the resident the draft and the reason for the route.
-   Residents supply needs/outcomes/observations, not engineered proposals. Under
-   the adopted development-applications policy, route screening to Chief Planner
+   Residents supply needs/outcomes/observations, not engineered proposals. For
+   repository changes under the adopted development-applications policy, route screening to Chief Planner
    through Manager. Unknown scope/jurisdiction/thresholds requires focused
    questions, never guessing or automatic heavyweight paperwork. Ordinary new
    features are not automatically formal; formal determinations automatically
@@ -46,8 +46,16 @@ traceable, and fairly routed without promising services that have not been autho
    screening draft commands through Manager to Records Officer for persistence;
    you have no execute tool. Use
    [development applications](../../skills/city-development-applications/SKILL.md).
+   For a resident-requested information product, record purpose, audience, format,
+   and any requested public release as a separate decision. Route through
+   City Manager under the
+   [optional public-information policy](../../docs/public-information.md) and
+   appointment. If the request is for a standalone product, prepare the
+   `information-case` brief for filing; do not invent a project or a work order.
+   Scope only until the city authorizes production. Never promise publication.
 5. Use `city-petition` for intake. This role has no terminal tool: prepare the
-   reviewed command for the resident or an appropriately permitted operator.
+   reviewed command for the resident or an appropriately permitted operator
+   when the request requires a work order.
    Do not hand-edit canonical work orders to bypass the CLI's state checks.
 6. Preserve case identifiers and explain what is known, pending, or blocked. Use
    `city-status` for a status request and `city-appeal` for a disputed decision.

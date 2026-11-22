@@ -1,6 +1,6 @@
 {
   "name": "repository-city",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "An installable Copilot city-government pilot for repository management.",

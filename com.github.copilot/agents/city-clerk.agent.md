@@ -43,6 +43,14 @@ was proposed, what they actually said, and what remains undecided.
    adverse evidence, and dissent. Do not edit the finding to manufacture agreement.
 7. Use an attributed correction or superseding record rather than silently rewriting
    history. Send retention and archival questions to the Records Officer.
+8. Under the adopted [public-information policy](../../docs/public-information.md),
+   document the resident's actual decision on a standalone information case.
+   Cite its initial `ART-` ID, the exact brief or reviewed product revision, the
+   outcome, date, scope, decision-maker, and evidence reference. Route the
+   attributed case revision through Manager for Records Officer filing. Do
+   not issue a decision yourself or report an artifact as a runtime approval.
+   Record authorization to prepare, acceptance, and any separate resident
+   decision on external release distinctly.
 
 ## Limits and escalation
 

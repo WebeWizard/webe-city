@@ -20,6 +20,7 @@ const agentIds = [
   'human-resources-officer',
   'municipal-software-engineer',
   'performance-and-innovation-officer',
+  'public-information-officer',
   'records-officer',
   'resident-services-officer',
 ];
@@ -37,6 +38,7 @@ const professionalSkills = [
   'master-planning',
   'minute-taking',
   'plan-checking',
+  'public-information-writing',
   'records-appraisal',
   'records-capture',
   'records-management',
@@ -108,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.5.4');
+  assert.equal(manifest.version, '0.6.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -152,7 +154,7 @@ test('the local development marketplace points to the same versioned plugin', as
   assert.equal(path.resolve(root, entry.source), path.resolve(root));
 });
 
-test('the thirteen pilot offices have distinct identities and explicit least-tool contracts', async () => {
+test('bundled offices have distinct identities and explicit least-tool contracts', async () => {
   const files = (await readdir(agentsPath)).filter((name) => name.endsWith('.agent.md')).sort();
   assert.deepEqual(files, agentIds.map((name) => `${name}.agent.md`));
   const identities = new Set();
@@ -190,6 +192,10 @@ test('the thirteen pilot offices have distinct identities and explicit least-too
   assert.ok(manager.agents.includes('City: Development Advisor'));
   assert.deepEqual(definitions.get('development-advisor.agent.md').tools, ['read', 'search', 'edit']);
   assert.ok(manager.agents.includes('City: Performance and Innovation Officer'));
+  const information = definitions.get('public-information-officer.agent.md');
+  assert.equal(information.name, 'City: Public Information Officer');
+  assert.ok(manager.agents.includes(information.name));
+  assert.deepEqual(information.tools, ['read', 'search']);
   assert.match(await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8'), /check for institutional reviews automatically/i);
   for (const filename of ['building-inspector.agent.md', 'city-auditor.agent.md', 'city-council.agent.md']) {
     assert.ok(!definitions.get(filename).tools.includes('edit'), filename);
@@ -331,6 +337,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
     assert.ok(charter.includes(`| ${office} | \`${definition}\` |`), `Missing default appointment: ${office}`);
   }
   assert.match(charter, /thirteen pilot offices/);
+  assert.doesNotMatch(charter, /public-information-officer\.agent\.md/, 'The optional officer is not a default appointment');
   assert.match(charter, /\(policies\/council-delegation\.md\)/);
   assert.match(charter, /resident remains sovereign/i);
   assert.match(charter, /final acceptance/i);
@@ -338,7 +345,7 @@ test('the default charter appoints the bundled pilot roster upon valid adoption'
   assert.doesNotMatch(charter, /paused in the first slice|First-slice boundary/);
 });
 
-test('all twenty-nine skills are discoverable, substantive, and correctly scoped', async () => {
+test('all thirty skills are discoverable, substantive, and correctly scoped', async () => {
   const expected = [...professionalSkills, ...residentSkills].sort();
   const entries = await readdir(path.join(root, 'skills'), { withFileTypes: true });
   const actual = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -387,6 +394,9 @@ test('founding documents remain unadopted without draft or template labels', asy
   }
   const zoningDraft = await readFile(path.join(template, 'policy-drafts/zoning.md'), 'utf8');
   assert.match(zoningDraft, /Initialization status: Not adopted\./);
+  const informationDraft = await readFile(path.join(template, 'policy-drafts/public-information.md'), 'utf8');
+  assert.match(informationDraft, /Initialization status: Not adopted\./);
+  assert.equal(existsSync(path.join(template, 'policies/public-information.md')), false);
   assert.deepEqual(await json('templates/repository/.city/projects.json'), { schemaVersion: 1, projects: [] });
   assert.equal(existsSync(path.join(template, 'config.json')), false);
 });
@@ -540,11 +550,13 @@ test('resident documentation and founding templates have no broken local referen
     'docs/compatibility.md',
     'docs/development-applications.md',
     'docs/zoning.md',
+    'docs/public-information.md',
     'docs/infrastructure-plan.md',
     'skills/city-asset-management/SKILL.md',
     'templates/repository/.city/charter.md',
     'templates/repository/.city/instruction-fragment.md',
     'templates/repository/.city/policy-drafts/zoning.md',
+    'templates/repository/.city/policy-drafts/public-information.md',
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
   ];
   for (const file of files) await markdownLinksExist(path.join(root, file));
@@ -599,6 +611,7 @@ test('the distributable contains runtime resources but no development profile or
     'templates/repository/.city/instruction-fragment.md',
     'templates/repository/.city/projects.json',
     'templates/repository/.city/policy-drafts/zoning.md',
+    'templates/repository/.city/policy-drafts/public-information.md',
     'templates/workforce/agent.md',
     'templates/workforce/skill.md',
     'templates/workforce/practice.md',
@@ -610,6 +623,7 @@ test('the distributable contains runtime resources but no development profile or
     'docs/zoning.md',
     'docs/infrastructure-plan.md',
     'docs/artifact-library.md',
+    'docs/public-information.md',
     ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
     ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),
   ]) {

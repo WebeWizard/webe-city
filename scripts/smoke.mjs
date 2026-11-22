@@ -96,6 +96,77 @@ function completionNotice(root, id, permitId) {
   });
 }
 
+async function smokePublicInformation(root, adoptedOn) {
+  const policy = 'policies/public-information.md';
+  const cityPath = path.join(root, '.city');
+  const charterPath = path.join(cityPath, 'charter.md');
+  const adoptionArgs = ['--root', root, '--adopted-on', adoptedOn, '--declared-by', 'Smoke resident'];
+  const validate = () => command(cli, ['validate', '--root', root]);
+  const record = (data, apply = true) => command(cli, [
+    'artifact-record', '--root', root, '--data', JSON.stringify({
+      kind: 'information-case', format: 'markdown', workOrderId: null,
+      supersedes: null, recordCategory: 'filed-work-product', ...data,
+    }), ...(apply ? ['--apply'] : []),
+  ]);
+
+  command(cli, ['init', '--root', root, '--name', 'Information City', '--apply']);
+  const draftPath = path.join(cityPath, 'policy-drafts/public-information.md');
+  assert.ok(existsSync(draftPath), 'Initialization must offer the optional policy');
+  assert.equal(existsSync(path.join(cityPath, policy)), false);
+  command(cli, ['adopt', ...adoptionArgs, '--evidence', 'Smoke adoption of the default charter.', '--apply']);
+  assert.equal(validate().city.adoption.policies.some((entry) => entry.path === policy), false);
+  assert.equal(validate().records.artifacts, 0);
+
+  await cp(draftPath, path.join(cityPath, policy));
+  const optionalAppointment = /^```markdown\r?\n([\s\S]+?)^```$/m.exec(await readFile(draftPath, 'utf8'))?.[1];
+  assert.match(optionalAppointment ?? '', /public-information-officer\.agent\.md/);
+  await writeFile(charterPath, `${await readFile(charterPath, 'utf8')}\n${optionalAppointment}`);
+  command(cli, [
+    'amend', ...adoptionArgs, '--evidence', 'Smoke resident opted in to the information policy and appointment.',
+    '--summary', 'Appoint the optional office without commissioning any work.', '--apply',
+  ]);
+  const enabled = validate();
+  assert.ok(enabled.city.adoption.policies.some((entry) => entry.path === policy));
+  assert.equal(enabled.records.artifacts, 0, 'Opting in must not commission a product');
+
+  // Exercise the documentary workflow; agents interpret the case notes, not the CLI.
+  const title = 'Brief for a resident meeting';
+  const brief = {
+    title, sourceOffice: 'resident-services-officer',
+    content: 'Smoke request: explain how to follow a case. Audience: meeting participants only.\n',
+  };
+  assert.equal(record(brief, false).dryRun, true);
+  assert.equal(validate().records.artifacts, 0);
+  const request = record(brief).artifact;
+  const approved = record({
+    title, sourceOffice: 'city-clerk', supersedes: request.id,
+    content: `Case ${request.id}: smoke resident authorized this exact brief on ${adoptedOn}. Evidence: synthetic meeting decision.\n`,
+  }).artifact;
+  const product = record({
+    title, kind: 'information-product', sourceOffice: 'public-information-officer',
+    content: `Case ${request.id}; preparation decision ${approved.id}.\n\nUse the case identifier to ask Resident Services for a status update.\n`,
+  }).artifact;
+  const accepted = record({
+    title, sourceOffice: 'city-clerk', supersedes: approved.id,
+    content: `Case ${request.id}: smoke resident accepted ${product.id} on ${adoptedOn} for meeting participants only. Evidence: synthetic meeting acceptance.\n`,
+  }).artifact;
+  assert.equal(product.workOrderId, null);
+  assert.equal(approved.authenticated, false);
+  const saved = command(cli, ['records-get', '--root', root, '--id', approved.id, '--linked']).records[0];
+  assert.ok(saved.linked.some((entry) => entry.id === accepted.id));
+
+  const release = record({
+    title, sourceOffice: 'city-clerk', supersedes: accepted.id,
+    content: `Case ${request.id}: smoke resident declined a separate request to publish ${product.id} externally on ${adoptedOn}. Evidence: synthetic release refusal.\n`,
+  }).artifact;
+  assert.equal(release.supersedes, accepted.id);
+  command(cli, ['publish', '--root', root], { failure: true });
+  const final = validate();
+  assert.equal(final.records.artifacts, 5);
+  assert.equal(final.records.workOrders, 0);
+  assert.equal(final.records.decisions, 0);
+}
+
 const permitTerms = JSON.stringify({ conditions: [], rightOfWay: [] });
 
 const temporary = path.join(pluginRoot, `.smoke-${randomUUID()}`);
@@ -105,8 +176,9 @@ try {
   const second = path.join(temporary, 'Garden City');
   const third = path.join(temporary, 'Council City');
   const reviewCity = path.join(temporary, 'Institutional Review City');
+  const informationCity = path.join(temporary, 'Information City');
   const unrelated = path.join(temporary, 'Unenrolled workspace');
-  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(reviewCity), mkdir(unrelated)]);
+  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(reviewCity), mkdir(informationCity), mkdir(unrelated)]);
   await mkdir(path.join(first, '.github'));
   const instructions = '# Existing contributor instructions\n\nPreserve this content.\n';
   await writeFile(path.join(first, '.github/copilot-instructions.md'), instructions);
@@ -471,6 +543,7 @@ try {
   assert.equal(command(cli, ['status', '--root', reviewCity]).institutionalReview.due, false);
   command(cli, ['validate', '--root', first]);
   command(cli, ['validate', '--root', reviewCity]);
+  await smokePublicInformation(informationCity, adoptedOn);
 
   console.log(JSON.stringify({
     result: 'passed',
@@ -490,6 +563,7 @@ try {
       'lightweight screening remains subject to authorization',
       'formal screening automatically routes to Advisor; current packet and independent Planner assessment gate delivery',
       'policy-enabled institutional review trigger, dry-run, canonical record and reset',
+      'opt-in public information: idle adoption, standalone brief case notes and separate release refusal',
     ],
     boundary: 'Delivery decisions were recorded, not authenticated. No git operation, merge, push or deployment was performed.',
   }, null, 2));
