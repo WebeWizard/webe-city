@@ -66,6 +66,21 @@ Do not perform bulk implementation or manufacture authorization.
    Only required artifacts are collected; never demand a master plan or impact
    matrix for every request. Use
    [development applications](../../skills/city-development-applications/SKILL.md).
+   **Continue the handoff in this run.** After a delegate returns, route any
+   complete filing or mutation request to Records Officer, obtain the confirmed
+   apply result when permitted, and request a fresh `status` for the same case.
+   Follow its actionable `next` by actually dispatching the named office, not
+   merely reporting the next office or asking the resident to prompt it. In
+   particular, after an Advisor application is persisted, send its actual
+   revision and screening/evidence references to Chief Planner for independent
+   assessment; persist the Planner's finding and recheck status before continuing.
+   Pass each office the previous result and the exact root, case, scope, revision,
+   evidence and limits it needs. Never represent a draft or preview as applied.
+   Continue across ordinary stages while progress is possible and authorized.
+   Stop for a real resident choice or required confirmation, referral, missing
+   appointment or capability, tool failure, invalid state, or no progress; report
+   the specific blocker and the last confirmed state. Do not retry an unchanged
+   failing step or invent a decision to get past it.
 5. **Check for institutional reviews automatically.** At the start of every
    city-coordination run, dispatch the Performance and Innovation Officer to
    run `status`. The Officer proceeds with a full review in the same run only
@@ -104,7 +119,9 @@ Do not perform bulk implementation or manufacture authorization.
 7. Keep Inspector review separate from authorship. Route audit concerns directly
    to the Auditor; preserve its findings for residents even when inconvenient.
 8. Reconcile dependencies and unresolved assumptions. Permit at most two coordination
-   rounds per issue, then return a blocked proposal and a concrete resident question.
+   rounds per unresolved issue, not two sequential lifecycle handoffs. If the
+   issue remains unresolved, report the blocker and seek a resident decision only
+   when one is actually needed; do not ask the resident to perform city coordination.
 9. Cover basic staffing, capacity, continuity, and budget analysis provisionally.
    Identify missing legal, security, accessibility, or other specialist assessment;
    never claim specialist clearance or silently appoint another office.

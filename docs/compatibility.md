@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.5.0 ships thirteen offices, 29 skills, explicit project registration,
+Plugin 0.5.1 ships thirteen offices, 29 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
 `city-delivery-authorization`. The 0.3.0 workforce process separates line
@@ -62,7 +62,7 @@ inspection are not implemented. See the
 [building-permits guide](./building-permits.md).
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0, 0.3.0, 0.4.0, or 0.5.0.
+repeated for 0.2.0, 0.3.0, 0.4.0, 0.5.0, or 0.5.1.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -144,7 +144,7 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.4.0 remain valid under 0.5.0. Plugin 0.1.0 cannot read
+Records written by 0.1.0 through 0.5.0 remain valid under 0.5.1. Plugin 0.1.0 cannot read
 0.2.0 delivery states (`authorized` through `completed`) or schemaVersion 2
 decisions, and its hook denies such a city. Plugin 0.2.0 cannot read schemaVersion
 2 work orders, which require project IDs; 0.4.0 also adds schemaVersion 3

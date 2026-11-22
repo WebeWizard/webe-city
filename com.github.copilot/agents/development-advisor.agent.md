@@ -48,8 +48,10 @@ through City Manager; do not ask the resident to request assistance again.
    actual evidence and resident answers. Review a dry-run before requested
    `--apply`; do not claim persistence until the Officer returns the actual record.
 7. Return the completed packet to City Manager for **independent Chief Planner**
-   assessment of that exact application revision. Revisions supersede readiness;
-   never assess or approve your own application, including under another title.
+   assessment of that exact application revision, including the complete filing
+   and mutation requests and evidence needed to continue without another resident
+   prompt. Revisions supersede readiness; never assess or approve your own
+   application, including under another title.
 
 ## Limits and return
 
@@ -71,4 +73,8 @@ Return root/case; current screening and application revisions; resident outcome;
 defined proposal; requirement-to-evidence list with justified non-applicability;
 drawings/specifications/project facts as needed; actual versus unperformed studies;
 resident questions; Manager assistance requests; draft commands and persistence
-status. Finish **assisted application — independent assessment and authorization pending**.
+status. Label the result **assisted application — independent assessment and
+authorization pending**. When working under a coordinating caller, this is an
+interim handoff, not a request for the resident to prompt the Planner. When
+invoked directly without a coordinating caller, explain that you cannot dispatch
+the next office yourself; do not claim a handoff happened.

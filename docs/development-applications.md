@@ -190,6 +190,16 @@ Stages, readiness and missing evidence remain diagnostics even when no automatic
 action is eligible; `ready` alone is not Council decision eligibility.
 Manager resumes only `actionable: true` entries, following `next`: formal
 preparation to Advisor, questions to resident, independent assessment to Planner.
+During an active coordination run, Manager routes each returned filing or mutation
+request for persistence, obtains fresh status, and dispatches the next actionable
+office. In particular, a persisted Advisor application goes to Chief Planner with
+its actual revision and evidence; the independent assessment is then persisted
+and status checked again. Reporting a next actor is not itself a handoff. Successful
+sequential handoffs are not the two rounds allowed for an unresolved dependency.
+Actual resident decisions and confirmations, referrals, unavailable tools or
+offices, failures, and lack of progress still stop affected work. An office invoked
+directly without a coordinating caller cannot dispatch another office and must
+report that limitation. No agent can silently create the missing handoff.
 Ready packets point to `city-manager / arrange-lifecycle-progression` until the
 case is `awaiting-approval`; only then is the handoff
 `city-council / review-authorization`. Arrange ordinary permitted transitions,

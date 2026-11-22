@@ -66,8 +66,15 @@ A ready assessment only enables Council/resident consideration, not delivery.
 Read/search/edit offices send draft commands through City Manager to Records
 Officer, which previews and applies the scoped packaged CLI mutations. Never
 hand-edit canonical JSON. Manager resumes `status.workOrders.development` next
-actions automatically only when `actionable: true`; no second request for Advisor
-assistance is needed. Ready packets before `awaiting-approval` point to Manager
+actions automatically only when `actionable: true`; after persistence, obtain
+fresh status and actually dispatch the next office in the same run. In particular,
+route a persisted Advisor application and its actual revision to Chief Planner,
+then persist the independent assessment and recheck status. A reported next step
+is not a completed handoff. No second resident prompt is needed for city
+coordination, but required resident decisions and confirmations remain required.
+If there is no coordinating caller or a necessary tool/office is unavailable,
+report that limitation and the last confirmed state instead of claiming a handoff.
+Ready packets before `awaiting-approval` point to Manager
 to arrange ordinary permitted lifecycle progression, rechecking after each step.
 Only `awaiting-approval` hands off the actual Council decision. Never skip stages
 or auto-reopen a case. Current authorized delivery (including blocked delivery),

@@ -108,7 +108,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.5.0');
+  assert.equal(manifest.version, '0.5.1');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -122,8 +122,13 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
 test('development package is private and the runtime has no package dependencies', async () => {
   const pkg = await json('package.json');
   const manifest = await json('plugin.json');
+  const lock = await json('package-lock.json');
+  const { PLUGIN } = await import('../scripts/lib/constants.mjs');
   assert.equal(pkg.name, manifest.name);
   assert.equal(pkg.version, manifest.version);
+  assert.equal(lock.version, manifest.version);
+  assert.equal(lock.packages[''].version, manifest.version);
+  assert.equal(PLUGIN.version, manifest.version);
   assert.equal(pkg.private, true);
   assert.equal(pkg.license, 'UNLICENSED');
   assert.equal(pkg.type, 'module');
@@ -143,6 +148,7 @@ test('the local development marketplace points to the same versioned plugin', as
   const entry = marketplace.plugins[0];
   assert.equal(entry.name, manifest.name);
   assert.equal(entry.version, manifest.version);
+  assert.equal(marketplace.metadata.version, manifest.version);
   assert.equal(path.resolve(root, entry.source), path.resolve(root));
 });
 
@@ -460,6 +466,25 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.match(policy, /Ordinary new features/);
   assert.match(policy, /never silently\s+waive/);
   assert.match(policy, /needs-clarification/);
+});
+
+test('development coordination continues through persisted independent assessment', async () => {
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  assert.match(manager, /Continue the handoff in this run/);
+  assert.match(manager, /request a fresh `status` for the same case/);
+  assert.match(manager, /after an Advisor application is persisted, send its actual\s+revision[\s\S]*to Chief Planner for independent\s+assessment/i);
+  assert.match(manager, /persist the Planner's finding and recheck status/);
+  assert.match(manager, /not two sequential lifecycle handoffs/);
+  assert.match(manager, /Stop for a real resident choice or required confirmation/);
+  assert.match(manager, /Do not retry an unchanged\s+failing step/);
+
+  const records = await readFile(path.join(agentsPath, 'records-officer.agent.md'), 'utf8');
+  assert.match(records, /On Manager request, run the packaged CLI `status`/);
+  const advisor = await readFile(path.join(agentsPath, 'development-advisor.agent.md'), 'utf8');
+  assert.match(advisor, /interim handoff, not a request for the resident/);
+  assert.match(advisor, /invoked directly without a coordinating caller[\s\S]*cannot dispatch/);
+  const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
+  assert.match(coordination, /A next-actor\s+message alone is not a handoff/);
 });
 
 test('zoning schema keeps change rules separate from project and district records', async () => {
