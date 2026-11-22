@@ -229,11 +229,15 @@ Municipal software engineering and digital service design are genuine city-gover
 | Sustainability Officer | No | Assess resource use, performance, and long-term maintenance costs | lifecycle-assessment; resource-efficiency-analysis |
 | Information Security Officer | No | Assess security risks and recommend protective controls | security-risk-assessment; incident-analysis |
 | Emergency Manager | No | Coordinate urgent failures, containment, recovery, and post-incident review | incident-command; emergency-planning |
-| Public Information Officer | No | Prepare release notices, incident updates, and clear resident communications | public-information-writing; risk-communication |
+| Public Information Officer | Opt-in | Scope resident information requests and prepare specifically authorized products; no standing work or publishing | public-information-writing |
 | City Auditor | Yes | Independently assess authorization, evidence, scope, and procedural compliance | risk-based-auditing; evidence-evaluation |
 | Ombudsperson | No | Investigate complaints about government decisions or conduct | complaint-investigation; administrative-fairness-review |
 
 The Auditor and Ombudsperson have a direct reporting route to residents outside the delivery chain. Different agent names alone do not provide a separate security principal or guarantee independent judgment.
+
+The [Public Information Office](./docs/public-information.md) is bundled
+but not part of the default appointments. The city can adopt it without setting
+up any publication channel or commissioning any product.
 
 During the pilot, the City Manager administers basic capacity, budget, staffing, and continuity procedures under resident-approved limits. The Clerk records these decisions and the Auditor checks them. Specialist offices take over only through explicit appointment and delegation; responsibilities must never be silently unassigned.
 

@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.5.4 pilot, not a production government.**
+**Status: private 0.6.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -17,13 +17,14 @@ An open-source license and publisher have not been selected.
 
 ## What is included
 
-- Thirteen offices: City Manager, City Council, Resident Services Officer, City
+- Thirteen default pilot offices: City Manager, City Council, Resident Services Officer, City
   Clerk, Chief Planner, Development Advisor, Engineering Manager, Human Resources
   Officer, Municipal Software Engineer, Building Inspector, Records Officer, City Auditor, and
-  Performance and Innovation Officer.
-- Twenty-four professional skills drawn from real municipal competencies,
+  Performance and Innovation Officer. The Public Information Officer is a
+  fourteenth bundled office, available by opt-in appointment only.
+- Twenty-five professional skills drawn from real municipal competencies,
   including development applications, asset management, delivery authorization,
-  records capture, and building permits (29 skills total).
+  records capture, building permits, and public information writing (30 skills total).
 - Five resident workflows: city initialization, petitions, town halls, status,
   and appeals.
 - Draft charter and operating procedures for authority, policy, services,
@@ -64,6 +65,15 @@ revision links. `records-list --type artifact --search TEXT` discovers documents
 repository-owned library survives chat and plugin-cache turnover; saving a
 document does not authorize delivery.
 See the [artifact library contract and municipal adaptation](./docs/artifact-library.md).
+
+## Public information on request
+
+An [optional Public Information Office](./docs/public-information.md) helps
+scope resident requests and prepares briefs, FAQs, guides, or notices only after
+case-specific approval. A city must adopt the policy and appoint the office
+explicitly. It creates no default products, bulletin, or publishing schedule.
+Acceptance of a draft does not authorize public release; the office never
+publishes.
 
 ## Proportionate development applications
 

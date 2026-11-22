@@ -7,7 +7,7 @@ user-invocable: true
 # Submit a Resident Petition
 
 Residents supply needs, outcomes and observations, not a fully engineered proposal.
-Route professional [development screening](../city-development-applications/SKILL.md)
+For repository changes, route professional [development screening](../city-development-applications/SKILL.md)
 to Chief Planner through City Manager. Formal screening automatically assigns
 Development Advisor; no second resident request is needed. Unknown jurisdiction,
 scope or thresholds means focused questions, not a guess or automatic formal route.
@@ -17,8 +17,14 @@ Officer for persistence. Available technical investigation belongs to the city.
 ## Purpose and inputs
 
 Capture a resident need as a traceable intake case, not an instruction to implement.
-Require explicit absolute root, title, requested outcome, one or more registered
-project IDs, and any observable criteria. If the project is not registered, clarify
+For a standalone information product under the adopted
+[public-information policy](../../docs/public-information.md), route the brief
+through Resident Services and City Manager for `information-case` artifact intake
+instead of running `petition`. Do not infer a repository project or a publication
+request. A request involving repository changes uses the work-order route below.
+
+For a work order, require explicit absolute root, title, requested outcome, one
+or more registered project IDs, and any observable criteria. If the project is not registered, clarify
 its proposed non-overlapping directory before intake; do not infer a root project.
 Use [case management](../city-case-management/SKILL.md) and
 [complaint triage](../city-complaint-triage/SKILL.md) when relevant.

@@ -34,8 +34,15 @@ The [charter template](../templates/repository/.city/charter.md) proposes reside
 | Periodic and event-driven institutional review, recommendation routing, and evidence | [Institutional review](../templates/repository/.city/policies/institutional-review.md) |
 | Materiality screening, assisted application and independent planning assessment | [Development applications](../templates/repository/.city/policies/development-applications.md) |
 | Path-based change permissions, conditional review and zoning map maintenance | [Repository zoning](./zoning.md) |
+| Optional appointment and case-specific approval for requested information products | [Public information on request](./public-information.md) |
 
 The City Manager coordinates functions whose specialists are not installed, with explicit competence limits. A missing specialist, independent reviewer, resource limit, or authorization is a reason to pause affected work, not to manufacture expertise or consent.
+
+**Public information on request.** The Public Information Officer remains idle
+unless a resident requests a product under the opt-in policy and charter
+appointment. Scoping is not authorization. Artifact-only cases record actual
+resident decisions without a merge; repository changes keep the normal
+authorization and inspection route. No office is delegated external release.
 
 **Development control.** Residents supply needs/outcomes/observations; Chief Planner
 screens against the baseline and adopted scoped refinements. Unknown scope or
