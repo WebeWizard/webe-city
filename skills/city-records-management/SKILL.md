@@ -12,6 +12,11 @@ commands, Records Officer may preview/apply `screen-development`,
 `application-record`, `assess-application` and intake/transition persistence using
 the packaged CLI, not hand-edited canonical JSON. Keep source roles and honest
 unauthenticated evidence; return the actual revision to RSO/Advisor/Planner.
+Invoke it as `node "<installed-plugin>/scripts/city.mjs"` with the actual
+absolute installed plugin path; do not assume a `city` executable exists on PATH
+or that the hook's `PLUGIN_ROOT` is available in the agent shell. Use the exact
+target repository as `--root`. If the executable path is unknown, report the
+blocker rather than guessing.
 
 ## Competency and application
 

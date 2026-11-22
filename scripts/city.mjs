@@ -212,7 +212,7 @@ function help() {
       'status and validate report adoption drift when the charter or policies no longer match the adopted digests; drift is reported, not enforced.',
       'Proposed requires acceptance criteria. Rejected and withdrawn cases must be reopened before routing again.',
       'adopt refuses once governance is adopted; amend is the only way to record a later charter or policy revision, appending the superseded revision (with --summary) to adoption.history and never returning governance to draft.',
-      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.5.2.',
+      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.5.3.',
       'schemaVersion 1 decisions remain proposal-only records. authorize and complete are the only decision-writing commands; adopt records charter adoption in config, not decisions.',
       'The city CLI does not itself execute work-order text. The generated check toolkit launches its recorded argv arrays with shell: false; it is not a sandbox, and a configured command may execute code, access the network, install packages or modify files. Review each command before running it. MCP servers are never installed by workforce commands.',
       'Hooks inspect physical cwd ancestors up to the nearest .git boundary and return no allow override.',
