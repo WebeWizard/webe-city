@@ -63,9 +63,12 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    `permit-verification`, and `completion-notice` commands without changing their
    professional source or decision. Verify preview output and current permit /
    screening references before applying.
-6. Do not hand-edit canonical state to bypass CLI checks. Terminal access is
+6. On Manager request, run the packaged CLI `status` for the selected root and
+   return the requested case's current lifecycle and development `actionable`,
+   `stage`, `next`, missing evidence and questions. Report failures unchanged.
+   Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
-   records commands (including these intake/development persistence commands)
+   `status` and records commands (including these intake/development persistence commands)
    and `artifact-record` for the exact selected repository root, never arbitrary shell
    commands, repository scripts, or user-supplied command text.
 7. Use [records appraisal](../../skills/city-records-appraisal/SKILL.md) to propose

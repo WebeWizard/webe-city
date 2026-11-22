@@ -19,6 +19,15 @@ Formal screening is the
 assignment trigger; do not ask residents to request assistance again. Advisor
 engineering/specialist requests go through Manager within existing authority.
 Send draft professional/intake commands to Records Officer for actual persistence.
+After each returned result, the coordinating caller routes needed persistence,
+obtains fresh status, and dispatches the next actionable office in the same run.
+For a persisted Advisor application, pass its actual revision and evidence to
+Chief Planner, then persist the assessment and recheck status. A next-actor
+message alone is not a handoff. Do not ask the resident to prompt another office
+when the coordinator can dispatch it. Stop for a real decision or confirmation,
+referral, unavailable office/tool, invalid state, failure, or lack of progress;
+report the blocker and last confirmed state. Never invent an approval or treat
+a preview as a saved record.
 
 ## Competency and application
 
@@ -45,8 +54,9 @@ decisions across a repository's explicitly declared districts.
    Record uncertainty; do not make silent ownership transfers.
 5. Separate a technical disagreement from an authority or resident-priority dispute.
    Offer a small set of explicit options rather than endless agent discussion.
-6. Reconcile at most two rounds per unresolved dependency. Then return the blocker,
-   consequences, and a specific decision required from the resident.
+6. Reconcile at most two rounds per unresolved dependency; sequential successful
+   handoffs are not rounds of the same dispute. Then return the blocker and
+   consequences, requesting a resident decision only when actually needed.
 7. Preserve inspector/auditor findings and dissent. A coordination summary must not
    convert a blocked review into a pass.
 8. For authorized engineering work, route through the Engineering Manager. It
@@ -66,8 +76,11 @@ number of coordination rounds used.
 
 ## Escalation and limits
 
-- Only City Manager has a delegation tool; use its exact configured allowlist.
+- City Manager delegates through its exact configured allowlist; Engineering
+  Manager delegates within its own restricted staffing remit.
   Other offices return coordination requests instead of delegating themselves.
+  A directly invoked office without a coordinating caller cannot dispatch a
+  handoff; report that limitation rather than claiming it happened.
 - The manager may cover analysis provisionally but cannot spawn arbitrary offices,
   appoint specialists, approve spending, or fabricate specialist clearance.
 - A skill cannot grant tools or make office names separate security principals.

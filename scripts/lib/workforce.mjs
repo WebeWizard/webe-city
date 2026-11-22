@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  GENERAL_ENGINEER_ID, LIMITS, WORKFORCE_DELEGATION_POLICY, WORKFORCE_SCHEMA_VERSION, WORKFORCE_TOOLS,
+  GENERAL_ENGINEER_ID, LIMITS, PLUGIN, WORKFORCE_DELEGATION_POLICY, WORKFORCE_SCHEMA_VERSION, WORKFORCE_TOOLS,
 } from './constants.mjs';
 import { CityError, fail } from './errors.mjs';
 import {
@@ -359,7 +359,7 @@ function requisitionRecord(city, options) {
       from: null, to: 'requested', actor: 'engineering-manager',
       reason: options.reason, timestamp: now,
     }],
-    provenance: { source: 'local-draft', plugin: { name: 'repository-city', version: '0.3.0' } },
+    provenance: { source: 'local-draft', plugin: PLUGIN },
   }, city.config.cityId);
 }
 
@@ -614,7 +614,7 @@ stop; delivery still requires current authorization and assignment.`
       reason: `Hired from approved requisition ${requisition.id}.`,
       timestamp: hiredAt,
     }],
-    provenance: { source: 'local-draft', plugin: { name: 'repository-city', version: '0.3.0' } },
+    provenance: { source: 'local-draft', plugin: PLUGIN },
   }, city.config.cityId);
   const updatedRequisition = validateRequisition(appendHistory(
     requisition, 'filled', 'human-resources', `Hired as staff ${staff.id}.`, hiredAt,
@@ -762,7 +762,7 @@ export async function assign(root, options) {
     assignedBy: 'engineering-manager',
     reason: options.reason,
     createdAt: priorAssignment ? monotonicTimestamp(priorAssignment.createdAt) : new Date().toISOString(),
-    provenance: { source: 'local-draft', plugin: { name: 'repository-city', version: '0.3.0' } },
+    provenance: { source: 'local-draft', plugin: PLUGIN },
   }, city.config.cityId);
   if (Buffer.byteLength(encodeJSON(record)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city assignment exceeds the supported local file size.');
   const nextActor = staff?.agentName ?? 'City: Municipal Software Engineer';

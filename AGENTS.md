@@ -78,6 +78,12 @@ edit them, test them, and review them like any other code or documentation.
   runtime dependencies. `yaml` is a dev dependency used only by tests.
 - `npm test` runs all tests. `npm run check` runs the packaging/content tests.
   `npm run smoke` runs the end-to-end scenario.
+- For changes to shipped plugin content, update the plugin version using an
+  appropriate SemVer increment. Keep `package.json`, `package-lock.json`,
+  `plugin.json`, both versions in `marketplace.json`, `scripts/lib/constants.mjs`,
+  published provenance schemas, version-specific tests, and current-version
+  documentation in sync. Preserve compatible prior versions in
+  `COMPATIBLE_PLUGIN_VERSIONS` and schemas when their records remain supported.
 - Changes to the CLI contract, record shapes, or governance behavior should
   update `scripts/city.mjs` help notes, `schemas/`, `docs/`, `README.md`, and
   any affected shipped skills or agents, plus tests in `tests/`.
