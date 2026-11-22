@@ -18,6 +18,11 @@ or that the hook's `PLUGIN_ROOT` is available in the agent shell. Use the exact
 target repository as `--root`. If the executable path is unknown, report the
 blocker rather than guessing.
 
+The `screen-development` preview validates the submitted screening and current
+city state. A separate `validate` command is not a prerequisite for applying a
+successful preview; apply rechecks current state and can still fail. Report the
+exact command and error on failure.
+
 ## Competency and application
 
 Municipal records management preserves authentic context, findability, and
@@ -97,7 +102,8 @@ performed or still needed. Do not invent timestamps, hashes, or execution result
 
 - Records Officer/Clerk may edit within their role.
   Records Officer may execute the packaged records CLI, including
-  `artifact-record`, for the exact selected root; Clerk supplies a persistence/
+  `artifact-record`, and read-only `validate` for the exact selected root;
+  Clerk supplies a persistence/
   validation request rather than claiming a CLI check was run.
 - This skill grants no tools, deletion rights, authority, or access privileges.
   Hashes and local provenance are not authenticated human consent.
