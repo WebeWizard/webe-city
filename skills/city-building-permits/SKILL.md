@@ -30,6 +30,13 @@ Initialization and a dry-run do not adopt the policy or authorize delivery.
   `permit-safety-class-N` or `permit-structural-class-N`.
 - Record the scoped evidence with `permit-statement`. A staff title alone is not
   evidence of competency.
+- For class-3 work, assess delivery staffing separately from statement
+  preparation. Assign an active specialist when implementation duties require
+  defined expertise; otherwise, ordinary work may use the general engineer.
+  Statement competency alone does not establish delivery fit, and a
+  read/search-only specialist hired for pre-authorization safety preparation
+  cannot implement the work. If required delivery expertise is not active,
+  requisition a delivery-capable specialist under the adopted workforce policy.
 - Class 4 also requires a `permit-verification` from another active qualified
   engineer. The statement author and assigned delivery engineer cannot verify
   the statement.

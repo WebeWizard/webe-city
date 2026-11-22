@@ -47,15 +47,21 @@ pipeline; it does not create a second approval route.
    The runtime records sequencing but does not interpret policy prose or
    authenticate actors. Existing cities apply the permission by adopting the
    revised policy with `amend`.
-4. Council may authorize classes 1–3 under its adopted delegation; class 4 is
+4. For class-3 implementation, assess delivery staffing separately after
+   authorization. Assign an active specialist when the work requires defined
+   expertise, or requisition a delivery-capable specialist if none fits. The
+   read/search-only statement preparer cannot implement the work, and statement
+   competency alone does not establish delivery fit. Class 3 alone does not
+   justify a new post; ordinary work may use the general engineer.
+5. Council may authorize classes 1–3 under its adopted delegation; class 4 is
    resident-reserved. Authorization includes permit conditions and any
    affected-project consent declarations.
-5. Delivery must commence by the permit deadline and show lifecycle activity
+6. Delivery must commence by the permit deadline and show lifecycle activity
    within the inactivity period. `status` reports current permit states;
    transitions refuse lapsed work. A same-authority decider can grant up to two
    30-day extensions with a recorded reason. Class-4 extensions are resident
    decisions. There is no background timer.
-6. Engineering Manager records a completion notice addressing each condition.
+7. Engineering Manager records a completion notice addressing each condition.
    The Building Inspector independently inspects; the resident accepts with
    `complete`.
 
