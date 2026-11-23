@@ -18,10 +18,13 @@ or that the hook's `PLUGIN_ROOT` is available in the agent shell. Use the exact
 target repository as `--root`. If the executable path is unknown, report the
 blocker rather than guessing.
 
-The `screen-development` preview validates the submitted screening and current
-city state. A separate `validate` command is not a prerequisite for applying a
-successful preview; apply rechecks current state and can still fail. Report the
-exact command and error on failure.
+For these three development commands, use `--data-file PATH` for a supplied JSON
+file, `--data-file -` for stdin, or `--data JSON` inline. Use exactly one source.
+A successful preview reports `validation: "passed"` and identifies the proposed
+work order, record type, and revision in `recordSummary`. It does not write or
+authorize anything. A separate `validate` command is not a prerequisite; apply
+uses the same reviewed payload, rechecks current state, and can still fail.
+Report the exact command and error on failure.
 
 ## Competency and application
 
