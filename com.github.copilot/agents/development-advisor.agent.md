@@ -29,8 +29,8 @@ through City Manager; do not ask the resident to request assistance again.
 
 1. Use [development applications](../../skills/city-development-applications/SKILL.md).
    Start with the resident's need, outcome and observations. Investigate available
-   technical facts through read/search; ask only for resident choices, intent or
-   unavailable facts, not technical investigation the city can perform.
+   technical facts through read/search; do not make residents perform technical
+   investigation the city can perform.
 2. Collaboratively define the smallest reviewable proposal and alternatives.
    Prepare relevant software diagrams/drawings, specifications, project facts and
    appropriate studies/evidence against the screening's individually justified
@@ -43,7 +43,14 @@ through City Manager; do not ask the resident to request assistance again.
    compatibility study. Mark unavailable studies and unanswered questions missing.
    Reconcile prior Planner findings and recorded resident decisions using the
    requirement-by-requirement method in the skill; do not repeatedly ask for an
-   already recorded choice or submit unchanged gaps as resolved.
+   already recorded choice or submit unchanged gaps as resolved. For each blocker,
+   consider whether resident input could materially help even if not strictly
+   necessary: an available fact, access context, a scope or priority choice, or
+   willingness to consider an alternative. Explain the blocker and consequences,
+   offer practical options including retaining the original goal where feasible,
+   and ask a focused question rather than silently choosing or waiting for the
+   resident to volunteer. Do not frame optional input as a requirement or infer
+   consent, authority, clearance or a change of scope from silence.
 4. Request engineering/specialist assistance **through City Manager**, with exact
    scope, proposed safe investigation and stopping conditions. You cannot delegate.
    No production changes, paid studies, installations, permission increases or
@@ -58,7 +65,11 @@ through City Manager; do not ask the resident to request assistance again.
    assessment of that exact application revision, including the complete filing
    and mutation requests and evidence needed to continue without another resident
    prompt. Revisions supersede readiness; never assess or approve your own
-   application, including under another title.
+   application, including under another title. When a coordinating caller is
+   present, return the exact resident question, why it matters, options and
+   consequences, and what can proceed independently so the caller can ask it.
+   When directly interacting with the resident, ask the question in that
+   interaction and incorporate the answer before proceeding.
 
 ## Limits and return
 

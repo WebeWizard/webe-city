@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.8.0');
+  assert.equal(manifest.version, '0.8.1');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -503,6 +503,22 @@ test('Advisor prepares evidence-based plans and addresses class-3 revision findi
   assert.match(skill, /empirical checks must await separately authorized delivery/);
   assert.match(skill, /Do not demand unauthorized\s+production work/);
   assert.match(skill, /precise blockers rather than cycling an unchanged incomplete packet/);
+});
+
+test('Advisor and Manager invite useful resident input on blockers without assuming consent', async () => {
+  const advisor = await readFile(path.join(agentsPath, 'development-advisor.agent.md'), 'utf8');
+  const skill = await readFile(path.join(root, 'skills/city-development-applications/SKILL.md'), 'utf8');
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
+  assert.match(advisor, /resident input could materially help even if not strictly\s+necessary/);
+  assert.match(advisor, /retaining the original goal where feasible/);
+  assert.match(advisor, /return the exact resident question[\s\S]*ask the question in that\s+interaction/);
+  assert.match(skill, /even when city investigation\s+could also continue/);
+  assert.match(skill, /Distinguish optional help from a required decision/);
+  assert.match(manager, /do not say\s+no input is needed merely because the resident has no mandatory decision/);
+  assert.match(manager, /Continue authorized independent work without waiting for\s+optional input/);
+  assert.match(coordination, /if contact\s+is unavailable, report the question and limitation/);
+  assert.match(advisor, /Do not frame optional input as a requirement or infer\s+consent/);
 });
 
 test('development coordination continues through persisted independent assessment', async () => {

@@ -1421,7 +1421,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.8.0' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.8.1' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -2303,7 +2303,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -2327,7 +2327,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1']);
   assert.equal(order.$defs.development.properties.permitExtensions.items.$ref, '#/$defs/permitExtension');
   assert.deepEqual(order.$defs.permitExtension.properties.decidedBy.enum, ['city-council', 'resident']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
@@ -2938,7 +2938,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.8.0' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.8.1' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -3291,7 +3291,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.8.0');
+  assert.equal(output.decision.provenance.plugin.version, '0.8.1');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -3301,7 +3301,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.8.0');
+  assert.equal(output.plugin.version, '0.8.1');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));
@@ -3626,7 +3626,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   assert.deepEqual(await snapshot(root), before);
   const requested = success([...args, '--apply']).record;
   assert.equal(requested.status, 'requested');
-  assert.equal(requested.provenance.plugin.version, '0.8.0');
+  assert.equal(requested.provenance.plugin.version, '0.8.1');
   assert.equal(requested.appointment, null);
   assert.deepEqual(requested.history[0], {
     from: null, to: 'requested', actor: 'engineering-manager',
@@ -3686,7 +3686,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   const hired = success([...hiringArgs, '--apply']);
   const staff = hired.record;
   assert.equal(staff.id, 'website-specialist');
-  assert.equal(staff.provenance.plugin.version, '0.8.0');
+  assert.equal(staff.provenance.plugin.version, '0.8.1');
   assert.equal(staff.status, 'active');
   assert.equal(staff.files.length, 5);
   assert.deepEqual(staff.files.map((file) => file.path), staff.files.map((file) => file.path).slice().sort());
@@ -3711,7 +3711,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   ], 'NOT_FOUND');
   assert.equal(success(assignmentArgs).dryRun, true);
   const firstAssignment = success([...assignmentArgs, '--apply']);
-  assert.equal(firstAssignment.record.provenance.plugin.version, '0.8.0');
+  assert.equal(firstAssignment.record.provenance.plugin.version, '0.8.1');
   assert.deepEqual(firstAssignment.next, { actor: 'City Engineer: Website Specialist', action: 'start-delivery' });
   await new Promise((resolve) => setTimeout(resolve, 5));
   success([

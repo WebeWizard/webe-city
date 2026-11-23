@@ -40,6 +40,15 @@ An undetermined statement is not automatically a failed safety clearance: its
 limitations and unresolved risks must be evaluated against the actual requirements.
 Requests for specialist assistance go through City Manager within existing authority.
 
+When a blocker could be eased by resident knowledge, access context, priorities
+or a scope choice, the Advisor offers a focused question and practical tradeoffs
+even if the input is optional. For example, a resident may choose a narrower
+first release instead of waiting for evidence needed only by a later feature.
+The original scope remains an option where feasible; silence changes nothing.
+The Manager relays questions returned by a delegated Advisor, while city offices
+continue independent investigation rather than asking residents to do it.
+An answer does not itself authorize delivery, publication or other reserved acts.
+
 ## Baseline and local refinements
 
 When the [zoning policy](./zoning.md) is adopted, a current zoning map and
@@ -64,8 +73,8 @@ rationale. Cite each applicable adopted section and scoped interpretation.
 Local refinements clarify/strengthen, never silently waive the baseline.
 Unknown jurisdiction, project, threshold or disputed interpretation means focused
 resident questions, not a guessed scope or automatic heavyweight application.
-The city investigates available technical facts; residents supply choices/intent
-and facts unavailable to the city.
+The city investigates available technical facts; residents may also share facts
+or context they readily know and make choices about their goals.
 
 The CLI records a professional determination, not keyword/NLP classification or
 a general policy engine. It validates explicit evidence, scopes, references and

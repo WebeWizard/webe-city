@@ -28,6 +28,12 @@ when the coordinator can dispatch it. Stop for a real decision or confirmation,
 referral, unavailable office/tool, invalid state, failure, or lack of progress;
 report the blocker and last confirmed state. Never invent an approval or treat
 a preview as a saved record.
+For a material blocker, relay a focused Advisor question when resident knowledge,
+access context, priorities or a scope choice could help, even if optional. Explain
+the tradeoffs and work that can proceed independently; do not characterize
+optional input as mandatory, assume consent or changed scope, or ask residents
+to perform city research. Ask in the current interaction when possible; if contact
+is unavailable, report the question and limitation without claiming consultation.
 
 ## Competency and application
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "repository-city",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Municipal offices, professional skills, and durable records for resident-directed repository governance.",
   "keywords": [
     "repository",
