@@ -46,7 +46,9 @@ This skill supplies a professional method, not tool access or authority.
 
 1. Read the current screening, adopted scoped policies, work order and acceptance
    criteria, source and available evidence. For a revision, also read the prior
-   application, independent findings, resident decisions and current statements.
+   application, independent findings including any referenced findings document,
+   resident decisions and current statements. If the referenced findings are
+   unavailable, report the blocker rather than treating the summary as complete.
    Distinguish current records from superseded screening-specific evidence.
 2. Collaborate with the resident to define the proposal, a meaningful alternative
    and no change, with tradeoffs. Describe the affected components and boundaries,
@@ -101,14 +103,29 @@ This skill supplies a professional method, not tool access or authority.
 
 ## Chief Planner: independent assessment
 
-Check the current Advisor packet against each scoped requirement and resident
-answer. Independently record `assess-application` for its exact revision, with
-`ready` or `revise`, reasons and evidence. Cite the applicable requirement and
-specific deficiency for each revision finding; distinguish a missing study from
-an unperformed future delivery test. A class-3 statement with an undetermined
+Review the entire current Advisor packet against each scoped requirement, adopted
+rule and resident answer before deciding. Do not stop at the first deficiency:
+for `revise`, report all currently identifiable material findings together, each
+with its applicable requirement, specific gap, evidence and next action or owner.
+Distinguish required resident decisions from city-performable investigation and
+group related decisions for the handoff; resident interaction may still ask one
+focused question at a time. Identify areas that cannot yet be assessed and their
+dependencies, without inventing requirements or claiming the review is complete.
+New findings may arise from changed context or evidence that was previously
+unavailable; do not promise that later revisions cannot reveal new issues.
+
+Independently record `assess-application` for the exact revision with `ready` or
+`revise`, reasons and evidence. The `reason` is exposed in status, so summarize
+the actionable findings there; use `evidence` for supporting details. Both fields
+are limited to 4,000 characters. If necessary, request filing of a complete
+findings document through Manager and Records Officer, include its actual saved
+ID/path in the assessment, and report persistence pending until confirmed. Do not
+silently omit findings to fit the fields. Distinguish a missing study from an
+unperformed future delivery test. A class-3 statement with an undetermined
 conclusion is not, by itself, a missing safety clearance. Assess its disclosed
-risks against the actual adopted requirements. Never assess an application you prepared.
-A ready assessment only enables Council/resident consideration, not delivery.
+risks against the actual adopted requirements. Never assess an application you
+prepared. A ready assessment only enables Council/resident consideration, not
+delivery.
 
 ## Persistence, handoffs and limits
 

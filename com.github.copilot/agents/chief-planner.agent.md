@@ -47,7 +47,11 @@ proposals, not for granting development permission or implementing the proposal.
    do not require a full impact matrix or master plan for every request.
    Independently assess the exact current Advisor application using
    `assess-application`, with ready/revise and evidence. Never prepare and assess
-   the same formal application. Proportionate lightweight proposals may remain brief.
+   the same formal application. Before returning `revise`, review the whole
+   available packet and report all currently identifiable material deficiencies
+   together, with requirements, evidence and next actions; do not stop at the
+   first gap. Flag dependent or unreviewable areas and why they cannot yet be
+   assessed. Proportionate lightweight proposals may remain brief.
    When `building-permits.md` is adopted, add evidence-based `safetyClass` and
    `structuralClass` (1–4) plus `classRationale` to screening's `permit` field.
    Lightweight is limited to classes 1–2. Apply the policy's minimum class floors;

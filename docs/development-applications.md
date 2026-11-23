@@ -33,6 +33,17 @@ risks without pretending that code or tests exist. Empirical tests that require
 authorized delivery remain future work; an actually required study remains missing
 until adequately supported.
 
+Before issuing `revise`, the Planner reviews the whole available packet and
+reports all currently identifiable material deficiencies together, with the
+relevant requirements, evidence and next actions. The review identifies any areas
+blocked by missing information; new evidence or changed context can still reveal
+later findings. Resident decisions are distinguished from city investigation and
+grouped for handoff, even if the interaction asks one focused question at a time.
+The assessment's `reason` summarizes actionable findings for status, and `evidence`
+supports them. Both are limited to 4,000 characters; where necessary, the complete
+findings can be filed through Manager and Records Officer and referenced by actual
+saved ID/path, without silently omitting concerns.
+
 For adopted permits, a class-3 or class-4 dimension also needs its matching
 current-screening qualified statement (and class 4 needs independent verification).
 The statement does not replace the application studies or Planner assessment.

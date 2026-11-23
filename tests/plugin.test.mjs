@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.8.1');
+  assert.equal(manifest.version, '0.8.2');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -496,6 +496,7 @@ test('Advisor prepares evidence-based plans and addresses class-3 revision findi
   assert.match(advisor, /do not repeatedly ask for an\s+already recorded choice/);
   assert.match(skill, /requirement-by-requirement working matrix/);
   assert.match(skill, /Cross-reference each prior\s+Planner finding/);
+  assert.match(skill, /referenced findings are\s+unavailable, report the blocker/);
   assert.match(skill, /affected components and boundaries,[\s\S]*acceptance criteria,[\s\S]*recovery/);
   assert.match(skill, /current-screening qualified statement[\s\S]*class 4, independent\s+verification/);
   assert.match(skill, /statement is separate from application studies and independent Planner\s+assessment/);
@@ -503,6 +504,20 @@ test('Advisor prepares evidence-based plans and addresses class-3 revision findi
   assert.match(skill, /empirical checks must await separately authorized delivery/);
   assert.match(skill, /Do not demand unauthorized\s+production work/);
   assert.match(skill, /precise blockers rather than cycling an unchanged incomplete packet/);
+});
+
+test('Planner batches identifiable revision findings without masking review limits', async () => {
+  const planner = await readFile(path.join(agentsPath, 'chief-planner.agent.md'), 'utf8');
+  const skill = await readFile(path.join(root, 'skills/city-development-applications/SKILL.md'), 'utf8');
+  const assessment = skill.split('## Chief Planner: independent assessment')[1].split('## Persistence')[0];
+  assert.match(planner, /review the whole\s+available packet[\s\S]*all currently identifiable material deficiencies\s+together/);
+  assert.match(assessment, /Do not stop at the first deficiency/);
+  assert.match(assessment, /applicable requirement, specific gap, evidence and next action or owner/);
+  assert.match(assessment, /areas that cannot yet be assessed and their\s+dependencies/);
+  assert.match(assessment, /New findings may arise from changed context or evidence/);
+  assert.match(assessment, /resident interaction may still ask one\s+focused question at a time/);
+  assert.match(assessment, /`reason` is exposed in status[\s\S]*actual saved\s+ID\/path/);
+  assert.match(assessment, /Do not\s+silently omit findings/);
 });
 
 test('Advisor and Manager invite useful resident input on blockers without assuming consent', async () => {
