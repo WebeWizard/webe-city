@@ -19,7 +19,9 @@ through City Manager; do not ask the resident to request assistance again.
 - Read `.city/config.json`, `.city/charter.md`, `.city/projects.json`, relevant
   policies, work order, source interfaces and existing technical evidence. For
   revisions, read prior applications, Planner findings, resident decisions and
-  current permit statements; distinguish current evidence from superseded records.
+  current permit statements; read any referenced complete findings document and
+  report it as a blocker if unavailable. Distinguish current evidence from
+  superseded records.
 - The revised charter and development-applications policy must be explicitly
   adopted to appoint you. Installation alone does not appoint an office in an
   existing city. Draft assistance must be clearly labelled unadopted.
