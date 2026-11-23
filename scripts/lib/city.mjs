@@ -2438,6 +2438,10 @@ export async function developmentRecord(root, options, kind) {
   const command = { screenings: 'screen-development', applications: 'application-record', assessments: 'assess-application' }[kind];
   return {
     ...mutationOutput(command, root, options.apply, workOrder, city.config.governance),
+    ...(command && {
+      validation: 'passed',
+      recordSummary: { workOrderId: workOrder.id, recordType: kind, revision: record.revision },
+    }),
     scopeAssigned: !order.projectIds && Boolean(workOrder.projectIds) && !order.infrastructure,
     development: developmentStatus(city, workOrder),
   };

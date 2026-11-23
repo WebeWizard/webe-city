@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { fileURLToPath } from 'node:url';
 import {
-  COMMAND_ONLY_STATES, DELEGATION_POLICY, DRAFT_NOTICE, PLUGIN, RESERVED_MATTERS, ROUTINE_CLASSES, STATUSES,
+  COMMAND_ONLY_STATES, DELEGATION_POLICY, DRAFT_NOTICE, LIMITS, PLUGIN, RESERVED_MATTERS, ROUTINE_CLASSES, STATUSES,
   TRANSITIONS,
 } from './lib/constants.mjs';
 import {
@@ -12,9 +12,15 @@ import {
   permitExtend, filePartClose,
   artifactRecord,
 } from './lib/city.mjs';
-import { errorOutput, fail } from './lib/errors.mjs';
-import { rootDirectory } from './lib/filesystem.mjs';
+import { CityError, errorOutput, fail } from './lib/errors.mjs';
+import { readRegular, rootDirectory } from './lib/filesystem.mjs';
 import { appoint, assign, hire, requisition, retire, reviewRequisition } from './lib/workforce.mjs';
+
+const developmentInput = {
+  allowed: ['root', 'id', 'data', 'data-file', 'apply'],
+  required: ['root', 'id'],
+  requiresDataSource: true,
+};
 
 const commands = {
   init: { allowed: ['root', 'name', 'apply'], required: ['root'] },
@@ -64,9 +70,9 @@ const commands = {
     required: ['root', 'conducted-by', 'summary'],
   },
   transition: { allowed: ['root', 'id', 'to', 'reason', 'apply'], required: ['root', 'id', 'to', 'reason'] },
-  'screen-development': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
-  'application-record': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
-  'assess-application': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
+  'screen-development': developmentInput,
+  'application-record': developmentInput,
+  'assess-application': developmentInput,
   'zoning-map': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
   'zoning-check': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
   'permit-statement': { allowed: ['root', 'id', 'data', 'apply'], required: ['root', 'id', 'data'] },
@@ -136,9 +142,9 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs infrastructure-programme-record --root ABS --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs petition --root ABS --title TEXT --request TEXT [--project ID repeated] [--infrastructure JSON] [--criterion TEXT repeated] [--apply]',
       'node <installed-plugin>/scripts/city.mjs transition --root ABS --id ID --to STATE --reason TEXT [--apply]',
-      'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID --data JSON [--apply]',
-      'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID --data JSON [--apply]',
-      'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
+      'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
+      'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-map --root ABS --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-check --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-statement --root ABS --id WO-ID --data JSON [--apply]',
@@ -175,7 +181,9 @@ function help() {
     notes: [
       'Absent record directories are empty registers, provided existing records do not reference missing entries. Reads, init on an existing city, and the hook do not create them; confirmed record writes create their destination directory safely. Symlinks, non-directory paths, malformed records and broken decision links still fail closed. Missing governance files require reviewed recovery, not reinitialization.',
       'artifact-record persists full document content in .city/artifacts/ with ART-UUID IDs. Strict data: {title,kind,format,content,sourceOffice,workOrderId,supersedes,recordCategory}; recordCategory is working-draft|filed-work-product|proposed-instrument; format is markdown|text|mermaid|json. The categories describe intended use, not approval; no artifact category or link establishes formal adoption. workOrderId and supersedes may be null. Legacy artifacts without recordCategory remain readable as legacy-unclassified. records-list --type artifact --search TEXT searches title, kind, source office and content with stable ID ordering and pagination; records-get retrieves full content. Storage/attribution is not approval. See docs/artifact-library.md.',
-      'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All take strict --data JSON: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}. See docs/development-applications.md for nested shapes and examples.',
+      'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All three take strict JSON from exactly one source: --data JSON or --data-file PATH (use - for stdin). A relative PATH is resolved from the current working directory; file and stdin inputs are limited to 256 KiB.',
+      'Development payloads: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}.',
+      'Successful development results include validation:"passed" and recordSummary {workOrderId,recordType,revision}; with dryRun:true that revision is only proposed. Apply rechecks current state. See docs/development-applications.md for payload shapes and examples.',
       'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
       'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
       'When policies/building-permits.md is adopted, screening adds permit {safetyClass,structuralClass,classRationale}; classes are 1-4 and lightweight is limited to 1-2. Positive authorization requires --permit JSON {conditions,rightOfWay}; it records a 30-day commencement deadline and inactivity period. permit-extend permits at most two extensions of 1-30 days.',
@@ -215,7 +223,7 @@ function help() {
       'status and validate report adoption drift when the charter or policies no longer match the adopted digests; drift is reported, not enforced.',
       'Proposed requires acceptance criteria. Rejected and withdrawn cases must be reopened before routing again.',
       'adopt refuses once governance is adopted; amend is the only way to record a later charter or policy revision, appending the superseded revision (with --summary) to adoption.history and never returning governance to draft.',
-      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.7.0.',
+      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.8.0.',
       'The optional public-information policy uses existing case and artifact workflows. There is no publication command; filing an information product does not authorize release.',
       'schemaVersion 1 decisions remain proposal-only records. authorize and complete are the only decision-writing commands; adopt records charter adoption in config, not decisions.',
       'The city CLI does not itself execute work-order text. The generated check toolkit launches its recorded argv arrays with shell: false; it is not a sandbox, and a configured command may execute code, access the network, install packages or modify files. Review each command before running it. MCP servers are never installed by workforce commands.',
@@ -287,13 +295,34 @@ function parse(args) {
   if (specification.required.some((name) => !seen.has(name))) {
     fail('INVALID_ARGUMENT', 'A required flag is missing. Use --help for the supported command contract.');
   }
+  if (specification.requiresDataSource && seen.has('data') === seen.has('data-file')) {
+    fail('INVALID_ARGUMENT', 'Specify exactly one of --data JSON or --data-file PATH (use - for stdin).');
+  }
   return { command, options };
+}
+
+async function readDataFile(location) {
+  if (location !== '-') return (await readRegular(location, '--data-file input')).bytes;
+  const chunks = [];
+  let size = 0;
+  try {
+    for await (const chunk of process.stdin) {
+      size += chunk.length;
+      if (size > LIMITS.fileBytes) fail('SIZE_LIMIT', '--data-file stdin exceeds the supported input size.');
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    if (error instanceof CityError) throw error;
+    fail('PATH_ACCESS', '--data-file input cannot be read from stdin.');
+  }
+  return Buffer.concat(chunks, size);
 }
 
 async function main() {
   const { command, options } = parse(process.argv.slice(2));
   if (command === 'help') return help();
   const root = await rootDirectory(options.root);
+  if (Object.hasOwn(options, 'data-file')) options.data = await readDataFile(options['data-file']);
   if (Object.hasOwn(options, 'revision')) {
     const revision = Number(options.revision);
     if (!Number.isSafeInteger(revision) || revision < 0) fail('INVALID_ARGUMENT', '--revision must be a nonnegative integer.');

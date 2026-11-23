@@ -95,14 +95,17 @@ next authorization, not retroactive revocation.
 ## Actual CLI contract
 
 Every command requires an explicit absolute `--root` and exact work-order `--id`.
-All three accept a **single strict JSON `--data` argument**, default to dry-run and
-write only with `--apply`. No file is loaded or command executed from `--data`.
-No runtime dependencies or new canonical registry are introduced.
+All three require exactly one strict JSON input source: `--data JSON` for inline
+input, `--data-file PATH` for a regular file (not a symlink), or `--data-file -`
+for stdin. Relative file paths are resolved from the shell's working directory,
+not `--root`. File and stdin inputs are limited to 256 KiB and use the same JSON
+validation as inline input. The input is never executed. Commands default to
+dry-run and write only with `--apply`.
 
 ```sh
 node "<installed-plugin>/scripts/city.mjs" screen-development --root "<repository>" --id "<WO-ID>" --data '<screening JSON>'
-node "<installed-plugin>/scripts/city.mjs" application-record --root "<repository>" --id "<WO-ID>" --data '<application JSON>'
-node "<installed-plugin>/scripts/city.mjs" assess-application --root "<repository>" --id "<WO-ID>" --data '<assessment JSON>'
+node "<installed-plugin>/scripts/city.mjs" application-record --root "<repository>" --id "<WO-ID>" --data-file "application.json"
+node "<installed-plugin>/scripts/city.mjs" assess-application --root "<repository>" --id "<WO-ID>" --data-file - < "assessment.json"
 ```
 
 RSO/Advisor/Planner, which have no execute tool, prepare commands for Records
@@ -115,12 +118,21 @@ blocker. These commands append revisions rather than editing an existing
 screening or statement; do not create an artifact as a substitute for the
 requested structured record.
 
-The `screen-development` preview validates the screening input and current city
-state without writing. A separate `validate` command is not a prerequisite to
-applying a successful preview, though the Records Officer may run it for the
-selected root when requested. Review the preview and obtain the required
-confirmation before `--apply`; apply rechecks current state and may still fail.
-Report the exact command and error if a check or write fails.
+A successful preview returns `validation: "passed"`, `dryRun: true`,
+`changed: false`, and `wouldWrite: true`. Its `recordSummary` gives the work-order
+ID, record type, and proposed revision, for example
+`{"workOrderId":"WO-0001","recordType":"screenings","revision":1}`. The record type
+matches the key under `workOrder.development`: `screenings`, `applications`, or
+`assessments`. The full proposed work order remains in the response. Passing
+validation is not a write, a finding that the case is ready, or authorization.
+
+A separate `validate` command is not a prerequisite to applying a successful
+preview. Review the preview and obtain the required confirmation before
+`--apply`; use the same reviewed payload. Apply rechecks current state and may
+still fail. A successful apply returns the actual appended revision in
+`recordSummary`, with `dryRun: false` and `changed: true`. On failure the CLI
+returns a nonzero exit status and a JSON error on stderr; report the exact
+command and error.
 
 ### Screening — fixed source `chief-planner`
 

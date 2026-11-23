@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.7.0');
+  assert.equal(manifest.version, '0.8.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -521,7 +521,7 @@ test('development coordination continues through persisted independent assessmen
   assert.match(records, /does not provide a `city` command\s+on PATH/);
   assert.match(records, /read-only `validate`\s+command is also permitted for the selected root/);
   assert.match(records, /`status`, `validate`, and records commands/);
-  assert.match(records, /`screen-development` preview validates the submitted screening and current\s+city state/);
+  assert.match(records, /successful preview reports\s+`validation: "passed"`[\s\S]*`recordSummary`/);
   assert.match(records, /separate `validate` command is not a prerequisite/);
   assert.match(records, /exact command and error when a check or write fails/);
   assert.match(records, /append revisions; they do not amend an existing screening or\s+statement/);

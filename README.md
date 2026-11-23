@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.7.0 pilot, not a production government.**
+**Status: private 0.8.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -92,7 +92,10 @@ No universal master plan or full impact matrix is required. Static findings are
 not executed studies. Lightweight still requires delivery authorization.
 
 The CLI adds `screen-development`, `application-record`, `assess-application`,
-each `--root ABS --id WO-ID --data JSON [--apply]` (dry-run by default).
+each `--root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]`
+(dry-run by default; use `--data-file -` for stdin). A successful preview reports
+`validation: "passed"` and the proposed revision in `recordSummary`, without
+writing or authorizing anything.
 Under adopted development policy, Council-ready preparation and positive resident/
 Council authorization require current screening and, when formal, complete Advisor
 packet plus ready independent assessment. `status.workOrders.development` reports

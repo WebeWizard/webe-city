@@ -66,10 +66,13 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
-   The `screen-development` preview validates the submitted screening and current
-   city state; a separate `validate` command is not a prerequisite for applying
-   a successful preview. Apply still rechecks the current state and may fail if
-   it changed. Report the exact command and error when a check or write fails.
+   Use `--data-file PATH` (or `--data-file -` for stdin) for a supplied JSON
+   payload, or `--data JSON` inline, never both. A successful preview reports
+   `validation: "passed"` and the proposed work order, record type, and revision
+   in `recordSummary`. Verify that summary and reuse the reviewed payload for
+   confirmed apply. A separate `validate` command is not a prerequisite.
+   A passing preview neither writes nor authorizes. Apply rechecks current
+   state and may fail. Report the exact command and error when a check or write fails.
    These commands append revisions; they do not amend an existing screening or
    statement. Do not file a duplicate artifact to substitute for a structured
    record. If the requested destination or payload is unclear, stop and clarify.

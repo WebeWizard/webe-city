@@ -28,9 +28,10 @@ async function fixture(name = 'repository with spaces') {
   return { directory, root };
 }
 
-function run(args, script = cli) {
+function run(args, script = cli, input) {
   const result = spawnSync(process.execPath, [script, ...args], {
     encoding: 'utf8',
+    input,
     cwd: project,
     env: { ...process.env, NO_COLOR: '1' },
   });
@@ -38,15 +39,15 @@ function run(args, script = cli) {
   return result;
 }
 
-function success(args, script) {
-  const result = run(args, script);
+function success(args, script, input) {
+  const result = run(args, script, input);
   assert.equal(result.status, 0, `${args.join(' ')}\n${result.stderr}`);
   assert.equal(result.stderr, '');
   return JSON.parse(result.stdout);
 }
 
-function failure(args, code) {
-  const result = run(args);
+function failure(args, code, input) {
+  const result = run(args, cli, input);
   assert.notEqual(result.status, 0, result.stdout);
   assert.equal(result.stdout, '');
   const output = JSON.parse(result.stderr);
@@ -203,6 +204,15 @@ function screening(overrides = {}) {
 
 function developmentArgs(command, root, id, data, apply = false) {
   return [command, '--root', root, '--id', id, '--data', JSON.stringify(data), ...(apply ? ['--apply'] : [])];
+}
+
+function assertDevelopmentPreview(result, workOrderId, recordType, revision) {
+  assert.equal(result.validation, 'passed');
+  assert.equal(result.dryRun, true);
+  assert.equal(result.changed, false);
+  assert.equal(result.wouldWrite, true);
+  assert.deepEqual(result.recordSummary, { workOrderId, recordType, revision });
+  assert.equal(result.workOrder.development[recordType].at(-1).revision, revision);
 }
 
 function zoningMapArgs(root, zones, apply = false) {
@@ -514,7 +524,7 @@ test('ready development packets require ordinary lifecycle progression before Co
 });
 
 test('formal applications automatically route to Advisor and require exact independent ready assessment', async () => {
-  const { root } = await fixture();
+  const { root, directory } = await fixture();
   await adoptedCity(root);
   const order = petition(root);
   transition(root, order.id, 'triaged');
@@ -528,6 +538,7 @@ test('formal applications automatically route to Advisor and require exact indep
   });
   const beforeScreening = await snapshot(root);
   const preview = success(developmentArgs('screen-development', root, order.id, formal));
+  assertDevelopmentPreview(preview, order.id, 'screenings', 1);
   assert.equal(preview.development.next.actor, 'development-advisor');
   assert.deepEqual(await snapshot(root), beforeScreening);
   failure(developmentArgs('screen-development', root, order.id, { ...formal, projectIds: ['missing'] }), 'NOT_FOUND');
@@ -542,10 +553,17 @@ test('formal applications automatically route to Advisor and require exact indep
     proposal: 'Add a versioned API without changing existing consumers.',
     answers: [], artifacts: [{ requirementId: 'contract', disposition: 'provided', evidence: 'docs/api-contract.md, proposed v2 contract.' }],
   };
+  const packetPath = path.join(directory, 'application packet.json');
+  await writeFile(packetPath, JSON.stringify(packet, null, 2));
+  const applicationArgs = [
+    'application-record', '--root', root, '--id', order.id, '--data-file', path.relative(project, packetPath),
+  ];
   const before = await snapshot(root);
-  success(developmentArgs('application-record', root, order.id, packet));
+  assertDevelopmentPreview(success(applicationArgs), order.id, 'applications', 1);
   assert.deepEqual(await snapshot(root), before);
-  success(developmentArgs('application-record', root, order.id, packet, true));
+  const appliedApplication = success([...applicationArgs, '--apply']);
+  assert.equal(appliedApplication.changed, true);
+  assert.deepEqual(appliedApplication.recordSummary, { workOrderId: order.id, recordType: 'applications', revision: 1 });
   const assess = { applicationRevision: 1, outcome: 'ready', reason: 'Independent plan check.', evidence: 'Reviewed application against scoped requirements.' };
   failure(developmentArgs('assess-application', root, order.id, assess), 'DEVELOPMENT_NOT_READY');
   const incomplete = success(['status', '--root', root]).workOrders.development[0];
@@ -557,7 +575,12 @@ test('formal applications automatically route to Advisor and require exact indep
   assert.equal(success(['status', '--root', root]).workOrders.development[0].stage, 'independent-assessment');
   failure(developmentArgs('assess-application', root, order.id, { ...assess, sourceOffice: 'development-advisor' }), 'INVALID_ARGUMENT');
   failure(developmentArgs('assess-application', root, order.id, assess), 'STALE_DEVELOPMENT');
-  const ready = success(developmentArgs('assess-application', root, order.id, { ...assess, applicationRevision: 2 }, true));
+  const assessmentArgs = ['assess-application', '--root', root, '--id', order.id, '--data-file', '-'];
+  const assessmentInput = JSON.stringify({ ...assess, applicationRevision: 2 });
+  const beforeAssessment = await snapshot(root);
+  assertDevelopmentPreview(success(assessmentArgs, cli, assessmentInput), order.id, 'assessments', 1);
+  assert.deepEqual(await snapshot(root), beforeAssessment);
+  const ready = success([...assessmentArgs, '--apply'], cli, assessmentInput);
   assert.equal(ready.development.stage, 'ready-formal');
   assert.equal(ready.development.actionable, true);
   assert.deepEqual(ready.development.next, { actor: 'city-manager', action: 'arrange-lifecycle-progression' });
@@ -565,6 +588,7 @@ test('formal applications automatically route to Advisor and require exact indep
   assert.deepEqual(success(['status', '--root', root]).workOrders.development[0].next, {
     actor: 'city-council', action: 'review-authorization',
   });
+
   success(developmentArgs('application-record', root, order.id, packet, true));
   failure(authorizeArgs(root, order.id, { decidedBy: 'resident', extra: residentEvidence }), 'DEVELOPMENT_NOT_READY');
   success(authorizeArgs(root, order.id, { outcome: 'refer', extra: ['--apply'] }));
@@ -574,6 +598,27 @@ test('formal applications automatically route to Advisor and require exact indep
   assert.equal(saved.development.applications.length, 3);
   assert.equal(saved.development.assessments.length, 1);
   assert.equal(success(['records-get', '--root', root, '--id', order.id]).records[0].record.development.applications.length, 3);
+});
+
+test('development commands reject ambiguous, malformed, oversized, or unsafe JSON inputs without writing', async () => {
+  const { root, directory } = await fixture();
+  init(root);
+  const order = petition(root);
+  const args = ['screen-development', '--root', root, '--id', order.id, '--apply'];
+  const payload = path.join(directory, 'screening.json');
+  const before = await snapshot(root);
+  failure(args, 'INVALID_ARGUMENT');
+  failure([...args, '--data', '{}', '--data-file', '-'], 'INVALID_ARGUMENT');
+  failure([...args, '--data-file', payload], 'UNSAFE_PATH');
+  await writeFile(payload, '{');
+  failure([...args, '--data-file', payload], 'MALFORMED_JSON');
+  failure([...args, '--data-file', '-'], 'MALFORMED_JSON', '');
+  failure([...args, '--data-file', '-'], 'INVALID_ARGUMENT', '{"unexpected":true}');
+  const oversized = Buffer.alloc(256 * 1024 + 1, 32);
+  await writeFile(payload, oversized);
+  failure([...args, '--data-file', payload], 'SIZE_LIMIT');
+  failure([...args, '--data-file', '-'], 'SIZE_LIMIT', oversized);
+  assert.deepEqual(await snapshot(root), before);
 });
 
 test('screening snapshots invalidate scope, adopted policy, re-triage and reopening, but preserve legacy delivery', async () => {
@@ -1376,7 +1421,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.7.0' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.8.0' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -2258,7 +2303,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -2282,7 +2327,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0']);
   assert.equal(order.$defs.development.properties.permitExtensions.items.$ref, '#/$defs/permitExtension');
   assert.deepEqual(order.$defs.permitExtension.properties.decidedBy.enum, ['city-council', 'resident']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
@@ -2893,7 +2938,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.7.0' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.8.0' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -3246,7 +3291,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.7.0');
+  assert.equal(output.decision.provenance.plugin.version, '0.8.0');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -3256,7 +3301,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.7.0');
+  assert.equal(output.plugin.version, '0.8.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));
@@ -3581,7 +3626,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   assert.deepEqual(await snapshot(root), before);
   const requested = success([...args, '--apply']).record;
   assert.equal(requested.status, 'requested');
-  assert.equal(requested.provenance.plugin.version, '0.7.0');
+  assert.equal(requested.provenance.plugin.version, '0.8.0');
   assert.equal(requested.appointment, null);
   assert.deepEqual(requested.history[0], {
     from: null, to: 'requested', actor: 'engineering-manager',
@@ -3641,7 +3686,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   const hired = success([...hiringArgs, '--apply']);
   const staff = hired.record;
   assert.equal(staff.id, 'website-specialist');
-  assert.equal(staff.provenance.plugin.version, '0.7.0');
+  assert.equal(staff.provenance.plugin.version, '0.8.0');
   assert.equal(staff.status, 'active');
   assert.equal(staff.files.length, 5);
   assert.deepEqual(staff.files.map((file) => file.path), staff.files.map((file) => file.path).slice().sort());
@@ -3666,7 +3711,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   ], 'NOT_FOUND');
   assert.equal(success(assignmentArgs).dryRun, true);
   const firstAssignment = success([...assignmentArgs, '--apply']);
-  assert.equal(firstAssignment.record.provenance.plugin.version, '0.7.0');
+  assert.equal(firstAssignment.record.provenance.plugin.version, '0.8.0');
   assert.deepEqual(firstAssignment.next, { actor: 'City Engineer: Website Specialist', action: 'start-delivery' });
   await new Promise((resolve) => setTimeout(resolve, 5));
   success([
