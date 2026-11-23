@@ -44,21 +44,62 @@ This skill supplies a professional method, not tool access or authority.
 
 ## Development Advisor: preparation
 
-1. Collaborate with the resident to define the proposal and prepare only relevant
-   drawings/diagrams, specifications, project facts and technical studies/evidence.
-2. Request engineering or specialist investigation through City Manager. Read/search
-   available technical evidence yourself; ask residents only what they can supply.
-3. Account for each requirement using provided evidence or explained not-applicable.
+1. Read the current screening, adopted scoped policies, work order and acceptance
+   criteria, source and available evidence. For a revision, also read the prior
+   application, independent findings, resident decisions and current statements.
+   Distinguish current records from superseded screening-specific evidence.
+2. Collaborate with the resident to define the proposal, a meaningful alternative
+   and no change, with tradeoffs. Describe the affected components and boundaries,
+   interfaces and data flows, behavior and failure paths, dependencies, operations,
+   implementation sequencing, observable acceptance criteria, verification and
+   recovery as relevant to the request. Identify assumptions and unresolved design
+   choices rather than presenting them as established facts. Provide proportionate
+   diagrams, specifications, project facts and studies where required.
+3. Build a requirement-by-requirement working matrix: exact screening requirement
+   and reason, concrete evidence and location, what it establishes and its limits,
+   disposition, remaining gap and next owner/action. Cross-reference each prior
+   Planner finding to the new evidence or an explicit unresolved gap. Reuse recorded
+   resident choices with their source; ask again only when a distinct decision or
+   changed context requires it. Do not present an unchanged gap as resolved.
+4. For significant safety, structural, privacy, operational or capacity impacts,
+   develop a proportionate planning-level assessment: affected assets and people,
+   threat or failure scenarios, proposed controls, residual risks, assumptions and
+   evidence needed. Describe the intended network/exposure, identity, data lifecycle,
+   operating environment and capacity only when relevant; do not invent facts.
+   Distinguish resident intent, source observations, reported facts and unknowns.
+   State observation scope and avoid claiming global absence from a limited search.
+   Identify which work can be done now by read/search or authorized specialist
+   assistance and which empirical checks must await separately authorized delivery.
+   An unverified goal is not a measured result.
+5. When the permit policy is adopted and a dimension is class 3 or 4, identify
+   the matching current-screening qualified statement and, for class 4, independent
+   verification. Request outstanding specialist work through City Manager, including
+   scope, evidence, exact screening revision, limits and stopping conditions. A
+   qualified statement is separate from application studies and independent Planner
+   assessment; an undetermined conclusion is not itself a clearance failure or
+   proof of safety. Address its substantive unresolved risks against applicable
+   requirements. Do not invent a policy requirement for a safe conclusion.
+6. Request other engineering or specialist investigation through City Manager.
+   Investigate available facts yourself; ask residents only for choices, intent or
+   unavailable facts. Separate genuinely needed pre-authorization evidence from
+   proposed post-authorization implementation and tests. Do not demand unauthorized
+   production work to complete a planning packet.
+7. Account for each requirement using provided evidence or explained not-applicable.
    Missing studies/answers block readiness. Static analysis is not an executed
    study; never claim an unperformed test or use non-applicability to hide a gap.
-4. Prepare `application-record` against the exact current screening revision.
-   A partial packet is a draft, not ready. Preserve earlier revisions.
+   Prepare `application-record` against the exact current screening revision.
+   A partial packet is a draft, not ready. Preserve earlier revisions and hand off
+   precise blockers rather than cycling an unchanged incomplete packet.
 
 ## Chief Planner: independent assessment
 
 Check the current Advisor packet against each scoped requirement and resident
 answer. Independently record `assess-application` for its exact revision, with
-`ready` or `revise`, reasons and evidence. Never assess an application you prepared.
+`ready` or `revise`, reasons and evidence. Cite the applicable requirement and
+specific deficiency for each revision finding; distinguish a missing study from
+an unperformed future delivery test. A class-3 statement with an undetermined
+conclusion is not, by itself, a missing safety clearance. Assess its disclosed
+risks against the actual adopted requirements. Never assess an application you prepared.
 A ready assessment only enables Council/resident consideration, not delivery.
 
 ## Persistence, handoffs and limits

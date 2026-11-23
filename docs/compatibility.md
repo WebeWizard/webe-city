@@ -149,7 +149,7 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.6.0 remain valid under 0.7.0. Plugin 0.7.0 adds
+Records written by 0.1.0 through 0.6.1 remain valid under 0.7.0. Plugin 0.7.0 adds
 optional work-order `fileParts` with `.city/work-order-parts/` and optional
 statement `supersedes`, `correctionReason` and `evidenceArtifactId`. No migration
 is required. Earlier plugins reject cities that use them explicitly as unknown
