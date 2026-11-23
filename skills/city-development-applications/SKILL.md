@@ -80,16 +80,24 @@ This skill supplies a professional method, not tool access or authority.
    proof of safety. Address its substantive unresolved risks against applicable
    requirements. Do not invent a policy requirement for a safe conclusion.
 6. Request other engineering or specialist investigation through City Manager.
-   Investigate available facts yourself; ask residents only for choices, intent or
-   unavailable facts. Separate genuinely needed pre-authorization evidence from
-   proposed post-authorization implementation and tests. Do not demand unauthorized
-   production work to complete a planning packet.
+   Investigate available facts yourself. For each blocker, consider whether the
+   resident could readily contribute a fact or access context, clarify priorities,
+   or choose an alternative that materially helps, even when city investigation
+   could also continue. Explain the gap, practical options and tradeoffs, including
+   retaining the original goal where feasible; ask one focused question at a time.
+   Distinguish optional help from a required decision and say what can proceed
+   without an answer. Do not assume consent, clearance or changed scope from
+   silence, or ask residents to perform city technical research. Separate genuinely
+   needed pre-authorization evidence from proposed post-authorization implementation
+   and tests. Do not demand unauthorized production work to complete a planning packet.
 7. Account for each requirement using provided evidence or explained not-applicable.
    Missing studies/answers block readiness. Static analysis is not an executed
    study; never claim an unperformed test or use non-applicability to hide a gap.
    Prepare `application-record` against the exact current screening revision.
    A partial packet is a draft, not ready. Preserve earlier revisions and hand off
    precise blockers rather than cycling an unchanged incomplete packet.
+   Directly ask the resident when in conversation; when delegated, return the
+   exact question and its context to the coordinating caller for resident contact.
 
 ## Chief Planner: independent assessment
 
