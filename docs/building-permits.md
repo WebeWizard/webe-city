@@ -103,6 +103,13 @@ For class 3 or 4, record the professional statement with
 }
 ```
 
+Statements are append-only. To correct one, for example placeholder evidence,
+record a new statement for the same dimension, class and screening revision with
+`"supersedes": <current revision>` and a `correctionReason`; optionally link the
+complete filed document with `evidenceArtifactId`. The original remains on
+record, and a superseded class-4 statement needs a new verification. See
+[statement supersession](./work-order-file-parts.md#statement-supersession).
+
 For class 4, use `permit-verification --data` with
 `statementRevision`, a different qualified `staffId`, `outcome`,
 `reason`, and `evidence`. Before moving a permitted order into `inspection`,

@@ -221,6 +221,8 @@ export async function atomicRecord(city, recordDirectory, filename, content, exp
   } finally {
     await removeOwnedFile(staged, stagedInfo);
   }
+  // The published name shares the staged inode, so callers can remove exactly what they wrote.
+  return stagedInfo;
 }
 
 export async function atomicConfig(city, content, expectedBytes) {

@@ -4,7 +4,8 @@ import {
   DELIVERY_DECISION_SCHEMA_VERSION, EVIDENCE_RULE, GOVERNANCE, LEGACY_CONFIG_SCHEMA_VERSION,
   INFRASTRUCTURE_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION,
   INSTITUTIONAL_REVIEW_TRIGGERS, LIMITS, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, RESERVED_MATTERS, ROUTINE_CLASSES,
-  SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_SCHEMA_VERSION, WORKFORCE_SCHEMA_VERSION,
+  SCHEMA_VERSION, STATUSES, TRANSITIONS, WORK_ORDER_PART_SCHEMA_VERSION, WORK_ORDER_SCHEMA_VERSION,
+  WORKFORCE_SCHEMA_VERSION,
   WORKFORCE_TOOLS, GENERAL_ENGINEER_ID,
   DEVELOPMENT_IMPACTS, DEVELOPMENT_ARTIFACTS, DEVELOPMENT_POLICY, ZONING_CHANGE_TYPES, ZONING_POLICY,
 } from './constants.mjs';
@@ -13,6 +14,7 @@ import { fail } from './errors.mjs';
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const uuidPattern = new RegExp(`^${uuid}$`);
 const orderPattern = new RegExp(`^WO-${uuid}$`);
+const orderPartPattern = new RegExp(`^(WO-${uuid})-part-([0-9]{4})$`);
 const decisionPattern = new RegExp(`^DEC-${uuid}$`);
 const recordsRequestPattern = new RegExp(`^RR-${uuid}$`);
 const institutionalReviewPattern = new RegExp(`^IR-${uuid}$`);
@@ -29,8 +31,15 @@ export const RECORD_TYPES = Object.freeze([
   'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
 ]);
 export const CANONICAL_RECORD_TYPES = Object.freeze([
-  ...RECORD_TYPES, 'requisition', 'staff', 'assignment',
+  ...RECORD_TYPES, 'requisition', 'staff', 'assignment', 'work-order-part',
 ]);
+// Development revision arrays, in canonical order; file parts may close any of them.
+export const DEVELOPMENT_KINDS = Object.freeze([
+  'screenings', 'applications', 'assessments', 'zoningChecks', 'statements', 'verifications',
+  'completionNotices', 'permitExtensions',
+]);
+export const MAX_WORK_ORDER_PARTS = 99;
+export const workOrderPartId = (orderId, part) => `${orderId}-part-${String(part).padStart(4, '0')}`;
 export const RECORD_EXCHANGE_TYPES = Object.freeze([
   'work-order', 'decision', 'records-request', 'institutional-review', 'artifact', 'infrastructure-asset',
   'infrastructure-programme', 'config', 'project', 'district', 'zoning', 'charter', 'policy',
@@ -60,6 +69,9 @@ export function validateRecordId(type, id, label = 'Record ID') {
       break;
     case 'infrastructure-programme':
       if (id !== 'infrastructure-programme') fail('INVALID_ARGUMENT', `${label} must be infrastructure-programme.`);
+      break;
+    case 'work-order-part':
+      if (!orderPartPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be a work-order file part ID.`);
       break;
     case 'requisition':
       if (!requisitionPattern.test(id)) fail('INVALID_ARGUMENT', `${label} must be a requisition ID.`);
@@ -663,6 +675,7 @@ export function validateWorkOrder(value, expectedCityId) {
   const required = [
     'schemaVersion', 'id', 'cityId', 'title', 'request', 'acceptanceCriteria',
     'status', 'createdAt', 'updatedAt', 'history', 'provenance',
+    ...(own(value, 'fileParts') ? ['fileParts'] : []),
   ];
   if (value.schemaVersion === WORK_ORDER_SCHEMA_VERSION) {
     fields(value, [...required, 'projectIds', ...(own(value, 'development') ? ['development'] : [])], 'City work order');
@@ -678,6 +691,7 @@ export function validateWorkOrder(value, expectedCityId) {
   }
   validateOrderId(value.id);
   cityId(value.cityId, 'City work-order cityId', expectedCityId);
+  if (own(value, 'fileParts')) validateFilePartManifest(value.fileParts, value.id);
   text(value.title, 'Work-order title', 500);
   text(value.request, 'Work-order request', 20000);
   stringArray(value.acceptanceCriteria, 'Work-order acceptance criteria', LIMITS.criteria, 2000);
@@ -731,6 +745,79 @@ export function validateWorkOrder(value, expectedCityId) {
   return value;
 }
 
+function validateFilePartManifest(value, orderId) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_WORK_ORDER_PARTS) {
+    fail('INVALID_RECORD', `Work-order fileParts must list 1-${MAX_WORK_ORDER_PARTS} closed file parts.`);
+  }
+  for (const [index, reference] of value.entries()) {
+    fields(reference, ['id', 'sha256'], 'Work-order file part reference');
+    if (reference.id !== workOrderPartId(orderId, index + 1)) {
+      fail('INVALID_RECORD', 'Work-order fileParts must reference this order\'s parts in consecutive order from part-0001.');
+    }
+    digest(reference.sha256, 'Work-order file part sha256');
+  }
+}
+
+// A live file with closed parts holds only the open portion; validateWorkOrder runs on the assembled case file.
+export function validateStoredWorkOrder(value, expectedCityId) {
+  object(value, 'City work order');
+  if (!own(value, 'fileParts')) return validateWorkOrder(value, expectedCityId);
+  version(value, 'City work order', [WORK_ORDER_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION]);
+  validateOrderId(value.id);
+  cityId(value.cityId, 'City work-order cityId', expectedCityId);
+  validateFilePartManifest(value.fileParts, value.id);
+  if (!Array.isArray(value.history) || value.history.length > LIMITS.history) {
+    fail('INVALID_RECORD', `Open work-order history must have at most ${LIMITS.history} entries.`);
+  }
+  if (own(value, 'development')) partDevelopment(value.development, 'Open work-order development');
+  return value;
+}
+
+function partDevelopment(value, label) {
+  object(value, label);
+  for (const [kind, records] of Object.entries(value)) {
+    if (!DEVELOPMENT_KINDS.includes(kind) || !Array.isArray(records) || records.length > LIMITS.history) {
+      fail('INVALID_RECORD', `${label} has an unknown or unbounded revision list.`);
+    }
+  }
+}
+
+export function validateWorkOrderPart(value, expectedCityId) {
+  version(value, 'Work-order file part', [WORK_ORDER_PART_SCHEMA_VERSION]);
+  fields(value, [
+    'schemaVersion', 'id', 'cityId', 'workOrderId', 'part', 'previousPartSha256', 'closedAt', 'reason',
+    'sourceOffice', 'authenticated', 'contents', 'provenance',
+  ], 'Work-order file part');
+  if (typeof value.workOrderId !== 'string' || !orderPattern.test(value.workOrderId)
+    || !Number.isSafeInteger(value.part) || value.part < 1 || value.part > MAX_WORK_ORDER_PARTS
+    || value.id !== workOrderPartId(value.workOrderId, value.part)) {
+    fail('INVALID_RECORD', 'Work-order file part ID must be <work-order-id>-part-NNNN and match its work order and part number.');
+  }
+  cityId(value.cityId, 'Work-order file part cityId', expectedCityId);
+  if (value.part === 1) {
+    if (value.previousPartSha256 !== null) fail('INVALID_RECORD', 'The first work-order file part has no previous part.');
+  } else digest(value.previousPartSha256, 'Work-order file part previousPartSha256');
+  timestamp(value.closedAt, 'Work-order file part closedAt');
+  text(value.reason, 'Work-order file part reason', 4000);
+  if (value.sourceOffice !== 'records-officer' || value.authenticated !== false) {
+    fail('INVALID_RECORD', 'Work-order file parts are closed by the records-officer and are unauthenticated.');
+  }
+  provenance(value.provenance, 'Work-order file part provenance');
+  fields(value.contents, ['history', 'development'], 'Work-order file part contents');
+  if (!Array.isArray(value.contents.history) || value.contents.history.length > LIMITS.history) {
+    fail('INVALID_RECORD', `Work-order file part history must have at most ${LIMITS.history} entries.`);
+  }
+  partDevelopment(value.contents.development, 'Work-order file part development');
+  const total = value.contents.history.length
+    + Object.values(value.contents.development).reduce((sum, records) => sum + records.length, 0);
+  if (total === 0) fail('INVALID_RECORD', 'A work-order file part must close at least one history entry or revision.');
+  const latest = [...value.contents.history.map((entry) => entry?.timestamp),
+    ...Object.values(value.contents.development).flat().map((record) => record?.recordedAt)]
+    .filter((time) => typeof time === 'string').sort().at(-1);
+  if (latest && latest > value.closedAt) fail('INVALID_RECORD', 'A work-order file part cannot close entries recorded after closedAt.');
+  return value;
+}
+
 function developmentList(value, label, maximum = 50) {
   if (!Array.isArray(value) || value.length > maximum) fail('INVALID_ARGUMENT', `${label} must be a bounded array (at most ${maximum}).`);
 }
@@ -756,7 +843,9 @@ export function validateDevelopmentInput(kind, value) {
   }[kind];
   if (!keys) fail('INVALID_ARGUMENT', 'Unknown development record kind.');
   object(value, 'Development input');
-  const optionalKeys = kind === 'screenings' ? ['permit'] : [];
+  const optionalKeys = {
+    screenings: ['permit'], statements: ['supersedes', 'correctionReason', 'evidenceArtifactId'],
+  }[kind] ?? [];
   if (keys.some((key) => !own(value, key))
     || Object.keys(value).some((key) => !keys.includes(key) && !optionalKeys.includes(key))) {
     fail('INVALID_ARGUMENT', 'Development input has missing or unexpected fields.');
@@ -843,6 +932,17 @@ export function validateDevelopmentInput(kind, value) {
     }
     positiveRevision(value.screeningRevision);
     text(value.scope, 'Permit statement scope', 2000);
+    if (own(value, 'supersedes') !== own(value, 'correctionReason')) {
+      fail('INVALID_ARGUMENT', 'A corrected permit statement needs both supersedes and correctionReason.');
+    }
+    if (own(value, 'supersedes')) {
+      positiveRevision(value.supersedes);
+      text(value.correctionReason, 'Permit statement correctionReason', 4000);
+    }
+    if (own(value, 'evidenceArtifactId')
+      && (typeof value.evidenceArtifactId !== 'string' || !artifactPattern.test(value.evidenceArtifactId))) {
+      fail('INVALID_ARGUMENT', 'Permit statement evidenceArtifactId must be an artifact ID.');
+    }
   } else if (kind === 'verifications') {
     positiveRevision(value.statementRevision);
     if (typeof value.staffId !== 'string' || !/^[a-z][a-z0-9-]{1,40}$/u.test(value.staffId)) {
@@ -898,6 +998,8 @@ export function validateDevelopment(value, createdAt) {
     statements: 'engineering-manager', verifications: 'city-auditor', completionNotices: 'engineering-manager',
     permitExtensions: null,
   };
+  const superseded = new Map();
+  const statementHeads = new Map();
   for (const kind of Object.keys(offices)) {
     const records = value[kind] ?? (['statements', 'verifications', 'completionNotices', 'permitExtensions'].includes(kind) ? [] : null);
     if (!records) fail('INVALID_RECORD', `Work-order development is missing ${kind}.`);
@@ -935,10 +1037,29 @@ export function validateDevelopment(value, createdAt) {
         const screening = value.screenings[input.screeningRevision - 1];
         if (!screening?.permit || screening.permit[`${input.dimension}Class`] !== input.class
           || recordedAt < screening.recordedAt) fail('INVALID_RECORD', 'Permit statement must match an earlier risk-classified screening.');
+        if (own(input, 'supersedes')) {
+          const previous = value.statements[input.supersedes - 1];
+          if (!previous || input.supersedes >= revision || previous.dimension !== input.dimension
+            || previous.class !== input.class || previous.screeningRevision !== input.screeningRevision) {
+            fail('INVALID_RECORD', 'A corrected permit statement must supersede an earlier statement for the same dimension, class and screening.');
+          }
+          if (superseded.has(input.supersedes)) {
+            fail('INVALID_RECORD', 'A permit statement can be superseded only once; corrections form a single chain.');
+          }
+          superseded.set(input.supersedes, record);
+        }
+        const key = `${input.dimension}:${input.screeningRevision}`;
+        if ((input.supersedes ?? null) !== (statementHeads.get(key) ?? null)) {
+          fail('INVALID_RECORD', 'Each later permit statement for a dimension and screening must supersede the current statement.');
+        }
+        statementHeads.set(key, revision);
       } else if (kind === 'verifications') {
         const statement = recordsOf(value, 'statements')[input.statementRevision - 1];
         if (!statement || statement.class !== 4 || statement.staffId === input.staffId
           || recordedAt < statement.recordedAt) fail('INVALID_RECORD', 'Verification must independently reference an earlier class 4 statement.');
+        if (superseded.get(input.statementRevision)?.recordedAt < recordedAt) {
+          fail('INVALID_RECORD', 'Verification cannot reference a permit statement that was already superseded.');
+        }
       } else if (kind === 'completionNotices') {
         if (recordedAt < createdAt) fail('INVALID_RECORD', 'Completion notice cannot predate the work order.');
       } else if (kind === 'permitExtensions') {

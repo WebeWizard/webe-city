@@ -76,7 +76,10 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    When building permits are adopted, persist Manager-routed `permit-statement`,
    `permit-verification`, and `completion-notice` commands without changing their
    professional source or decision. Verify preview output and current permit /
-   screening references before applying.
+   screening references before applying. When `validate` lists a work order in
+   `capacity.nearLimitWorkOrders`, or a write fails with `SIZE_LIMIT`, preview and
+   then apply `file-part-close --id WO-ID --reason TEXT` to close an immutable
+   file part. Never truncate, edit, or delete history or part files.
 6. On Manager request, run the packaged CLI `status` for the selected root and
    return the requested case's current lifecycle and development `actionable`,
    `stage`, `next`, missing evidence and questions. The read-only `validate`

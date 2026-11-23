@@ -30,6 +30,9 @@ Initialization and a dry-run do not adopt the policy or authorize delivery.
   `permit-safety-class-N` or `permit-structural-class-N`.
 - Record the scoped evidence with `permit-statement`. A staff title alone is not
   evidence of competency.
+- Correct an erroneous statement only by a new `permit-statement` with
+  `supersedes` (the current revision) and a `correctionReason`; never edit the
+  record. Link the filed document with `evidenceArtifactId` when it exists.
 - For class-3 work, assess delivery staffing separately from statement
   preparation. Assign an active specialist when implementation duties require
   defined expertise; otherwise, ordinary work may use the general engineer.

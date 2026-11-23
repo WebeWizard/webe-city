@@ -1376,7 +1376,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.6.1' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.7.0' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -2258,7 +2258,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -2282,7 +2282,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0']);
   assert.equal(order.$defs.development.properties.permitExtensions.items.$ref, '#/$defs/permitExtension');
   assert.deepEqual(order.$defs.permitExtension.properties.decidedBy.enum, ['city-council', 'resident']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
@@ -2893,7 +2893,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.6.1' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.7.0' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -3246,7 +3246,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.6.1');
+  assert.equal(output.decision.provenance.plugin.version, '0.7.0');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -3256,7 +3256,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.6.1');
+  assert.equal(output.plugin.version, '0.7.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));
@@ -3368,7 +3368,7 @@ test('workforce records are optional and status exposes the bundled general engi
   assert.deepEqual(status.workOrders.deliveryWithoutAssignment, []);
   const validated = success(['validate', '--root', root]);
   assert.deepEqual(validated.records, {
-    projects: 0, workOrders: 0, decisions: 0, recordsRequests: 0,
+    projects: 0, workOrders: 0, workOrderParts: 0, decisions: 0, recordsRequests: 0,
     requisitions: 0, staff: 0, assignments: 0, institutionalReviews: 0, artifacts: 0,
     infrastructureAssets: 0, infrastructureProgramme: 0, zoningMap: 0,
   });
@@ -3443,7 +3443,7 @@ test('HR declines and appointment declines are terminal history transitions', as
   assert.equal(appointmentDeclined.record.status, 'declined');
   assert.equal(appointmentDeclined.record.appointment, null);
   assert.deepEqual(success(['validate', '--root', root]).records, {
-    projects: 1, workOrders: 1, decisions: 0, recordsRequests: 0,
+    projects: 1, workOrders: 1, workOrderParts: 0, decisions: 0, recordsRequests: 0,
     requisitions: 2, staff: 0, assignments: 0, institutionalReviews: 0, artifacts: 0,
     infrastructureAssets: 0, infrastructureProgramme: 0,
     zoningMap: 1,
@@ -3581,7 +3581,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   assert.deepEqual(await snapshot(root), before);
   const requested = success([...args, '--apply']).record;
   assert.equal(requested.status, 'requested');
-  assert.equal(requested.provenance.plugin.version, '0.6.1');
+  assert.equal(requested.provenance.plugin.version, '0.7.0');
   assert.equal(requested.appointment, null);
   assert.deepEqual(requested.history[0], {
     from: null, to: 'requested', actor: 'engineering-manager',
@@ -3641,7 +3641,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   const hired = success([...hiringArgs, '--apply']);
   const staff = hired.record;
   assert.equal(staff.id, 'website-specialist');
-  assert.equal(staff.provenance.plugin.version, '0.6.1');
+  assert.equal(staff.provenance.plugin.version, '0.7.0');
   assert.equal(staff.status, 'active');
   assert.equal(staff.files.length, 5);
   assert.deepEqual(staff.files.map((file) => file.path), staff.files.map((file) => file.path).slice().sort());
@@ -3666,7 +3666,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   ], 'NOT_FOUND');
   assert.equal(success(assignmentArgs).dryRun, true);
   const firstAssignment = success([...assignmentArgs, '--apply']);
-  assert.equal(firstAssignment.record.provenance.plugin.version, '0.6.1');
+  assert.equal(firstAssignment.record.provenance.plugin.version, '0.7.0');
   assert.deepEqual(firstAssignment.next, { actor: 'City Engineer: Website Specialist', action: 'start-delivery' });
   await new Promise((resolve) => setTimeout(resolve, 5));
   success([
@@ -3802,4 +3802,327 @@ test('workforce check toolkit runs argv without a shell and reports pass, failur
   assert.equal(invalid.status, 2);
   assert.equal(invalid.stdout, '');
   assert.match(JSON.parse(invalid.stderr).error, /valid command arrays/u);
+});
+
+const partPath = (root, id) => path.join(root, '.city/work-order-parts', `${id}.json`);
+const filePartCloseArgs = (root, id, extra = []) => [
+  'file-part-close', '--root', root, '--id', id, '--reason', 'The case file is nearing the per-file limit.', ...extra,
+];
+
+// Pads a triaged order with valid triage/proposal round trips to an exact live-file size.
+async function padWorkOrder(root, id, targetBytes) {
+  const order = await readJSON(recordPath(root, id));
+  assert.equal(order.status, 'triaged');
+  let time = Date.parse(order.updatedAt);
+  const size = () => Buffer.byteLength(`${JSON.stringify(order, null, 2)}\n`);
+  const pair = (length) => {
+    const entries = [['triaged', 'proposed'], ['proposed', 'triaged']].map(([from, to]) => {
+      time += 1;
+      return { from, to, reason: 'r'.repeat(length), timestamp: new Date(time).toISOString() };
+    });
+    order.history.push(...entries);
+    order.updatedAt = entries[1].timestamp;
+  };
+  while (size() + 2 * 4100 < targetBytes) pair(4000);
+  pair(1);
+  const deficit = targetBytes - size();
+  assert.ok(deficit >= 0 && deficit <= 7998);
+  const [first, second] = order.history.slice(-2);
+  first.reason = 'r'.repeat(1 + Math.min(deficit, 3999));
+  second.reason = 'r'.repeat(1 + deficit - Math.min(deficit, 3999));
+  await writeJSON(recordPath(root, id), order);
+  assert.equal(size(), targetBytes);
+  return order;
+}
+
+async function nearLimitOrder(root) {
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  return padWorkOrder(root, order.id, 256614);
+}
+
+test('a near-limit work order refuses new revisions explicitly and continues after closing a file part', async () => {
+  const { root } = await fixture();
+  const padded = await nearLimitOrder(root);
+  const id = padded.id;
+  const capacity = success(['validate', '--root', root]).capacity;
+  assert.equal(capacity.fileBytesLimit, 262144);
+  assert.deepEqual(capacity.nearLimitWorkOrders, [{
+    id, bytes: 256614, fileParts: 0, action: `file-part-close --id ${id} --reason TEXT`,
+  }]);
+
+  const before = await snapshot(root);
+  const detailed = screening({ evidence: 'e'.repeat(4000), scopeEvidence: 's'.repeat(2000) });
+  const refused = failure(developmentArgs('screen-development', root, id, detailed), 'SIZE_LIMIT');
+  assert.match(refused.error.message, /262144-byte per-file limit \(currently 256614 bytes\)/u);
+  assert.match(refused.error.message, /No record was written/u);
+  assert.match(refused.error.message, new RegExp(`file-part-close --id ${id}`, 'u'));
+  failure(['file-part-close', '--root', root, '--id', id], 'INVALID_ARGUMENT');
+
+  const preview = success(filePartCloseArgs(root, id));
+  assert.deepEqual(await snapshot(root), before);
+  assert.equal(preview.dryRun, true);
+  assert.equal(preview.filePart.id, `${id}-part-0001`);
+  assert.equal(preview.filePart.historyEntries, padded.history.length);
+  assert.equal(preview.workOrderFile.bytesBefore, 256614);
+  assert.ok(preview.workOrderFile.bytesAfter < 4096);
+  assert.deepEqual(preview.workOrder.history, padded.history);
+
+  const closed = success(filePartCloseArgs(root, id, ['--apply']));
+  const part = await readFile(partPath(root, closed.filePart.id));
+  assert.equal(sha256(part), closed.filePart.sha256);
+  const partRecord = JSON.parse(part);
+  assert.equal(partRecord.previousPartSha256, null);
+  assert.equal(partRecord.sourceOffice, 'records-officer');
+  assert.equal(partRecord.authenticated, false);
+  assert.deepEqual(partRecord.contents, { history: padded.history, development: {} });
+  const live = await readJSON(recordPath(root, id));
+  assert.deepEqual(live.fileParts, [{ id: closed.filePart.id, sha256: sha256(part) }]);
+  assert.deepEqual(live.history, []);
+  assert.equal(live.updatedAt, padded.updatedAt);
+  assert.equal(live.status, 'triaged');
+  const { fileParts, ...logical } = (await loadCity(root)).workOrders.get(id).value;
+  assert.deepEqual(logical, padded);
+  assert.deepEqual(fileParts, live.fileParts);
+
+  const screened = recordScreening(root, id, detailed);
+  assert.equal(screened.workOrder.development.screenings.at(-1).revision, 1);
+  assert.equal(screened.development.ready, true);
+  transition(root, id, 'proposed');
+  const reassembled = (await loadCity(root)).workOrders.get(id).value;
+  assert.deepEqual(reassembled.history.slice(0, padded.history.length), padded.history);
+  assert.equal(reassembled.history.at(-1).to, 'proposed');
+  assert.equal(reassembled.development.screenings.length, 1);
+
+  const second = success(filePartCloseArgs(root, id, ['--apply']));
+  assert.equal(second.filePart.id, `${id}-part-0002`);
+  assert.deepEqual(second.filePart.revisions, { screenings: 1 });
+  const secondRecord = await readJSON(partPath(root, second.filePart.id));
+  assert.equal(secondRecord.previousPartSha256, sha256(part));
+  assert.ok(secondRecord.closedAt >= partRecord.closedAt);
+  failure(filePartCloseArgs(root, id, ['--apply']), 'NOTHING_TO_CLOSE');
+  transition(root, id, 'awaiting-approval');
+  const afterSecond = (await loadCity(root)).workOrders.get(id).value;
+  assert.deepEqual(afterSecond.history.slice(0, -1), reassembled.history);
+  assert.deepEqual(afterSecond.development, reassembled.development);
+
+  const validated = success(['validate', '--root', root]);
+  assert.equal(validated.records.workOrderParts, 2);
+  assert.deepEqual(validated.capacity.nearLimitWorkOrders, []);
+  const listed = success(['records-list', '--root', root, '--type', 'work-order-part', '--work-order', id]);
+  assert.deepEqual(listed.records.map((record) => record.id), [`${id}-part-0001`, `${id}-part-0002`]);
+  const fetched = success(['records-get', '--root', root, '--id', id, '--linked']).records[0];
+  assert.deepEqual(fetched.record, await readJSON(recordPath(root, id)));
+  assert.deepEqual(fetched.linked.filter((link) => link.type === 'work-order-part').map((link) => link.id).sort(),
+    [`${id}-part-0001`, `${id}-part-0002`]);
+  const fetchedPart = success(['records-get', '--root', root, '--id', `${id}-part-0001`]).records[0];
+  assert.equal(fetchedPart.type, 'work-order-part');
+  assert.equal(fetchedPart.sha256, sha256(part));
+});
+
+test('work-order file parts fail closed when altered, missing, unlisted, or concurrently written', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  failure(filePartCloseArgs(root, 'WO-00000000-0000-4000-8000-000000000000'), 'NOT_FOUND');
+  const { spawn } = await import('node:child_process');
+  const runAsync = (args) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cli, ...args], { cwd: project });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (data) => { stdout += data; });
+    child.stderr.on('data', (data) => { stderr += data; });
+    child.on('error', reject);
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+  const results = await Promise.all([
+    runAsync(filePartCloseArgs(root, order.id, ['--apply'])),
+    runAsync(filePartCloseArgs(root, order.id, ['--apply'])),
+    runAsync(developmentArgs('screen-development', root, order.id, screening(), true)),
+  ]);
+  const closes = results.slice(0, 2).filter((result) => result.status === 0);
+  assert.ok(closes.length >= 1);
+  for (const result of results.filter((item) => item.status !== 0)) {
+    assert.match(JSON.parse(result.stderr).error.code, /^(CONFLICT|LOCKED|NOTHING_TO_CLOSE)$/u);
+  }
+  const city = await loadCity(root);
+  const live = await readJSON(recordPath(root, order.id));
+  assert.equal(city.workOrderParts.size, live.fileParts.length);
+  assert.equal(city.workOrders.get(order.id).value.history.length, 2);
+  if (results[2].status === 0) assert.equal(city.workOrders.get(order.id).value.development.screenings.length, 1);
+  assert.equal((await readdir(path.join(root, '.city'))).some((name) => name.startsWith('.pending-') || name === '.mutation-lock'), false);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+
+  const partId = live.fileParts[0].id;
+  const original = await readFile(partPath(root, partId));
+  const tampered = JSON.parse(original);
+  tampered.contents.history[0].reason = 'Rewritten intake reason.';
+  await writeJSON(partPath(root, partId), tampered);
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /does not match the SHA-256/u);
+  await rm(partPath(root, partId));
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /missing file part/u);
+  await writeFile(partPath(root, partId), original);
+  const orphan = { ...JSON.parse(original), id: `${order.id}-part-0099`, part: 99, previousPartSha256: sha256(original) };
+  await writeJSON(partPath(root, orphan.id), orphan);
+  const before = await readFile(recordPath(root, order.id));
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /not listed in its work order's fileParts manifest/u);
+  failure(['transition', '--root', root, '--id', order.id, '--to', 'proposed', '--reason', 'Route.', '--apply'], 'INVALID_RECORD');
+  assert.deepEqual(await readFile(recordPath(root, order.id)), before);
+  await rm(partPath(root, orphan.id));
+  const duplicated = { ...live, history: [...JSON.parse(original).contents.history, ...live.history] };
+  await writeJSON(recordPath(root, order.id), duplicated);
+  failure(['validate', '--root', root], 'INVALID_RECORD');
+  await writeFile(recordPath(root, order.id), before);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+function qualifiedStaff(root, order, staffId, competency) {
+  const args = workforceRequisitionArgs(root, order, staffId, []);
+  args.push('--competency', competency);
+  const requested = success([...args, '--apply']).record;
+  success([
+    'review-requisition', '--root', root, '--id', requested.id, '--outcome', 'endorse',
+    '--reason', 'Independent review confirms the qualified statement need.', '--apply',
+  ]);
+  success([
+    'appoint', '--root', root, '--id', requested.id, '--outcome', 'approve',
+    '--reason', 'Approve the endorsed qualified appointment.', '--apply',
+  ]);
+  return success(['hire', '--root', root, '--id', requested.id, '--apply']).record;
+}
+
+function preparedFormalOrder(root, safetyClass) {
+  const order = petition(root);
+  transition(root, order.id, 'triaged');
+  recordScreening(root, order.id, screening({
+    route: 'formal', impacts: ['architecture'],
+    requirements: [{ id: 'safety-evidence', kind: 'study', description: 'Assess the safety boundary.', reason: 'Support qualified safety review.' }],
+    permit: { safetyClass, structuralClass: 2, classRationale: 'The safety boundary needs qualified evidence.' },
+  }));
+  success(developmentArgs('application-record', root, order.id, {
+    screeningRevision: 1, reason: 'Prepare the safety package.', evidence: 'Safety boundary study.',
+    proposal: 'Update the scoped module.', answers: [],
+    artifacts: [{ requirementId: 'safety-evidence', disposition: 'provided', evidence: 'Safety boundary study.' }],
+  }, true));
+  success(developmentArgs('assess-application', root, order.id, {
+    applicationRevision: 1, outcome: 'ready', reason: 'The application requirements are addressed.',
+    evidence: 'Checked the study against the scoped module.',
+  }, true));
+  return order;
+}
+
+function fileEvidence(root, workOrderId) {
+  return success(['artifact-record', '--root', root, '--data', JSON.stringify({
+    title: 'Safety statement', kind: 'permit-statement', format: 'markdown',
+    content: '# Safety statement\n\nComplete qualified evidence for the screened boundary.\n',
+    sourceOffice: 'engineering-manager', workOrderId, supersedes: null, recordCategory: 'filed-work-product',
+  }), '--apply']).artifact;
+}
+
+test('an erroneous permit statement is corrected by explicit supersession that preserves the original', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = preparedFormalOrder(root, 3);
+  qualifiedStaff(root, order, 'safety-specialist', 'permit-safety-class-3');
+  const statement = {
+    dimension: 'safety', class: 3, staffId: 'safety-specialist', screeningRevision: 1,
+    scope: 'The screened module safety boundary.', evidence: 'TBD',
+  };
+  success(developmentArgs('permit-statement', root, order.id, statement, true));
+  const placeholder = (await readJSON(recordPath(root, order.id))).development.statements[0];
+  const evidence = fileEvidence(root, order.id);
+  const otherOrder = petition(root);
+  const foreign = fileEvidence(root, otherOrder.id);
+  const correction = {
+    ...statement, evidence: 'Complete qualified safety study.', evidenceArtifactId: evidence.id,
+    supersedes: 1, correctionReason: 'Replace placeholder evidence with the separately filed statement.',
+  };
+  const before = await snapshot(root);
+  const duplicate = failure(developmentArgs('permit-statement', root, order.id, { ...statement, evidence: 'Complete.' }, true), 'INVALID_ARGUMENT');
+  assert.match(duplicate.error.message, /supersedes 1 and a correctionReason/u);
+  const { correctionReason, ...withoutReason } = correction;
+  failure(developmentArgs('permit-statement', root, order.id, withoutReason, true), 'INVALID_ARGUMENT');
+  failure(developmentArgs('permit-statement', root, order.id, { ...correction, supersedes: 2 }, true), 'STALE_DEVELOPMENT');
+  failure(developmentArgs('permit-statement', root, order.id, { ...correction, class: 4 }, true), 'STALE_DEVELOPMENT');
+  failure(developmentArgs('permit-statement', root, order.id, {
+    ...correction, evidenceArtifactId: 'ART-00000000-0000-4000-8000-000000000000',
+  }, true), 'NOT_FOUND');
+  failure(developmentArgs('permit-statement', root, order.id, { ...correction, evidenceArtifactId: foreign.id }, true), 'INVALID_ARGUMENT');
+  assert.deepEqual(await snapshot(root), before);
+
+  const corrected = success(developmentArgs('permit-statement', root, order.id, correction, true));
+  const statements = corrected.workOrder.development.statements;
+  assert.equal(statements.length, 2);
+  assert.deepEqual(statements[0], placeholder);
+  assert.equal(statements[1].revision, 2);
+  assert.equal(statements[1].supersedes, 1);
+  assert.equal(statements[1].evidenceArtifactId, evidence.id);
+  assert.equal(corrected.development.stage, 'ready-formal');
+  failure(developmentArgs('permit-statement', root, order.id, correction, true), 'STALE_DEVELOPMENT');
+  success(developmentArgs('permit-statement', root, order.id, {
+    ...correction, supersedes: 2, correctionReason: 'Narrow the stated scope.',
+  }));
+  assert.equal(success(['validate', '--root', root]).valid, true);
+
+  const stored = await readFile(recordPath(root, order.id));
+  const forked = JSON.parse(stored);
+  forked.development.statements.push({ ...forked.development.statements[1], revision: 3 });
+  await writeJSON(recordPath(root, order.id), forked);
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /single chain/u);
+  const mismatched = JSON.parse(stored);
+  mismatched.development.statements[1].dimension = 'structural';
+  await writeJSON(recordPath(root, order.id), mismatched);
+  failure(['validate', '--root', root], 'INVALID_RECORD');
+  const unsuperseding = JSON.parse(stored);
+  const { supersedes, correctionReason: omitted, ...head } = unsuperseding.development.statements[1];
+  unsuperseding.development.statements.push({ ...head, revision: 3 });
+  await writeJSON(recordPath(root, order.id), unsuperseding);
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /must supersede the current statement/u);
+  const unlinked = JSON.parse(stored);
+  unlinked.development.statements[1].evidenceArtifactId = foreign.id;
+  await writeJSON(recordPath(root, order.id), unlinked);
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /same work order/u);
+  await writeFile(recordPath(root, order.id), stored);
+  assert.equal(success(['validate', '--root', root]).valid, true);
+});
+
+test('superseding a class 4 statement requires a new independent verification', async () => {
+  const { root } = await fixture();
+  init(root);
+  success(adoptArgs(root, ['--apply']));
+  const order = preparedFormalOrder(root, 4);
+  qualifiedStaff(root, order, 'safety-author', 'permit-safety-class-4');
+  qualifiedStaff(root, order, 'safety-verifier', 'permit-safety-class-4');
+  const statement = {
+    dimension: 'safety', class: 4, staffId: 'safety-author', screeningRevision: 1,
+    scope: 'The screened module safety boundary.', evidence: 'Placeholder evidence.',
+  };
+  const verify = (statementRevision) => developmentArgs('permit-verification', root, order.id, {
+    statementRevision, staffId: 'safety-verifier', outcome: 'verified',
+    reason: 'Independent review of the statement.', evidence: 'Checked the stated evidence.',
+  }, true);
+  success(developmentArgs('permit-statement', root, order.id, statement, true));
+  assert.equal(success(verify(1)).development.stage, 'ready-formal');
+  const corrected = success(developmentArgs('permit-statement', root, order.id, {
+    ...statement, evidence: 'Complete safety study.', supersedes: 1, correctionReason: 'Replace placeholder evidence.',
+  }, true));
+  assert.equal(corrected.development.stage, 'third-party-verification');
+  failure(verify(1), 'STALE_DEVELOPMENT');
+  const stored = await readFile(recordPath(root, order.id));
+  const late = JSON.parse(stored);
+  late.development.verifications.push({
+    ...late.development.verifications[0], revision: 2,
+    recordedAt: new Date(Date.parse(late.development.statements[1].recordedAt) + 1).toISOString(),
+  });
+  await writeJSON(recordPath(root, order.id), late);
+  assert.match(failure(['validate', '--root', root], 'INVALID_RECORD').error.message, /already superseded/u);
+  await writeFile(recordPath(root, order.id), stored);
+  const verified = success(verify(2));
+  assert.equal(verified.development.stage, 'ready-formal');
+  assert.equal(verified.workOrder.development.verifications.length, 2);
 });

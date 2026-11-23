@@ -1,12 +1,14 @@
-export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.6.1' });
+export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.7.0' });
 // Records written by earlier compatible releases stay valid; new writes always use PLUGIN.version.
-export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1']);
+export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0']);
 export const SCHEMA_VERSION = 1;
 export const WORK_ORDER_SCHEMA_VERSION = 2;
 export const INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION = 3;
 export const INFRASTRUCTURE_SCHEMA_VERSION = 1;
 export const RECORDS_REQUEST_SCHEMA_VERSION = 1;
 export const WORKFORCE_SCHEMA_VERSION = 1;
+// Closed work-order file parts (continuation volumes) carry their own record version.
+export const WORK_ORDER_PART_SCHEMA_VERSION = 1;
 export const INFRASTRUCTURE_POLICY = 'policies/infrastructure-management.md';
 // Delivery decisions (authorization and acceptance) use their own record version; proposal decisions stay at 1.
 export const DELIVERY_DECISION_SCHEMA_VERSION = 2;

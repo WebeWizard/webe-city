@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.6.1');
+  assert.equal(manifest.version, '0.7.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',

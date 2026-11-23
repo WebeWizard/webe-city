@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Repository City work-order file part, version 1",
+  "description": "An immutable, closed portion of a work order's case file, stored at .city/work-order-parts/<id>.json. The live work order lists each part's id and SHA-256 in fileParts; each part after the first records the previous part's SHA-256, forming a hash chain. Parts are never rewritten: the runtime fails closed on an altered, missing, unlisted or out-of-chain part. Contents are assembled in part order before the live file's open portion and validated as one work order. Closing a part is a records action and does not authenticate its contents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "cityId",
+    "workOrderId",
+    "part",
+    "previousPartSha256",
+    "closedAt",
+    "reason",
+    "sourceOffice",
+    "authenticated",
+    "contents",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-part-[0-9]{4}$"
+    },
+    "cityId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "workOrderId": {
+      "type": "string",
+      "pattern": "^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "part": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99
+    },
+    "previousPartSha256": {
+      "description": "Null for part 1; otherwise the SHA-256 of the previous part file.",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      ]
+    },
+    "closedAt": {
+      "$ref": "work-order.schema.json#/$defs/timestamp"
+    },
+    "reason": {
+      "$ref": "work-order.schema.json#/$defs/text",
+      "maxLength": 4000
+    },
+    "sourceOffice": {
+      "const": "records-officer"
+    },
+    "authenticated": {
+      "const": false
+    },
+    "contents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history",
+        "development"
+      ],
+      "properties": {
+        "history": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "work-order.schema.json#/properties/history/items"
+          }
+        },
+        "development": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "screenings": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/screening"
+              }
+            },
+            "applications": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/application"
+              }
+            },
+            "assessments": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/assessment"
+              }
+            },
+            "zoningChecks": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/zoningCheck"
+              }
+            },
+            "statements": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/permitStatement"
+              }
+            },
+            "verifications": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/permitVerification"
+              }
+            },
+            "completionNotices": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/completionNotice"
+              }
+            },
+            "permitExtensions": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "work-order.schema.json#/$defs/permitExtension"
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "work-order.schema.json#/properties/provenance"
+    }
+  }
+}
