@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.6.0');
+  assert.equal(manifest.version, '0.6.1');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -487,6 +487,22 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.match(policy, /Ordinary new features/);
   assert.match(policy, /never silently\s+waive/);
   assert.match(policy, /needs-clarification/);
+});
+
+test('Advisor prepares evidence-based plans and addresses class-3 revision findings', async () => {
+  const advisor = await readFile(path.join(agentsPath, 'development-advisor.agent.md'), 'utf8');
+  const skill = await readFile(path.join(root, 'skills/city-development-applications/SKILL.md'), 'utf8');
+  assert.match(advisor, /prior applications, Planner findings, resident decisions and\s+current permit statements/);
+  assert.match(advisor, /do not repeatedly ask for an\s+already recorded choice/);
+  assert.match(skill, /requirement-by-requirement working matrix/);
+  assert.match(skill, /Cross-reference each prior\s+Planner finding/);
+  assert.match(skill, /affected components and boundaries,[\s\S]*acceptance criteria,[\s\S]*recovery/);
+  assert.match(skill, /current-screening qualified statement[\s\S]*class 4, independent\s+verification/);
+  assert.match(skill, /statement is separate from application studies and independent Planner\s+assessment/);
+  assert.match(skill, /undetermined conclusion is not itself a clearance failure or\s+proof of safety/);
+  assert.match(skill, /empirical checks must await separately authorized delivery/);
+  assert.match(skill, /Do not demand unauthorized\s+production work/);
+  assert.match(skill, /precise blockers rather than cycling an unchanged incomplete packet/);
 });
 
 test('development coordination continues through persisted independent assessment', async () => {

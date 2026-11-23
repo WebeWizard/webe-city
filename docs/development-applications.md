@@ -22,6 +22,24 @@ executed load test, security study or compatibility experiment. Offices must nam
 unperformed studies and missing facts honestly. Neither a master plan nor a full
 impact matrix is required for every request.
 
+For a formal application the Advisor prepares a usable, proportionate plan, not
+just a list of topics: relevant scope, interfaces, data flows, operations, failure
+paths, acceptance evidence and recovery. A working requirement-to-evidence
+matrix tracks each screening requirement, evidence and its limits, outstanding
+gaps and next actions. Revisions address each independent Planner finding and
+reuse recorded resident choices unless the context or decision has changed.
+Planning-level risk analysis can identify scenarios, proposed controls and residual
+risks without pretending that code or tests exist. Empirical tests that require
+authorized delivery remain future work; an actually required study remains missing
+until adequately supported.
+
+For adopted permits, a class-3 or class-4 dimension also needs its matching
+current-screening qualified statement (and class 4 needs independent verification).
+The statement does not replace the application studies or Planner assessment.
+An undetermined statement is not automatically a failed safety clearance: its
+limitations and unresolved risks must be evaluated against the actual requirements.
+Requests for specialist assistance go through City Manager within existing authority.
+
 ## Baseline and local refinements
 
 When the [zoning policy](./zoning.md) is adopted, a current zoning map and
