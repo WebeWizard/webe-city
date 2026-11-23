@@ -8,13 +8,13 @@ import {
   INSTITUTIONAL_REVIEW_POLICY, INSTITUTIONAL_REVIEW_TRIGGERS,
   DEVELOPMENT_POLICY, PERMIT_COMMENCEMENT_DAYS, PERMIT_INACTIVITY_DAYS, PERMIT_MAX_EXTENSIONS,
   OUTCOME_STATES, PLUGIN, RECORDS_REQUEST_SCHEMA_VERSION, ROUTINE_CLASSES, SCHEMA_VERSION, STATUSES,
-  WORK_ORDER_SCHEMA_VERSION,
+  WORK_ORDER_PART_SCHEMA_VERSION, WORK_ORDER_SCHEMA_VERSION,
   governanceNotice, provenance,
 } from './constants.mjs';
 import { CityError, fail } from './errors.mjs';
 import {
   assertIdentity, atomicCityFile, atomicConfig, atomicRecord, directory, encodeJSON, entries, ensureDirectories, inspect,
-  publishCity, readRegular, regularFile, rootDirectory, withMutationLock,
+  publishCity, readRegular, regularFile, removeOwnedFile, rootDirectory, withMutationLock,
 } from './filesystem.mjs';
 import {
   authorizationCurrent, calendarDate, CANONICAL_RECORD_TYPES, checkTransition, parseJSON, parseReserved,
@@ -24,10 +24,11 @@ import {
   validateDevelopmentInput, applicationMissing, validateZoningMap, validateZoningCheckInput,
   validateInfrastructureWorkScope,
   validateArtifact, validateArtifactInput,
+  DEVELOPMENT_KINDS, MAX_WORK_ORDER_PARTS, validateStoredWorkOrder, validateWorkOrderPart, workOrderPartId,
 } from './validation.mjs';
 import { currentAssignments, readWorkforceRecords, workforceStatus } from './workforce.mjs';
 import {
-  assertDevelopmentReady, currentScreening, developmentPreparationAllowed, developmentSnapshot, developmentStatus,
+  assertDevelopmentReady, currentScreening, currentStatement, developmentPreparationAllowed, developmentSnapshot, developmentStatus,
   permitPolicyEnabled,
 } from './development.mjs';
 import {
@@ -109,6 +110,96 @@ async function readRecords(cityPath, name, validator, cityId, optional = false) 
   return { records, identity };
 }
 
+// Reassembles each case file from its closed parts and open live file, then validates the whole record.
+function assembleWorkOrders(orders, parts, cityId) {
+  for (const { value: part } of parts.values()) {
+    if (!orders.get(part.workOrderId)?.value.fileParts?.some((reference) => reference.id === part.id)) {
+      fail('INVALID_RECORD', `Work-order file part .city/work-order-parts/${part.id}.json is not listed in its work order's fileParts manifest. It may remain from an interrupted file-part-close: confirm the work order still holds the full open record, then remove the unlisted part file or restore both records from backup. No part is silently ignored.`);
+    }
+  }
+  for (const entry of orders.values()) {
+    const stored = entry.value;
+    entry.stored = stored;
+    entry.parts = [];
+    if (!stored.fileParts) continue;
+    const history = [];
+    const development = {};
+    let previous = null;
+    let previousClosedAt = stored.createdAt;
+    for (const [index, reference] of stored.fileParts.entries()) {
+      const part = parts.get(reference.id);
+      if (!part) {
+        fail('INVALID_RECORD', `Work order ${stored.id} lists missing file part ${reference.id}. Restore .city/work-order-parts/${reference.id}.json from backup; the case file cannot be assembled without it.`);
+      }
+      const digest = sha256(part.bytes);
+      if (digest !== reference.sha256) {
+        fail('INVALID_RECORD', `Work-order file part ${reference.id} does not match the SHA-256 recorded in its work order. Closed file parts are immutable; restore the original part from backup.`);
+      }
+      if (part.value.part !== index + 1 || part.value.previousPartSha256 !== previous
+        || part.value.closedAt < previousClosedAt) {
+        fail('INVALID_RECORD', `Work-order file part ${reference.id} breaks the part chain or chronology. Restore the original parts from backup.`);
+      }
+      history.push(...part.value.contents.history);
+      for (const [kind, records] of Object.entries(part.value.contents.development)) {
+        (development[kind] ??= []).push(...records);
+      }
+      previous = digest;
+      previousClosedAt = part.value.closedAt;
+      entry.parts.push(part);
+    }
+    history.push(...stored.history);
+    for (const [kind, records] of Object.entries(stored.development ?? {})) (development[kind] ??= []).push(...records);
+    const kinds = DEVELOPMENT_KINDS.filter((kind) => Object.hasOwn(development, kind));
+    const logical = { ...stored, history };
+    if (kinds.length) logical.development = Object.fromEntries(kinds.map((kind) => [kind, development[kind]]));
+    entry.value = validateWorkOrder(logical, cityId);
+  }
+}
+
+const sameJSON = (first, second) => JSON.stringify(first) === JSON.stringify(second);
+
+// Returns the live-file form of a full case file: closed parts stay immutable and only the open portion is written.
+function storedWorkOrder(workOrder, parts) {
+  const manifest = parts.map(({ value, bytes }) => ({ id: value.id, sha256: sha256(bytes) }));
+  if (!sameJSON(workOrder.fileParts ?? [], manifest)) {
+    fail('CONFLICT', 'The work-order file part manifest changed since validation. Reload the case file and retry.');
+  }
+  if (parts.length === 0) return workOrder;
+  const closedHistory = parts.flatMap(({ value }) => value.contents.history);
+  if (!sameJSON(workOrder.history.slice(0, closedHistory.length), closedHistory)) {
+    fail('CLOSED_FILE_PART', 'The proposed change would alter history held in a closed work-order file part. Closed parts are immutable; append a new entry instead.');
+  }
+  const stored = { ...workOrder, history: workOrder.history.slice(closedHistory.length) };
+  for (const kind of DEVELOPMENT_KINDS) {
+    const closed = parts.flatMap(({ value }) => value.contents.development[kind] ?? []);
+    const records = workOrder.development?.[kind];
+    if (!records && closed.length === 0) continue;
+    if (!records || !sameJSON(records.slice(0, closed.length), closed)) {
+      fail('CLOSED_FILE_PART', 'The proposed change would alter development revisions held in a closed work-order file part. Closed parts are immutable; append a new revision instead.');
+    }
+  }
+  if (workOrder.development) {
+    stored.development = Object.fromEntries(Object.entries(workOrder.development).map(([kind, records]) => [
+      kind, records.slice(parts.reduce((sum, { value }) => sum + (value.contents.development[kind]?.length ?? 0), 0)),
+    ]));
+  }
+  return stored;
+}
+
+// Prepares the live file for a proposed case file and reports capacity explicitly instead of truncating anything.
+function preparedWorkOrder(workOrder, original) {
+  const stored = storedWorkOrder(workOrder, original?.parts ?? []);
+  const bytes = Buffer.byteLength(encodeJSON(stored));
+  if (bytes > LIMITS.fileBytes) {
+    const current = original ? ` (currently ${original.bytes.length} bytes)` : '';
+    const remedy = original
+      ? ` Close the current file part with file-part-close --id ${workOrder.id} --reason TEXT, then retry; the closed part keeps the full history and revisions unchanged.`
+      : '';
+    fail('SIZE_LIMIT', `The proposed work-order file .city/work-orders/${workOrder.id}.json would be ${bytes} bytes, above the ${LIMITS.fileBytes}-byte per-file limit${current}. No record was written.${remedy}`);
+  }
+  return stored;
+}
+
 export async function loadCity(root, required = true) {
   const cityPath = path.join(root, '.city');
   const found = await inspect(cityPath);
@@ -138,7 +229,9 @@ export async function loadCity(root, required = true) {
   await governanceLayout(cityPath);
   const currentGovernanceDigests = await governanceDigests(cityPath);
   const drift = config.governance === 'adopted' ? adoptionDrift(config.adoption, currentGovernanceDigests) : null;
-  const orders = await readRecords(cityPath, 'work-orders', validateWorkOrder, config.cityId, true);
+  const orders = await readRecords(cityPath, 'work-orders', validateStoredWorkOrder, config.cityId, true);
+  const orderParts = await readRecords(cityPath, 'work-order-parts', validateWorkOrderPart, config.cityId, true);
+  assembleWorkOrders(orders.records, orderParts.records, config.cityId);
   const decisions = await readRecords(cityPath, 'decisions', validateDecision, config.cityId, true);
   const recordsRequests = await readRecords(
     cityPath, 'records-requests', validateRecordsRequest, config.cityId, true,
@@ -156,6 +249,14 @@ export async function loadCity(root, required = true) {
       if (!previous || previous.workOrderId !== artifact.workOrderId
         || Date.parse(previous.createdAt) >= Date.parse(artifact.createdAt)) {
         fail('INVALID_RECORD', 'Artifact must supersede an earlier artifact for the same work order.');
+      }
+    }
+  }
+  for (const { value: order } of orders.records.values()) {
+    for (const statement of order.development?.statements ?? []) {
+      if (statement.evidenceArtifactId
+        && artifacts.records.get(statement.evidenceArtifactId)?.value.workOrderId !== order.id) {
+        fail('INVALID_RECORD', 'Permit statement evidenceArtifactId must reference an artifact filed for the same work order.');
       }
     }
   }
@@ -303,6 +404,7 @@ export async function loadCity(root, required = true) {
     zoning, zoningBytes: zoningSource?.bytes ?? null,
     governanceDigests: currentGovernanceDigests,
     workOrders: orders.records,
+    workOrderParts: orderParts.records,
     decisions: decisions.records,
     recordsRequests: recordsRequests.records,
     institutionalReviews: institutionalReviews.records,
@@ -316,6 +418,7 @@ export async function loadCity(root, required = true) {
     workforce,
     directoryIdentities: {
       'work-orders': orders.identity, decisions: decisions.identity,
+      'work-order-parts': orderParts.identity,
       'records-requests': recordsRequests.identity,
       'institutional-reviews': institutionalReviews.identity,
       artifacts: artifacts.identity,
@@ -1210,15 +1313,22 @@ async function canonicalRecords(city) {
     related.push({ type: 'assignment', id: value.id });
     workforceByOrder.set(value.workOrderId, related);
   }
-  for (const { value, bytes } of city.workOrders.values()) {
-    records.push(recordItem('work-order', value.id, `.city/work-orders/${value.id}.json`, bytes, value,
+  // Work-order data is the live file as stored; closed file parts are their own canonical records.
+  for (const { value, bytes, stored, parts } of city.workOrders.values()) {
+    records.push(recordItem('work-order', value.id, `.city/work-orders/${value.id}.json`, bytes, stored ?? value,
       value.status, [
+        ...parts.map((part) => ({ type: 'work-order-part', id: part.value.id })),
         ...(decisionsByOrder.get(value.id) ?? []),
         ...(requestsByOrder.get(value.id) ?? []),
         ...(workforceByOrder.get(value.id) ?? []),
         ...(infrastructureByOrder.get(value.id) ?? []),
         ...(artifactsByOrder.get(value.id) ?? []),
       ], value.title));
+  }
+  for (const { value, bytes } of city.workOrderParts.values()) {
+    records.push(recordItem('work-order-part', value.id, `.city/work-order-parts/${value.id}.json`, bytes, value,
+      null, [{ type: 'work-order', id: value.workOrderId }],
+      `File part ${value.part} of ${value.workOrderId}`));
   }
   for (const { value, bytes } of city.decisions.values()) {
     records.push(recordItem('decision', value.id, `.city/decisions/${value.id}.json`, bytes, value,
@@ -1329,6 +1439,9 @@ function validateAnyRecordId(id) {
   }
   if (/^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'work-order', id };
+  }
+  if (/^WO-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-part-[0-9]{4}$/u.test(id)) {
+    return { type: 'work-order-part', id };
   }
   if (/^DEC-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     return { type: 'decision', id };
@@ -1707,6 +1820,7 @@ export async function validate(root) {
     records: {
       projects: city.projects.projects.length,
       workOrders: city.workOrders.size,
+      workOrderParts: city.workOrderParts.size,
       decisions: city.decisions.size,
       recordsRequests: city.recordsRequests.size,
       requisitions: city.workforce.requisitions.size,
@@ -1721,7 +1835,24 @@ export async function validate(root) {
     institutionalReview: institutionalReviewStatus(city),
     infrastructure: infrastructureStatus(city),
     workforce: { drift: city.workforce.drift },
+    capacity: workOrderCapacity(city),
     notice: governanceNotice(city.config.governance),
+  };
+}
+
+// Flags live work-order files nearing the per-file limit so a file part can be closed before writes fail.
+function workOrderCapacity(city) {
+  const threshold = Math.floor(LIMITS.fileBytes * 0.8);
+  return {
+    fileBytesLimit: LIMITS.fileBytes,
+    nearLimitThresholdBytes: threshold,
+    nearLimitWorkOrders: [...city.workOrders.values()]
+      .filter(({ bytes }) => bytes.length >= threshold)
+      .map(({ value, bytes, parts }) => ({
+        id: value.id, bytes: bytes.length, fileParts: parts.length,
+        action: `file-part-close --id ${value.id} --reason TEXT`,
+      }))
+      .sort((first, second) => second.bytes - first.bytes || first.id.localeCompare(second.id)),
   };
 }
 
@@ -2020,7 +2151,7 @@ export async function petition(root, options) {
     history: [{ from: null, to: 'received', reason: 'Petition received as draft intake, not delivery authorization.', timestamp: now }],
     provenance: provenance(),
   }, city.config.cityId);
-  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  preparedWorkOrder(workOrder, null);
   if (options.apply) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
@@ -2065,7 +2196,7 @@ export async function transition(root, options) {
       { from: original.value.status, to: options.to, reason: options.reason, timestamp: now },
     ],
   }, city.config.cityId);
-  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  const stored = preparedWorkOrder(workOrder, original);
   if (options.apply) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
@@ -2079,7 +2210,7 @@ export async function transition(root, options) {
         assertInfrastructureScopeCurrent(current, original.value);
       }
       assertPermitTransition(current, original.value, options.to);
-      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, stored, original.bytes);
     });
   }
   return mutationOutput('transition', root, options.apply, workOrder, city.config.governance);
@@ -2227,14 +2358,29 @@ export async function developmentRecord(root, options, kind) {
         fail('STALE_DEVELOPMENT', 'Permit statement must match a current class 3 or 4 risk classification.');
       }
       requirePermitCompetency(city, input.staffId, input.dimension, input.class);
-      if (development.statements.some((statement) => statement.dimension === input.dimension
-        && statement.screeningRevision === screening.revision)) {
-        fail('INVALID_ARGUMENT', 'A permit statement already exists for this risk dimension and screening; re-screen to replace it.');
+      const head = currentStatement(order, input.dimension, screening.revision);
+      if (input.supersedes === undefined && head) {
+        fail('INVALID_ARGUMENT', `Permit statement revision ${head.revision} already exists for this risk dimension and screening. To correct it, record a replacement with supersedes ${head.revision} and a correctionReason; the original stays in history. Re-screen instead if the risk classification itself must change.`);
+      }
+      if (input.supersedes !== undefined && head?.revision !== input.supersedes) {
+        fail('STALE_DEVELOPMENT', head
+          ? `Only the current permit statement can be superseded; the current statement for this dimension and screening is revision ${head.revision}.`
+          : 'There is no current permit statement for this risk dimension and screening to supersede.');
+      }
+      if (input.evidenceArtifactId) {
+        const artifact = city.artifacts.get(input.evidenceArtifactId);
+        if (!artifact) fail('NOT_FOUND', 'Permit statement evidenceArtifactId must reference a filed artifact.');
+        if (artifact.value.workOrderId !== order.id) {
+          fail('INVALID_ARGUMENT', 'Permit statement evidenceArtifactId must reference an artifact filed for this work order.');
+        }
       }
     } else if (kind === 'verifications') {
       const statement = development.statements[input.statementRevision - 1];
       if (!statement || statement.class !== 4) {
         fail('STALE_DEVELOPMENT', 'Independent verification must reference a current class 4 professional statement.');
+      }
+      if (development.statements.some((next) => next.supersedes === statement.revision)) {
+        fail('STALE_DEVELOPMENT', 'This permit statement was superseded by a correction; verify the current statement instead.');
       }
       if (statement.staffId === input.staffId) fail('SEPARATION_OF_DUTIES', 'The professional statement author cannot verify the same statement.');
       const assignment = currentAssignments(city).get(order.id);
@@ -2275,14 +2421,18 @@ export async function developmentRecord(root, options, kind) {
   const workOrder = validateWorkOrder({
     ...scopedOrder, development: { ...development, [kind]: [...development[kind], record] },
   }, city.config.cityId);
-  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  const stored = preparedWorkOrder(workOrder, original);
   if (options.apply) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
       checkCityUnchanged(city, current);
       checkOrderUnchanged(city, current, original);
       checkDevelopmentContextUnchanged(city, current);
-      await atomicRecord(current, 'work-orders', `${order.id}.json`, workOrder, original.bytes);
+      if (input.evidenceArtifactId
+        && !current.artifacts.get(input.evidenceArtifactId)?.bytes.equals(city.artifacts.get(input.evidenceArtifactId).bytes)) {
+        fail('CONFLICT', 'The cited evidence artifact changed since validation. Review it and retry.');
+      }
+      await atomicRecord(current, 'work-orders', `${order.id}.json`, stored, original.bytes);
     });
   }
   const command = { screenings: 'screen-development', applications: 'application-record', assessments: 'assess-application' }[kind];
@@ -2340,9 +2490,7 @@ export async function zoningCheckRecord(root, options) {
     ...original.value,
     development: { ...priorDevelopment, zoningChecks: [...zoningChecks, record] },
   }, city.config.cityId);
-  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) {
-    fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
-  }
+  const stored = preparedWorkOrder(workOrder, original);
   if (options.apply) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
@@ -2352,7 +2500,7 @@ export async function zoningCheckRecord(root, options) {
         checkInfrastructureUnchanged(city, current, original.value.infrastructure.assets.map((pin) => pin.assetId));
         assertInfrastructureScopeCurrent(current, original.value);
       }
-      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, stored, original.bytes);
     });
   }
   return {
@@ -2476,16 +2624,15 @@ function deliveryRecords(context, fields, historyReason) {
       { from: original.value.status, to: state, reason: historyReason(decision.id), timestamp: createdAt },
     ],
   }, city.config.cityId);
-  for (const record of [decision, workOrder]) {
-    if (Buffer.byteLength(encodeJSON(record)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city record exceeds the supported local file size.');
-  }
+  if (Buffer.byteLength(encodeJSON(decision)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city decision exceeds the supported local file size.');
+  const stored = state === null ? null : preparedWorkOrder(workOrder, original);
   if (city.decisions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported decision count.');
-  return { decision, workOrder, changesOrder: state !== null };
+  return { decision, workOrder, stored, changesOrder: state !== null };
 }
 
 async function writeDeliveryRecords(root, context, records) {
   const { city, original, digests } = context;
-  const { decision, workOrder, changesOrder } = records;
+  const { decision, workOrder, stored, changesOrder } = records;
   await withMutationLock(city.path, city.identity, async () => {
     const current = await loadCity(root);
     checkCityUnchanged(city, current);
@@ -2502,7 +2649,7 @@ async function writeDeliveryRecords(root, context, records) {
     await atomicRecord(current, 'decisions', `${decision.id}.json`, decision);
     if (!changesOrder) return;
     try {
-      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, stored, original.bytes);
     } catch (error) {
       const cause = error instanceof CityError ? error.code : 'FILESYSTEM_ERROR';
       fail('PARTIAL_WRITE', `Decision .city/decisions/${decision.id}.json was written but work order .city/work-orders/${workOrder.id}.json was not updated (${cause}). The city will not validate until you remove that decision file or restore both records from backup; then run validate.`);
@@ -2669,7 +2816,7 @@ export async function permitExtend(root, options) {
   const workOrder = validateWorkOrder({
     ...original.value, development: { ...development, permitExtensions: [...development.permitExtensions, record] },
   }, city.config.cityId);
-  if (Buffer.byteLength(encodeJSON(workOrder)) > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed city work order exceeds the supported local file size.');
+  const stored = preparedWorkOrder(workOrder, original);
   if (options.apply) {
     await withMutationLock(city.path, city.identity, async () => {
       const current = await loadCity(root);
@@ -2677,7 +2824,7 @@ export async function permitExtend(root, options) {
       checkOrderUnchanged(city, current, original);
       checkDevelopmentContextUnchanged(city, current);
       validatePermitExtensionAllowed(current, original.value, input);
-      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, workOrder, original.bytes);
+      await atomicRecord(current, 'work-orders', `${workOrder.id}.json`, stored, original.bytes);
     });
   }
   const output = mutationOutput('permit-extend', root, options.apply, workOrder, city.config.governance);
@@ -2736,13 +2883,102 @@ export async function complete(root, options) {
   return deliveryOutput('complete', root, options.apply, context, records);
 }
 
+// Closes the open portion of a case file into an immutable, hash-chained part so recording can continue.
+export async function filePartClose(root, options) {
+  validateOrderId(options.id);
+  text(options.reason, '--reason', 4000);
+  const city = await loadCity(root);
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  const stored = original.stored;
+  const open = {
+    history: stored.history,
+    development: Object.fromEntries(Object.entries(stored.development ?? {}).filter(([, records]) => records.length)),
+  };
+  if (open.history.length + Object.values(open.development).flat().length === 0) {
+    fail('NOTHING_TO_CLOSE', 'The open work-order file has no history entries or revisions to close into a file part.');
+  }
+  const number = original.parts.length + 1;
+  if (number > MAX_WORK_ORDER_PARTS) fail('SIZE_LIMIT', `A work order supports at most ${MAX_WORK_ORDER_PARTS} closed file parts.`);
+  if (city.workOrderParts.size >= LIMITS.records) fail('SIZE_LIMIT', `City has reached the supported ${LIMITS.records} work-order file parts.`);
+  const latest = [...open.history.map((entry) => entry.timestamp),
+    ...Object.values(open.development).flat().map((record) => record.recordedAt)].sort().at(-1);
+  const previousClosedAt = original.parts.at(-1)?.value.closedAt;
+  const closedAt = new Date(Math.max(Date.now(), Date.parse(latest), previousClosedAt ? Date.parse(previousClosedAt) : 0)).toISOString();
+  const part = validateWorkOrderPart({
+    schemaVersion: WORK_ORDER_PART_SCHEMA_VERSION,
+    id: workOrderPartId(stored.id, number),
+    cityId: city.config.cityId,
+    workOrderId: stored.id,
+    part: number,
+    previousPartSha256: original.parts.length ? sha256(original.parts.at(-1).bytes) : null,
+    closedAt,
+    reason: options.reason,
+    sourceOffice: 'records-officer',
+    authenticated: false,
+    contents: open,
+    provenance: provenance(),
+  }, city.config.cityId);
+  const partBytes = Buffer.from(encodeJSON(part));
+  if (partBytes.length > LIMITS.fileBytes) fail('SIZE_LIMIT', 'The proposed work-order file part exceeds the supported local file size.');
+  const manifest = [...(stored.fileParts ?? []), { id: part.id, sha256: sha256(partBytes) }];
+  const live = { ...stored, fileParts: manifest, history: [] };
+  if (stored.development) {
+    live.development = Object.fromEntries(Object.keys(stored.development).map((kind) => [kind, []]));
+  }
+  validateStoredWorkOrder(live, city.config.cityId);
+  const workOrder = validateWorkOrder({ ...original.value, fileParts: manifest }, city.config.cityId);
+  const liveBytes = Buffer.byteLength(encodeJSON(live));
+  if (liveBytes > LIMITS.fileBytes) {
+    fail('SIZE_LIMIT', 'The work-order header alone exceeds the per-file limit; closing a file part cannot reduce it.');
+  }
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkOrderUnchanged(city, current, original);
+      if (current.workOrderParts.has(part.id)) fail('CONFLICT', 'That work-order file part already exists; no record was overwritten.');
+      if (current.workOrderParts.size >= LIMITS.records) fail('SIZE_LIMIT', `City has reached the supported ${LIMITS.records} work-order file parts.`);
+      const partIdentity = await atomicRecord(current, 'work-order-parts', `${part.id}.json`, part);
+      try {
+        await atomicRecord(current, 'work-orders', `${stored.id}.json`, live, original.bytes);
+      } catch (error) {
+        const cause = error instanceof CityError ? error.code : 'FILESYSTEM_ERROR';
+        try {
+          await removeOwnedFile(path.join(current.path, 'work-order-parts', `${part.id}.json`), partIdentity);
+        } catch {
+          fail('PARTIAL_WRITE', `File part .city/work-order-parts/${part.id}.json was written but work order .city/work-orders/${stored.id}.json was not updated (${cause}), and the part could not be removed. Remove that part file, then run validate.`);
+        }
+        throw error;
+      }
+    });
+    await loadCity(root);
+  }
+  return {
+    command: 'file-part-close', root, governance: city.config.governance, dryRun: !options.apply,
+    changed: Boolean(options.apply), wouldWrite: true,
+    filePart: {
+      id: part.id, part: number, path: `.city/work-order-parts/${part.id}.json`, bytes: partBytes.length,
+      sha256: sha256(partBytes), closedAt, historyEntries: open.history.length,
+      revisions: Object.fromEntries(Object.entries(open.development).map(([kind, records]) => [kind, records.length])),
+    },
+    workOrderFile: {
+      path: `.city/work-orders/${stored.id}.json`, bytesBefore: original.bytes.length, bytesAfter: liveBytes,
+      limitBytes: LIMITS.fileBytes,
+    },
+    workOrder,
+    notice: 'Closing a file part moves the open history and revisions verbatim into an immutable, hash-chained record; nothing is removed from the case file and no lifecycle state, decision, or authorization changes.',
+  };
+}
+
 function preserved(city) {
   return {
     'work-orders': [...city.workOrders.keys()].sort(),
     decisions: [...city.decisions.keys()].sort(),
     artifacts: [...city.artifacts.keys()].sort(),
     unchanged: ['districts.json', 'charter.md', 'instruction-fragment.md', 'policies/', 'work-orders/', 'decisions/',
-      ...(city.directoryIdentities.artifacts ? ['artifacts/'] : [])]
+      ...(city.directoryIdentities.artifacts ? ['artifacts/'] : []),
+      ...(city.directoryIdentities['work-order-parts'] ? ['work-order-parts/'] : [])]
       .map((name) => `.city/${name}`),
   };
 }

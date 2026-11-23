@@ -9,7 +9,7 @@ import {
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
   infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
-  permitExtend,
+  permitExtend, filePartClose,
   artifactRecord,
 } from './lib/city.mjs';
 import { errorOutput, fail } from './lib/errors.mjs';
@@ -89,6 +89,7 @@ const commands = {
     allowed: ['root', 'id', 'permit-id', 'days', 'decided-by', 'reason', 'declared-by', 'evidence', 'apply'],
     required: ['root', 'id', 'permit-id', 'days', 'decided-by', 'reason'],
   },
+  'file-part-close': { allowed: ['root', 'id', 'reason', 'apply'], required: ['root', 'id', 'reason'] },
   complete: {
     allowed: ['root', 'id', 'declared-by', 'evidence', 'reason', 'apply'],
     required: ['root', 'id', 'declared-by', 'evidence', 'reason'],
@@ -144,6 +145,7 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs permit-verification --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs completion-notice --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-extend --root ABS --id WO-ID --permit-id PMT-ID --days N --decided-by city-council|resident --reason TEXT [--declared-by TEXT --evidence TEXT] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs file-part-close --root ABS --id WO-ID --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--search TEXT] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
       'node <installed-plugin>/scripts/city.mjs artifact-record --root ABS --data JSON [--apply]',
@@ -177,7 +179,7 @@ function help() {
       'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
       'Zoning map/check records are local professional records, not authenticated decisions or permission to deliver. Each finding is bound to the map, scope and change types. When zoning is adopted, changing the map, scope or assessed change types makes earlier preparation stale. Missing change-type rules are unknown, not permitted.',
       'When policies/building-permits.md is adopted, screening adds permit {safetyClass,structuralClass,classRationale}; classes are 1-4 and lightweight is limited to 1-2. Positive authorization requires --permit JSON {conditions,rightOfWay}; it records a 30-day commencement deadline and inactivity period. permit-extend permits at most two extensions of 1-30 days.',
-      'permit-statement {dimension,class,staffId,screeningRevision,scope,evidence} is required for each class-3/4 dimension; permit-verification {statementRevision,staffId,outcome,reason,evidence} is additionally required for class 4. completion-notice {permitId,conditions,evidence} addresses every permit condition before inspection. These are unauthenticated records.',
+      'permit-statement {dimension,class,staffId,screeningRevision,scope,evidence[,evidenceArtifactId][,supersedes,correctionReason]} is required for each class-3/4 dimension. evidenceArtifactId cites a filed artifact for the same work order. A second statement for the same dimension and screening is refused unless it supersedes the current statement revision with a correctionReason; the superseded statement stays in history, status uses the latest unsuperseded statement, and a superseded class-4 statement needs a new verification. Corrections are development preparation, so after authorization return or reopen the case first. permit-verification {statementRevision,staffId,outcome,reason,evidence} is additionally required for class 4. completion-notice {permitId,conditions,evidence} addresses every permit condition before inspection. These are unauthenticated records.',
       'Development source roles are fixed: chief-planner screens/independently assesses; development-advisor prepares applications. Provenance is unauthenticated professional evidence, not semantic classification or verified identity. Routes: lightweight|formal|needs-clarification. Assessment outcomes: ready|revise.',
       'A conclusive screening must match an assigned work order scope exactly. For a legacy unassigned v1 order, explicitly selected registered projectIds bind its scope and write v2 (scopeAssigned:true); needs-clarification may leave it unassigned. Active authorized delivery must return to proposed before new development preparation.',
       'Adopted policies/development-applications.md enables current screening before awaiting-approval and positive authorize (resident decisions included). Formal cases additionally need a complete current Advisor application and independent ready Planner assessment. Reject/return/refer remain possible. Older policy sets remain valid; installing does not appoint the Advisor. Draft preparation does not adopt policy.',
@@ -200,6 +202,7 @@ function help() {
       'Delivery may resume from blocked only while authorization is current. Returning to triaged, proposed or reopened voids authorization; a new authorize is required. completed can only be reopened.',
       'Separation of duties (the City Council never edits code; the City Engineer never authorizes; the resident merges and accepts) is enforced by agent definitions and instructions, not by this runtime. The runtime never runs git, merges, pushes, deploys or contacts a network.',
       'authorize and complete write the decision first and then the work order under one mutation lock with conflict checks. If the second write fails, PARTIAL_WRITE names both paths so the decision can be removed or both records restored from backup before validate.',
+      'Work orders stay within the 262144-byte per-file limit by closing file parts. file-part-close moves the open history and development revisions verbatim into an immutable .city/work-order-parts/WO-ID-part-NNNN.json record, hash-chained to the previous part and listed with its SHA-256 in the work order fileParts manifest. Lifecycle, revision numbers and updatedAt are unchanged; loadCity reassembles and validates the whole case file, and missing, unlisted or altered parts are INVALID_RECORD. A write that would exceed the limit fails SIZE_LIMIT naming the bytes and this remedy; validate reports capacity.nearLimitWorkOrders at 80%. Older plugin versions reject work orders with fileParts. See docs/work-order-file-parts.md.',
       'records-list and records-get read only canonical .city records; list returns bounded metadata, get accepts exact IDs and may include first-degree links. Neither searches arbitrary repository paths or external stores.',
       'records-request, records-resolve, and records-cancel use dry-runs by default and write append-only request history under .city/records-requests with --apply. --source-office is optional routing context only. Resolution accounts for every item and found references must match the requested record, canonical path and current SHA-256.',
       'Workforce mutators require adopted, drift-free governance with policies/workforce-delegation.md among the adopted policies (NO_DELEGATION). They preview by default; appointments are unauthenticated records and generated files are never overwritten.',
@@ -212,7 +215,7 @@ function help() {
       'status and validate report adoption drift when the charter or policies no longer match the adopted digests; drift is reported, not enforced.',
       'Proposed requires acceptance criteria. Rejected and withdrawn cases must be reopened before routing again.',
       'adopt refuses once governance is adopted; amend is the only way to record a later charter or policy revision, appending the superseded revision (with --summary) to adoption.history and never returning governance to draft.',
-      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.6.0.',
+      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.7.0.',
       'The optional public-information policy uses existing case and artifact workflows. There is no publication command; filing an information product does not authorize release.',
       'schemaVersion 1 decisions remain proposal-only records. authorize and complete are the only decision-writing commands; adopt records charter adoption in config, not decisions.',
       'The city CLI does not itself execute work-order text. The generated check toolkit launches its recorded argv arrays with shell: false; it is not a sandbox, and a configured command may execute code, access the network, install packages or modify files. Review each command before running it. MCP servers are never installed by workforce commands.',
@@ -357,6 +360,8 @@ async function main() {
       return authorize(root, options);
     case 'permit-extend':
       return permitExtend(root, options);
+    case 'file-part-close':
+      return filePartClose(root, options);
     case 'complete':
       return complete(root, options);
     case 'requisition':

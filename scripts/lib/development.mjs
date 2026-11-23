@@ -46,6 +46,13 @@ export function developmentSnapshot(city, order) {
   return createHash('sha256').update(JSON.stringify(scope)).digest('hex');
 }
 
+// The current statement is the unsuperseded head of the correction chain; superseded statements stay as history.
+export function currentStatement(order, dimension, screeningRevision) {
+  const statements = order.development?.statements ?? [];
+  return statements.findLast((item) => item.dimension === dimension && item.screeningRevision === screeningRevision
+    && !statements.some((next) => next.supersedes === item.revision)) ?? null;
+}
+
 export function currentScreening(city, order) {
   const screening = order.development?.screenings.at(-1);
   return screening?.snapshot === developmentSnapshot(city, order) ? screening : null;
@@ -122,9 +129,8 @@ export function developmentStatus(city, order) {
     for (const dimension of ['safety', 'structural']) {
       const riskClass = screening.permit[`${dimension}Class`];
       if (riskClass < 3) continue;
-      const statement = (order.development.statements ?? []).find((item) => item.dimension === dimension
-        && item.class === riskClass && item.screeningRevision === screening.revision);
-      if (!statement) {
+      const statement = currentStatement(order, dimension, screening.revision);
+      if (!statement || statement.class !== riskClass) {
         return result('professional-statement', 'engineering-manager', 'record-permit-statement', {
           missing: [`${dimension} class ${riskClass} requires a qualified professional statement.`],
         });

@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.6.0 pilot, not a production government.**
+**Status: private 0.7.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -116,6 +116,12 @@ remain valid. Records are unauthenticated declarations, and the CLI has no
 background expiry scheduler. Neighbour consultation, structured dispensations,
 retroactive legalization, professional licensing, and physical inspection are
 not implemented.
+
+An erroneous statement is corrected by a new statement that explicitly
+`supersedes` it with a `correctionReason`; the original stays on record. A work
+order nearing the 262,144-byte per-file limit is continued by closing an
+immutable, hash-chained file part with `file-part-close`. See
+[file parts and statement corrections](./docs/work-order-file-parts.md).
 
 New cities review the thirteen-office charter and development-applications policy
 before adoption. Existing cities must explicitly merge/review the revised charter
