@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.10.1');
+  assert.equal(manifest.version, '0.10.2');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -191,6 +191,7 @@ test('bundled offices have distinct identities and explicit least-tool contracts
   assert.ok(manager.agents.includes('City: City Council'), 'Manager routes approvals to the council');
   assert.ok(manager.agents.includes('City: Development Advisor'));
   assert.deepEqual(definitions.get('development-advisor.agent.md').tools, ['read', 'search', 'edit', 'execute']);
+  assert.deepEqual(definitions.get('chief-planner.agent.md').tools, ['read', 'search', 'edit', 'execute']);
   assert.ok(manager.agents.includes('City: Performance and Innovation Officer'));
   const information = definitions.get('public-information-officer.agent.md');
   assert.equal(information.name, 'City: Public Information Officer');
@@ -500,6 +501,14 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.match(advisor.body, /does not authenticate the resident/);
   assert.match(advisor.body, /execute is not\s+a read-only sandbox/);
   assert.match(advisor.body, /including `--apply`/);
+  const planner = await customization(path.join(agentsPath, 'chief-planner.agent.md'));
+  assert.deepEqual(planner.metadata.agents, []);
+  assert.match(planner.body, /gh repo view/);
+  assert.match(planner.body, /explicit GET/);
+  assert.match(planner.body, /does not authenticate the resident/);
+  assert.match(planner.body, /execute is not\s+a read-only sandbox/);
+  assert.match(planner.body, /including `--apply`/);
+  assert.match(planner.body, /Records Officer\s+for persistence/);
   const policy = await readFile(path.join(root, 'templates/repository/.city/policies/development-applications.md'), 'utf8');
   assert.match(policy, /Ordinary new features/);
   assert.match(policy, /never silently\s+waive/);
