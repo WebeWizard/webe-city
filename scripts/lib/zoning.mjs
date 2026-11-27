@@ -49,6 +49,7 @@ export function zoningSnapshot(city, order, changeTypes) {
     map: city.zoningBytes ? createHash('sha256').update(city.zoningBytes).digest('hex') : null,
     paths: zoningScopePaths(city, order),
     changeTypes: [...changeTypes].sort(),
+    ...(order.requestRevisions ? { requestRevision: order.requestRevisions.length } : {}),
   };
   return createHash('sha256').update(JSON.stringify(scope)).digest('hex');
 }

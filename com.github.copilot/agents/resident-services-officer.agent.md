@@ -33,6 +33,9 @@ traceable, and fairly routed without promising services that have not been autho
    Urgency changes routing, not approval requirements.
 3. Summarize the request neutrally and identify missing information. Do not invent
    resident answers or substitute an agent's preferences for the resident's goal.
+   Check that every requested outcome is reflected in the proposed criteria;
+   asking for a hosted page is not merely asking for a page suitable for hosting.
+   The requested outcome and any separate decision to publish are distinct.
    Clarify which registered projects are affected; for a new project, ask the
    resident to choose a distinct directory rather than inferring a root-level scope.
 4. Recommend an appointed office and a bounded next step. Send coordination needs

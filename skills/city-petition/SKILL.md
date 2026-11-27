@@ -48,7 +48,10 @@ Collect only the city-record information necessary to understand the request.
    If malformed/incompatible, stop and report the blocker.
 2. Clarify need versus preferred solution and identify every affected project.
    Search existing cases for relevant duplicates, preserve distinct concerns, and
-   draft testable criteria.
+   draft testable criteria. Check every requested outcome against the criteria:
+   a request for publication must not become merely suitability for publication.
+   Preserve the resident's words and distinguish the requested outcome from the
+   later decision needed to carry it out.
 3. If an affected project is not registered, clarify its ID and non-overlapping
    repository-relative directory with the resident. Preview registration:
 
@@ -70,6 +73,15 @@ Collect only the city-record information necessary to understand the request.
    reviewed command with `--apply`. Otherwise stop at the draft/preview.
 7. Read the actual command result and validate persisted state. Report the returned
    ID, not an ID guessed from a previous dry-run.
+   If the saved request or criteria need correction, retrieve the work order's
+   current SHA-256 using `records-get` and prepare `petition-revise --root ABS
+   --id WO-ID --expected-sha256 HASH --data JSON` with exactly `request`,
+   `acceptanceCriteria`, and `reason`. Review the preview with the resident,
+   obtain confirmation, and apply the same payload and hash. Corrections preserve
+   prior text and invalidate preparation; they do not change project scope or
+   grant delivery or publication permission. If the hash is stale, retrieve and
+   review again. Cases beyond preparation must first follow their existing return
+   or reopening procedures; do not silently change a current decision.
 8. For a requested later intake transition, preview:
 
    ```sh

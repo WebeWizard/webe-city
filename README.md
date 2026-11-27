@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.8.2 pilot, not a production government.**
+**Status: private 0.9.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -107,6 +107,13 @@ Manager; Council's actual decision handoff is only at `awaiting-approval`.
 Existing `records-list/get` expose
 all attached revisions. The runtime validates evidence structure and snapshots,
 not policy semantics or identities. See the [complete contract and examples](./docs/development-applications.md).
+
+Resident-reviewed `petition-revise` corrects a case's request and criteria while
+preserving earlier wording; it invalidates stale preparation but does not expand
+project scope or authorize delivery. `case-snapshot` provides a shared local
+planning context, with an optional freshness precondition on development filings.
+Parallel offices must use one canonical checkout for writes; snapshots are not
+distributed locks and do not capture source files or external evidence.
 
 ## Optional building permits
 
