@@ -24,6 +24,7 @@ export function developmentSnapshot(city, order) {
     || (entry.to === 'proposed' && entry.from !== 'triaged'));
   const scope = {
     title: order.title, request: order.request, criteria: order.acceptanceCriteria,
+    ...(order.requestRevisions ? { requestRevision: order.requestRevisions.length } : {}),
     projectIds: order.projectIds ?? [],
     projects: city.projects.projects.filter((project) => order.projectIds?.includes(project.id)),
     infrastructure: (order.infrastructure?.assets ?? []).map((pin) => {

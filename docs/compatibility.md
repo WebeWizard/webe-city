@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.9.0 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.10.0 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -67,7 +67,7 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.9.0.
+repeated for 0.2.0 through 0.10.0.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -149,12 +149,16 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.8.2 remain valid under 0.9.0. Plugin 0.9.0
+Records written by 0.1.0 through 0.9.0 remain valid under 0.10.0. Plugin 0.10.0
 allows null resident attribution and references in adoption, amendment, decisions,
 and permit extensions. Earlier plugins may reject records with these null values;
 restore a compatible backup to roll back. Existing adopted charter and policies
 are not silently rewritten: review changes and use `amend` to adopt them.
-Plugin 0.8.2 improves the completeness of Planner revision feedback without changing record shapes.
+Plugin 0.9.0 adds optional petition revision history and case snapshots. Earlier plugins reject
+orders containing `requestRevisions`; do not alternate plugin versions after
+using that feature. Snapshot digests are local coordination aids, not authority.
+Plugin 0.8.2
+improves the completeness of Planner revision feedback without changing record shapes.
 Plugin 0.8.1 improved resident consultation on planning blockers without changing
 record shapes. Plugin 0.8.0 added
 [development CLI preview summaries and file/stdin input](./development-applications.md)

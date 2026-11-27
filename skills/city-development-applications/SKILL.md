@@ -57,6 +57,10 @@ This skill supplies a professional method, not tool access or authority.
    recovery as relevant to the request. Identify assumptions and unresolved design
    choices rather than presenting them as established facts. Provide proportionate
    diagrams, specifications, project facts and studies where required.
+   For a small static page, keep this to a concise page brief: content and links,
+   scope and hosting choice, simple alternative, relevant operational risks,
+   verification and recovery. Produce only evidence the screening actually
+   requires. A public-interface change remains formal where adopted policy says so.
 3. Build a requirement-by-requirement working matrix: exact screening requirement
    and reason, concrete evidence and location, what it establishes and its limits,
    disposition, remaining gap and next owner/action. Cross-reference each prior
@@ -100,6 +104,9 @@ This skill supplies a professional method, not tool access or authority.
    precise blockers rather than cycling an unchanged incomplete packet.
    Directly ask the resident when in conversation; when delegated, return the
    exact question and its context to the coordinating caller for resident contact.
+   When a required choice affects the packet, return the question immediately
+   instead of filing or seeking assessment of a packet that cannot resolve it.
+   Continue only independent fact-finding while it is outstanding.
 
 ## Chief Planner: independent assessment
 
@@ -140,6 +147,13 @@ is not a completed handoff. No second resident prompt is needed for city
 coordination, but required resident decisions and confirmations remain required.
 If there is no coordinating caller or a necessary tool/office is unavailable,
 report that limitation and the last confirmed state instead of claiming a handoff.
+Where parallel preparation is useful, Records may obtain `case-snapshot --root
+ABS --id WO-ID` and pass its context and digest to the offices. Include that
+digest as `--expected-snapshot` on development filings; on conflict, retrieve
+fresh context and reconsider affected conclusions rather than retrying unchanged.
+Use one canonical checkout for city record writes. Snapshots do not cover source
+files or external evidence and do not authenticate anyone. The lock is local
+and does not coordinate separate worktrees or machines.
 Ready packets before `awaiting-approval` point to Manager
 to arrange ordinary permitted lifecycle progression, rechecking after each step.
 Only `awaiting-approval` hands off the actual Council decision. Never skip stages

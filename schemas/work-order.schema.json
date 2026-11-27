@@ -45,6 +45,24 @@
         "maxLength": 2000
       }
     },
+    "requestRevisions": {
+      "description": "Previous request and criteria, in order, preserved before each reviewed correction. The current request is the top-level value. This history does not authenticate a resident decision.",
+      "type": "array", "minItems": 1, "maxItems": 1000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["revision", "request", "acceptanceCriteria", "reason", "recordedAt"],
+        "properties": {
+          "revision": { "type": "integer", "minimum": 1 },
+          "request": { "$ref": "#/$defs/text", "maxLength": 20000 },
+          "acceptanceCriteria": {
+            "type": "array", "maxItems": 50,
+            "items": { "$ref": "#/$defs/text", "maxLength": 2000 }
+          },
+          "reason": { "$ref": "#/$defs/text", "maxLength": 4000 },
+          "recordedAt": { "$ref": "#/$defs/timestamp" }
+        }
+      }
+    },
     "projectIds": {
       "type": "array",
       "minItems": 1,
@@ -163,7 +181,8 @@
                 "0.8.0",
                 "0.8.1",
                 "0.8.2",
-                "0.9.0"
+                "0.9.0",
+                "0.10.0"
               ]
             }
           }

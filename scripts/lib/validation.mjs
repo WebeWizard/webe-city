@@ -676,6 +676,7 @@ export function validateWorkOrder(value, expectedCityId) {
     'schemaVersion', 'id', 'cityId', 'title', 'request', 'acceptanceCriteria',
     'status', 'createdAt', 'updatedAt', 'history', 'provenance',
     ...(own(value, 'fileParts') ? ['fileParts'] : []),
+    ...(own(value, 'requestRevisions') ? ['requestRevisions'] : []),
   ];
   if (value.schemaVersion === WORK_ORDER_SCHEMA_VERSION) {
     fields(value, [...required, 'projectIds', ...(own(value, 'development') ? ['development'] : [])], 'City work order');
@@ -695,6 +696,23 @@ export function validateWorkOrder(value, expectedCityId) {
   text(value.title, 'Work-order title', 500);
   text(value.request, 'Work-order request', 20000);
   stringArray(value.acceptanceCriteria, 'Work-order acceptance criteria', LIMITS.criteria, 2000);
+  if (own(value, 'requestRevisions')) {
+    if (!Array.isArray(value.requestRevisions) || value.requestRevisions.length === 0
+      || value.requestRevisions.length > LIMITS.history) {
+      fail('INVALID_RECORD', 'Work-order request revisions must be a nonempty bounded array.');
+    }
+    let previous = value.createdAt;
+    for (const [index, revision] of value.requestRevisions.entries()) {
+      fields(revision, ['revision', 'request', 'acceptanceCriteria', 'reason', 'recordedAt'], 'Work-order request revision');
+      if (revision.revision !== index + 1) fail('INVALID_RECORD', 'Work-order request revisions must be sequential.');
+      text(revision.request, 'Previous work-order request', 20000);
+      stringArray(revision.acceptanceCriteria, 'Previous work-order acceptance criteria', LIMITS.criteria, 2000);
+      text(revision.reason, 'Work-order revision reason', 4000);
+      timestamp(revision.recordedAt, 'Work-order revision recordedAt');
+      if (revision.recordedAt < previous) fail('INVALID_RECORD', 'Work-order request revisions must be chronological.');
+      previous = revision.recordedAt;
+    }
+  }
   if ([WORK_ORDER_SCHEMA_VERSION, INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION].includes(value.schemaVersion)
     && own(value, 'projectIds')) {
     if (!Array.isArray(value.projectIds) || value.projectIds.length === 0 || value.projectIds.length > 100

@@ -1959,6 +1959,114 @@ function mutationOutput(command, root, apply, workOrder, governance) {
   };
 }
 
+function caseSnapshotValue(city, original) {
+  const order = original.value;
+  const artifacts = [...city.artifacts.values()]
+    .filter(({ value }) => value.workOrderId === order.id)
+    .map(({ value, bytes }) => ({ id: value.id, sha256: sha256(bytes) }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const assets = (order.infrastructure?.assets ?? []).map(({ assetId }) => ({
+    id: assetId, sha256: sha256(city.infrastructure.assets.get(assetId).bytes),
+  })).sort((a, b) => a.id.localeCompare(b.id));
+  const context = {
+    root: city.root, cityId: city.config.cityId, workOrder: order,
+    config: sha256(city.configBytes), governance: city.governanceDigests,
+    districts: sha256(city.districtsBytes),
+    projects: city.projectsBytes ? sha256(city.projectsBytes) : null,
+    zoning: city.zoningBytes ? sha256(city.zoningBytes) : null,
+    assets, artifacts,
+    decisions: deliveryDecisions(city, order.id),
+  };
+  return {
+    snapshot: sha256(Buffer.from(JSON.stringify(context))),
+    workOrderSha256: sha256(original.bytes),
+    workOrder: order,
+    development: developmentStatus(city, order),
+    projects: city.projects.projects.filter((project) => order.projectIds?.includes(project.id)),
+    governance: city.governanceDigests,
+    artifacts, assets,
+  };
+}
+
+function assertCaseSnapshot(city, original, expected) {
+  if (!/^[a-f0-9]{64}$/u.test(expected)) fail('INVALID_ARGUMENT', '--expected-snapshot must be a SHA-256 digest.');
+  if (caseSnapshotValue(city, original).snapshot !== expected) {
+    fail('CONFLICT', 'Case snapshot is stale. Read a fresh snapshot and review affected work before retrying.');
+  }
+}
+
+export async function caseSnapshot(root, options) {
+  validateOrderId(options.id);
+  const initial = await loadCity(root);
+  return withMutationLock(initial.path, initial.identity, async () => {
+    const city = await loadCity(root);
+    const original = city.workOrders.get(options.id);
+    if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+    const result = {
+      command: 'case-snapshot', root, ...caseSnapshotValue(city, original),
+      notice: 'Local case context only; not authentication, authorization, or a snapshot of repository files or external evidence.',
+    };
+    if (Buffer.byteLength(encodeJSON(result)) > LIMITS.hookBytes) {
+      fail('SIZE_LIMIT', 'Case snapshot exceeds the supported response size. Retrieve bounded records instead.');
+    }
+    return result;
+  });
+}
+
+export async function petitionRevise(root, options) {
+  validateOrderId(options.id);
+  if (!/^[a-f0-9]{64}$/u.test(options['expected-sha256'])) {
+    fail('INVALID_ARGUMENT', '--expected-sha256 must be the current work-order file SHA-256.');
+  }
+  const input = requestJSON(options.data, 'Petition revision --data');
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).length !== 3
+    || !['request', 'acceptanceCriteria', 'reason'].every((key) => Object.hasOwn(input, key))) {
+    fail('INVALID_ARGUMENT', 'Petition revision data must contain exactly request, acceptanceCriteria, and reason.');
+  }
+  text(input.request, 'Petition request', 20000);
+  text(input.reason, 'Petition revision reason', 4000);
+  if (!Array.isArray(input.acceptanceCriteria) || input.acceptanceCriteria.length > LIMITS.criteria) {
+    fail('INVALID_ARGUMENT', `At most ${LIMITS.criteria} acceptance criteria may be supplied.`);
+  }
+  input.acceptanceCriteria.forEach((value) => text(value, 'Petition criterion', 2000));
+  const city = await loadCity(root);
+  const original = city.workOrders.get(options.id);
+  if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  const order = original.value;
+  if (!['received', 'triaged', 'proposed'].includes(order.status) || authorizationCurrent(order.history)) {
+    fail('INVALID_TRANSITION', 'Return the case to preparation before revising its request and criteria.');
+  }
+  if (sha256(original.bytes) !== options['expected-sha256']) {
+    fail('CONFLICT', 'Work order changed since review. Retrieve it and review the revision again.');
+  }
+  if (order.request === input.request && JSON.stringify(order.acceptanceCriteria) === JSON.stringify(input.acceptanceCriteria)) {
+    fail('INVALID_ARGUMENT', 'Petition revision must change the request or acceptance criteria.');
+  }
+  const revisions = order.requestRevisions ?? [];
+  const developmentTimes = Object.values(order.development ?? {}).flat()
+    .map((record) => Date.parse(record.recordedAt));
+  const recordedAt = new Date(Math.max(Date.now(), Date.parse(order.updatedAt),
+    revisions.length ? Date.parse(revisions.at(-1).recordedAt) : 0, ...developmentTimes)).toISOString();
+  const workOrder = validateWorkOrder({
+    ...order, request: input.request, acceptanceCriteria: input.acceptanceCriteria,
+    requestRevisions: [...revisions, {
+      revision: revisions.length + 1, request: order.request, acceptanceCriteria: order.acceptanceCriteria,
+      reason: input.reason, recordedAt,
+    }],
+  }, city.config.cityId);
+  const stored = preparedWorkOrder(workOrder, original);
+  if (options.apply) {
+    await withMutationLock(city.path, city.identity, async () => {
+      const current = await loadCity(root);
+      checkCityUnchanged(city, current);
+      checkOrderUnchanged(city, current, original);
+      await atomicRecord(current, 'work-orders', `${order.id}.json`, stored, original.bytes);
+    });
+  }
+  return mutationOutput('petition-revise', root, options.apply, workOrder, city.config.governance);
+}
+
 // Exported for regression tests: a write prepared from `before` must fail if the order or its decisions changed.
 export function checkOrderUnchanged(before, after, original) {
   const id = original.value.id;
@@ -2266,6 +2374,7 @@ export async function developmentRecord(root, options, kind) {
   const city = await loadCity(root);
   const original = city.workOrders.get(options.id);
   if (!original) fail('NOT_FOUND', 'City work order does not exist in this repository.');
+  if (options['expected-snapshot'] !== undefined) assertCaseSnapshot(city, original, options['expected-snapshot']);
   const order = original.value;
   let scopedOrder = order;
   const development = {
@@ -2428,6 +2537,9 @@ export async function developmentRecord(root, options, kind) {
       checkCityUnchanged(city, current);
       checkOrderUnchanged(city, current, original);
       checkDevelopmentContextUnchanged(city, current);
+      if (options['expected-snapshot'] !== undefined) {
+        assertCaseSnapshot(current, current.workOrders.get(options.id), options['expected-snapshot']);
+      }
       if (input.evidenceArtifactId
         && !current.artifacts.get(input.evidenceArtifactId)?.bytes.equals(city.artifacts.get(input.evidenceArtifactId).bytes)) {
         fail('CONFLICT', 'The cited evidence artifact changed since validation. Review it and retry.');

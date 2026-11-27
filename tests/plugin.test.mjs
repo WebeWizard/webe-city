@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.9.0');
+  assert.equal(manifest.version, '0.10.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -546,6 +546,20 @@ test('Advisor and Manager invite useful resident input on blockers without assum
   assert.match(manager, /Continue authorized independent work without waiting for\s+optional input/);
   assert.match(coordination, /if contact\s+is unavailable, report the question and limitation/);
   assert.match(advisor, /Do not frame optional input as a requirement or infer\s+consent/);
+});
+
+test('intake and handoffs preserve outcomes and promptly relay required choices', async () => {
+  const petition = await readFile(path.join(root, 'skills/city-petition/SKILL.md'), 'utf8');
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  const records = await readFile(path.join(agentsPath, 'records-officer.agent.md'), 'utf8');
+  const development = await readFile(path.join(root, 'skills/city-development-applications/SKILL.md'), 'utf8');
+  assert.match(petition, /request for publication must not become merely suitability for publication/);
+  assert.match(petition, /`petition-revise --root[\s\S]*obtain confirmation/);
+  assert.match(manager, /relay it immediately\s+before filing or assessing/);
+  assert.match(manager, /unfiled draft is not missing canonical evidence/);
+  assert.match(records, /Do not require a separate canonical\s+artifact or repeat confirmation/);
+  assert.match(development, /small static page[\s\S]*remains formal where adopted policy says so/);
+  assert.match(development, /`--expected-snapshot`[\s\S]*one canonical checkout/);
 });
 
 test('development coordination continues through persisted independent assessment', async () => {

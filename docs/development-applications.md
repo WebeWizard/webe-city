@@ -112,6 +112,53 @@ or appoint the office. Adoption changes context and requires fresh screening.
 Earlier authorizations/delivery remain valid: new readiness checks govern the
 next authorization, not retroactive revocation.
 
+## Correcting intake and coordinating parallel work
+
+The petition's request and criteria should capture the resident's complete outcome,
+including publication when requested, separately from any later decision to publish.
+For a case in `received`, `triaged`, or `proposed` without current authorization,
+`petition-revise` corrects request text and criteria, not project or infrastructure
+scope. Obtain the current work-order file SHA-256 from `records-get`, then preview:
+
+```sh
+node "<installed-plugin>/scripts/city.mjs" petition-revise --root "<absolute-repository>" \
+  --id "<work-order-id>" --expected-sha256 "<work-order-sha256>" \
+  --data '{"request":"Publish the page.","acceptanceCriteria":["The page is live."],"reason":"Correct the recorded outcome."}'
+```
+
+After resident review and confirmation, apply the exact payload and hash with
+`--apply`. The prior request and criteria are retained in `requestRevisions`,
+and screening and zoning checks become stale even if the text is later restored.
+Any intervening work-order change rejects the reviewed hash; retrieve and review
+again. Cases beyond preparation need the existing return/reopen procedure first.
+The correction records no authenticated identity, approval or permission. Older
+plugin versions cannot read work orders with this field. Revision history remains
+in the live file; closing a file part does not move it.
+
+For parallel planning, run `case-snapshot --root ABS --id WO-ID`. The command
+temporarily acquires the local mutation lock and returns a case, development
+status, project and governance context, referenced artifact/asset digests,
+work-order file hash and `snapshot` digest. Pass the digest as
+`--expected-snapshot HASH` to `screen-development`, `application-record`, or
+`assess-application`; it is checked on preview and again under the lock at apply.
+A conflict means refresh and reconsider affected work, not an automatic retry.
+Without that flag existing CLI behavior is unchanged.
+
+The digest covers the selected root, assembled work order, local governance and
+planning context, linked artifact digests, pinned assets and delivery decisions.
+It does not cover repository source files, external references, or identity.
+Investigators must recheck those inputs separately. The lock only coordinates
+cooperating commands in one checkout; use one canonical checkout for city record
+writes and send drafts from other worktrees to its operator. Separate checkouts
+or machines are not automatically coordinated. Independent assessment still
+requires the actual current saved application.
+
+For performance evaluation, record timestamps for intake, each office handoff,
+resident questions, filing and the first actionable delivery decision, alongside
+agent/tool-call counts and permission waits. Compare the same scenario and policy
+set across runs; report human waits separately and do not add overlapping agent
+durations. These are observations, not automatic telemetry or guaranteed latency.
+
 ## Actual CLI contract
 
 Every command requires an explicit absolute `--root` and exact work-order `--id`.
