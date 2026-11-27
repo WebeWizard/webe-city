@@ -122,8 +122,8 @@ records remain unauthenticated.
 
 Use `permit-extend --permit-id PMT-ID --days N --decided-by city-council|resident
 --reason TEXT` to extend an active or lapsed permit (classes 1–3 by Council,
-class 4 by the resident). Resident decisions also require `--declared-by` and
-`--evidence`. The limit is two extensions per permit.
+class 4 by the resident). `--declared-by` and `--evidence` are optional context
+for resident decisions, not identity proof. The limit is two extensions per permit.
 
 ## Deliberate limits
 

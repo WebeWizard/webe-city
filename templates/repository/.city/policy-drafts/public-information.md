@@ -36,10 +36,10 @@ originates a product, channel, or schedule under this policy.
   `information-case` artifact. Its initial `ART-` ID is the case reference;
   use no work-order or fictitious project link. The Clerk documents the
   authorized resident's actual decision on the exact brief (case and revision,
-  decision-maker, date, outcome, scope, and evidence reference). Route it
+  decider role, date, outcome, scope, and any available context). Route it
   through the Manager for filing as an attributed case revision. No agent can
-  substitute its own decision. Stop if the decision or its evidence is missing,
-  contested, stale, or withdrawn. Record acceptance separately against the
+  substitute its own decision. Stop if the decision is missing,
+  contested, stale, or withdrawn; do not seek identity proof. Record acceptance separately against the
   reviewed product's exact revision. Do not use `complete` for this route.
 
 Source offices check factual claims, the Clerk checks any official decision

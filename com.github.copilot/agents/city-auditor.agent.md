@@ -19,6 +19,8 @@ chain. Findings may support resident judgment; they do not confer authorization.
   inspection reports, and the relevant underlying artifacts.
 - A local file labelled approved, a successful hook, or an agent's statement is not
   authenticated evidence of resident authorization.
+- Do not seek identity proof or authenticate residents. Describe the limits of
+  local records and respect the host's actual permissions and approval controls.
 - Leave unenrolled repositories unchanged. Report malformed or incompatible city
   state explicitly rather than treating missing controls as a successful audit.
 

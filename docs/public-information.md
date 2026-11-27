@@ -43,13 +43,13 @@ criteria before approval, but must not draft the product yet.
 | Request | Authorization and delivery |
 |---|---|
 | Change a repository file, such as updating a project's guide | Use the normal project-scoped work order. The Council can decide only within its adopted delegation; reserved matters go to the resident. After an applied authorization for that case, the Officer may give editorial support. The Engineering Manager still assigns implementation, independent inspection remains required, and the resident accepts after merge. |
-| Prepare a standalone product, such as a brief for a resident meeting | File a minimized `information-case` brief in the [artifact library](./artifact-library.md), with `workOrderId: null`. The resident decides on that exact brief. The Clerk documents and cites the actual decision; the Manager verifies its scope and evidence before assigning production. Review and acceptance of the exact product revision are separately documented. Do not fabricate a project, work order, or merge. |
+| Prepare a standalone product, such as a brief for a resident meeting | File a minimized `information-case` brief in the [artifact library](./artifact-library.md), with `workOrderId: null`. The resident decides on that exact brief. The Clerk documents the actual decision; the Manager checks its scope before assigning production, without seeking identity proof. Review and acceptance of the exact product revision are separately documented. Do not fabricate a project, work order, or merge. |
 
 For a standalone case, use the initial `ART-` ID as the stable case reference.
 The brief records the request and agreed audience, format, scope, and review
 criteria. For subsequent case entries, preserve that initial ID in the content,
-set `supersedes` to the preceding case entry, and record the decision-maker,
-date, outcome, brief or product revision, scope, and an evidence reference.
+set `supersedes` to the preceding case entry, and record the decider role,
+date, outcome, brief or product revision, scope, and any available context.
 Ask the Clerk to reconcile conflicting or stale entries before proceeding.
 Use `records-get --id ART-ID --linked` with an explicit `--root` to retrieve
 saved entries. A case entry documents a real decision; neither the library

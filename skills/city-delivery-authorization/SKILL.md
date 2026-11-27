@@ -83,9 +83,9 @@ If the order only partly fits, omit the class and decide on council delegation.
 2. Write reasons that cite the charter rule, delegation or routine clause, each
    acceptance criterion, and each reserved matter checked. Avoid bare "approved".
 3. Review the dry-run result, then repeat the identical command with `--apply`.
-4. A resident deciding a referral runs the same command with `--decided-by resident`
-   plus `--declared-by` and `--evidence` (`RESIDENT_EVIDENCE_REQUIRED` otherwise).
-   The council never supplies those flags or speaks for the resident.
+4. Record a resident's actual decision with `--decided-by resident`; `--declared-by`
+   and `--evidence` are optional context, not identity proof. The council never
+   supplies those flags or invents a resident decision.
 5. Do not retry with altered facts after `RESERVED_MATTER` or other refusals.
 
 ## Structured result and evidence

@@ -1,6 +1,6 @@
-export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.8.2' });
+export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.9.0' });
 // Records written by earlier compatible releases stay valid; new writes always use PLUGIN.version.
-export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2']);
+export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0']);
 export const SCHEMA_VERSION = 1;
 export const WORK_ORDER_SCHEMA_VERSION = 2;
 export const INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION = 3;
@@ -88,7 +88,7 @@ export const LIMITS = Object.freeze({
   recordPage: 100,
 });
 export const DRAFT_NOTICE = 'Draft governance and intake only. --apply requests local writes, not authenticated approval. Ratification, authorized delivery and completion are unavailable until a resident adopts the charter and policies; council authorization also requires the adopted council delegation policy.';
-export const ADOPTED_NOTICE = 'Governance adopted by a recorded resident declaration under the charter rule that repository access is the source of authority. The plugin records this declaration but does not authenticate it. --apply requests local writes, not authenticated approval. With the council delegation policy adopted and no drift, authorize and complete record delivery decisions; those decisions are recorded, not authenticated, and the runtime performs no git, merge, push or deployment.';
+export const ADOPTED_NOTICE = 'Governance adopted by a recorded resident declaration. Host and platform permissions govern access; the plugin does not authenticate the declaration. --apply requests local writes, not authenticated approval. With the council delegation policy adopted and no drift, authorize and complete record delivery decisions; those decisions are recorded, not authenticated, and the runtime performs no git, merge, push or deployment.';
 
 export function governanceNotice(governance) {
   return governance === 'adopted' ? ADOPTED_NOTICE : DRAFT_NOTICE;

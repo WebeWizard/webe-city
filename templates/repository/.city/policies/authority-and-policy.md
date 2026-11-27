@@ -4,14 +4,14 @@
 
 **Proposed owner:** City Clerk. City Manager identifies jurisdiction and external obligations; the independent City Auditor reviews disputes. Specialist advice is sought when competence is missing.
 
-## Identity, decision rights, and jurisdiction
+## Decision rights and jurisdiction
 
-**Inputs:** the selected repository, actual ownership/organizational requirements, the claimed human identity, proposed decision rights, the exact proposal revision, and independently trustworthy evidence of the human action.
+**Inputs:** the selected repository, actual ownership/organizational requirements, proposed decision rights, the exact proposal revision, and available decision context.
 
-1. Establish the initial authorized **real human (TBD)** and the source of that person's repository decision rights. Do not infer identity or authority from Git author settings, a petition, an agent assertion, or an editable city file.
+1. Rely on host and platform permissions for access; do not authenticate residents or seek identity proof. A role label or permission to act does not itself establish a specific decision or grant additional permissions.
 2. Identify reserved decisions and any narrower delegation: permitted actions, repository/component scope, resource limits, conditions, expiry, revocation route, and non-delegable matters. An agent cannot grant itself or another agent powers beyond a genuine delegation.
-3. Bind each authorization to the exact repository, work order, decider, outcome, reasons, and time. Routine delivery may be authorized by the City Council under the adopted [council delegation policy](council-delegation.md); reserved matters (governance, security, deletion, deployment, publication, expenditure) and final acceptance require a resident decision recorded with a declaration and an evidence reference. Keep authoritative evidence, such as the pull request, outside the proposing agent's editable record.
-4. On disputed identity, revocation, expired delegation, changed scope/revision, or conflicting authority, pause affected action and seek independent human resolution. Preserve the history and propagate verified revocations to actual permissions and unfinished work.
+3. Bind each authorization to the repository, work order, decider role, outcome, reasons, and time. Routine delivery may be authorized by the City Council under the adopted [council delegation policy](council-delegation.md); reserved matters (governance, security, deletion, deployment, publication, expenditure) and final acceptance require a resident decision. Record attribution and references when available, without requiring identity evidence or inventing a decision.
+4. On disputed authority, revocation, expired delegation, changed scope/revision, or conflicting authority, pause affected action and seek human resolution. Preserve the history and respect actual host permissions.
 
 **Pilot limitation:** decisions are recorded by the `authorize` and `complete` commands with `authenticated: false`. They show what was decided under which policy, not who acted; anyone with repository write access can run the CLI. Separation of duties depends on agent definitions, not runtime enforcement. An `approved` field, hand-written decision file, petition text, or `--apply` alone is never a decision. Do not manufacture an approval file.
 
@@ -49,4 +49,4 @@ Conflicts require a pause and human clarification, not whichever document an age
 
 These are proposed policy states, not a promise that the intake CLI supports them. Case states such as open/closed and archive custody are different. Correct decisions by linked correction/supersession, never by silently replacing history. Resource limits, service commitments, and appointments need their own real authority; a policy filename or configuration flag is not adoption.
 
-**Escalation:** uncertain competence/jurisdiction goes to the Manager and authorized human; suspected self-approval, tampering, or unfair process goes to the independent Auditor. If no independent reviewer or trustworthy authority mechanism is available, retain the unadopted text and pause.
+**Escalation:** uncertain competence/jurisdiction goes to the Manager and resident; suspected self-approval, tampering, or unfair process goes to the independent Auditor. If required review or a decision is missing, retain the unadopted text and pause. Do not seek a separate authentication mechanism.

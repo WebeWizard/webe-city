@@ -32,7 +32,7 @@
 
 These are unset planning needs, not approved SLAs or promises already fulfilled. Git history, a second branch, a plugin cache, and a claimed “backup complete” are not a tested recovery strategy.
 
-1. Propose protection for local policies/configuration, canonical records/evidence, restricted-store references, pending obligations, and version/provenance information needed to reconstruct the environment. Preserve access to independently controlled authorization evidence; a backup copy of an editable approval claim does not make it authentic.
+1. Propose protection for local policies/configuration, canonical records/evidence, restricted-store references, pending obligations, and version/provenance information needed to reconstruct the environment. Preserve available decision context; a backup copy of an editable approval claim does not authenticate it. Do not seek identity proof.
 2. Obtain actual approval for storage, permissions, costs, objectives, and exercises; verify backups and report actual failures. Do not claim protection before an approved backup exists.
 3. After interruption or loss, pause unsafe writes, identify the actual damage and trusted restore source, check plugin/state compatibility, and obtain the required real human recovery direction. Restore in the approved isolated location; do not silently migrate or overwrite surviving history.
 4. Reconcile restored records against actual external changes, decisions, deployments, resource consumption, revocations, and unfinished work. A restored appointment must not resurrect revoked permissions or stale authority.

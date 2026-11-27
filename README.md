@@ -5,12 +5,12 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.8.2 pilot, not a production government.**
+**Status: private 0.9.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
-charter, repository access is the source of authority, so anyone with write
-access can run the CLI and every record says `authenticated: false`. The
+charter, host and platform permissions govern access; anyone with sufficient
+local access can run the CLI and every decision says `authenticated: false`. The
 resident gives final acceptance of each pull request. The runtime never runs
 git, merges, pushes, or deploys, and it does not implement expenditure.
 An open-source license and publisher have not been selected.
@@ -472,7 +472,6 @@ node /absolute/path/to/city/scripts/city.mjs authorize \
   --root /absolute/path/to/target-repository \
   --id WO-REPLACE-WITH-THE-CREATED-ID \
   --decided-by resident --outcome authorize --reserved security \
-  --declared-by "Resident name" --evidence "Comment on issue #12" \
   --reason "Resident accepts the credential rotation."
 ```
 
@@ -492,12 +491,13 @@ merging the pull request, the resident records acceptance:
 node /absolute/path/to/city/scripts/city.mjs complete \
   --root /absolute/path/to/target-repository \
   --id WO-REPLACE-WITH-THE-CREATED-ID \
-  --declared-by "Resident name" --evidence "Merged pull request #34" \
   --reason "Acceptance criteria met."
 ```
 
 Preview each, then add `--apply`. Decisions are schemaVersion 2 records with
 work-order, charter, and policy digests and `evidence.authenticated: false`.
+For resident decisions, `--declared-by` and `--evidence` are optional context,
+not identity proof. Do not invent a decision or bypass host permissions.
 Returning an order to `triaged`, `proposed`, or `reopened` voids its
 authorization. Separation of duties (the council never edits code, the
 Engineer never authorizes, the resident merges and accepts) is set by agent
@@ -556,16 +556,16 @@ When a resident has declared the charter and policies adopted, record it:
 ```sh
 node /absolute/path/to/city/scripts/city.mjs adopt \
   --root /absolute/path/to/target-repository \
-  --adopted-on 2026-10-29 --declared-by "Resident name" \
-  --evidence "Charter and policies record the resident's declarations." \
+  --adopted-on 2026-10-29 \
   --charter-version "1.0"
 ```
 
 Preview each, then add `--apply`. `adopt` sets `governance: "adopted"` and
 records the adoption date, the SHA-256 of `charter.md` (plus the optional
 version label), digests of every policy, and evidence under the
-`resident-declaration` rule: the charter treats repository access as the source
-of authority, so a resident's declaration counts. The record always says
+`resident-declaration` rule. Host and platform permissions govern access; the
+plugin does not seek identity proof. Optional `--declared-by` and `--evidence`
+record available context. The record always says
 `authenticated: false`; the plugin cannot verify who declared it. Adoption is
 a prerequisite for `authorize` and `complete`; council decisions additionally
 need `policies/council-delegation.md` among the adopted policies. `status` and
@@ -602,8 +602,7 @@ instead to record a later resident declaration for a changed charter or policy:
 ```sh
 node /absolute/path/to/city/scripts/city.mjs amend \
   --root /absolute/path/to/target-repository \
-  --adopted-on 2026-11-05 --declared-by "Resident name" \
-  --evidence "Charter and policies record the resident's declarations." \
+  --adopted-on 2026-11-05 \
   --summary "Correct outdated jurisdiction statement." \
   --charter-version "1.1"
 ```
