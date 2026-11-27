@@ -49,13 +49,16 @@ screens against the baseline and adopted scoped refinements. Unknown scope or
 thresholds prompts focused questions, not guessed permission or automatic formal
 paperwork. Formal screening automatically routes to Development Advisor, which
 develops only necessary proposal/drawing/specification/project/study evidence and
-requests technical help through Manager. Planner independently assesses that exact
+can consult available peers directly. Planner independently assesses that exact
 application; Advisor never assesses its own work or implements production.
-RSO/Advisor/Planner prepare commands for Records Officer persistence through Manager.
+RSO/Advisor/Planner send commands to an available Records Officer directly or
+through Manager when needed.
 Lightweight is not an authorization exemption. See
 [municipal adaptation, policy and actual CLI contract](./development-applications.md).
 Existing cities explicitly amend the revised charter appointment and new policy;
-installation does not appoint Advisor. Old policy sets and prior delivery stay valid.
+installation does not appoint Advisor. Adopted rules requiring Manager routing
+remain in force until amended; plugin updates do not change them. Old policy
+sets and prior delivery stay valid.
 
 **Repository zoning.** The opt-in [zoning policy](./zoning.md) maps repository
 paths to change-type rules without changing project directories or district
@@ -66,7 +69,7 @@ delivery authority.
 
 **Delivery and staffing authority.** When adopted, the [council delegation policy](../templates/repository/.city/policies/council-delegation.md) delegates authorization to start delivery to the City Council. The council may authorize, reject, return, or refer each `awaiting-approval` work order, and routine classes (`documentation`, `tests`, `in-scope-fix`, `dependency-patch`) are pre-approved within scope. Reserved matters — `governance`, `security`, `deletion`, `deployment`, `publication`, `expenditure` — are always referred to the resident. The [workforce delegation policy](../templates/repository/.city/policies/workforce-delegation.md) separately delegates specialist engineering appointments to the Engineering Manager after independent HR endorsement. HR creates the files only after that appointment; the manager assigns and dispatches the engineer. These office-specific sequencing limits are instruction-level, not authenticated security boundaries. Before editing implementation files, the assigned Engineer prepares a detailed plan mapping approach, sequence, affected files, tests, risks and recovery to the authorized scope and acceptance criteria, then pauses for resident review. The Engineer discusses and assesses resident feedback, revises the plan for in-scope changes, and waits for confirmation before coding. Plan confirmation is not a new authorization or permission to expand scope; out-of-scope requests return for review and any required new authorization. The Engineer then delivers on a non-default branch, the Building Inspector independently reviews it, and the resident reviews and merges the pull request before recording final acceptance with `complete`. An applied authorization routes to the Engineering Manager; it does not dispatch an engineer before assignment.
 
-**Specialist workforce records.** `requisition` -> `review-requisition` -> `appoint` -> `hire` -> `assign` -> `retire`. Requisitions, appointments, staff, and assignments are local `.city/workforce/` records. A hire previews and then creates `.github/agents/` and `.github/skills/` files plus a staff record; it never overwrites existing files. Generated specialists receive only `read`, `search`, `edit`, and `execute`. The fixed check runner launches configured argument arrays with `shell: false`, but is not a sandbox: a configured program may execute code, access the network, install packages, or modify files, so HR and the resident should review each command and its side effects. MCP servers remain proposals only. Missing or edited generated files are reported as drift, not enforced. Retired staff files are retained; deletion is a separate resident decision.
+**Specialist workforce records.** `requisition` -> `review-requisition` -> `appoint` -> `hire` -> `assign` -> `retire`. Requisitions, appointments, staff, and assignments are local `.city/workforce/` records. A hire previews and then creates `.github/agents/` and `.github/skills/` files plus a staff record; it never overwrites existing files. Generated specialists receive only `read`, `search`, `edit`, `execute`, and optionally the paired `list_agents` and `write_agent` when requested and enabled by the adopted workforce policy. Existing staff files are not changed. The fixed check runner launches configured argument arrays with `shell: false`, but is not a sandbox: a configured program may execute code, access the network, install packages, or modify files, so HR and the resident should review each command and its side effects. MCP servers remain proposals only. Missing or edited generated files are reported as drift, not enforced. Retired staff files are retained; deletion is a separate resident decision.
 
 The bundled workforce delegation policy permits read/search-only
 pre-authorization class-3 safety preparation under the

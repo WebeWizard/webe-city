@@ -42,7 +42,8 @@ authority, scope, records, and controls rather than merely counting completed fo
 
 Use [records capture](../city-records-capture/SKILL.md) for complete audit
 reports, findings, evidence and limitations. Preserve adverse findings without
-filtering. Read-only auditors submit a filing request through City Manager;
+filtering. Read-only auditors submit a filing request directly to an available
+Records Officer or through City Manager;
 filing must not depend on the delivery chain's approval.
 
 ## Structured result and evidence

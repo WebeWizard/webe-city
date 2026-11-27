@@ -87,7 +87,11 @@ observed; refusals unchanged; and the next actor from the CLI `next` hint.
   decides other appointments and reserved matters (governance, security,
   deletion, deployment, publication, expenditure).
 - Fixed limits no approval changes: generated engineers have tools from `read`,
-  `search`, `edit`, `execute` only, `agents: []`, and fixed governance text. MCP
+  `search`, `edit`, `execute`, and the optional paired `list_agents` and
+  `write_agent` only. Messaging tools must be explicitly requested and enabled
+  by the adopted workforce policy; they do not grant the `agent` tool.
+  Existing staff files are not silently changed. Generated agents have
+  `agents: []` and fixed governance text. MCP
   servers are proposed, never installed. Hire never overwrites an existing file.
   The check runner uses `shell: false` but is not a sandbox; review each command
   and its possible side effects.

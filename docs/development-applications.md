@@ -48,7 +48,7 @@ later findings. Resident decisions are distinguished from city investigation and
 grouped for handoff, even if the interaction asks one focused question at a time.
 The assessment's `reason` summarizes actionable findings for status, and `evidence`
 supports them. Both are limited to 4,000 characters; where necessary, the complete
-findings can be filed through Manager and Records Officer and referenced by actual
+findings can be filed by Records Officer directly or via Manager and referenced by actual
 saved ID/path, without silently omitting concerns.
 
 For adopted permits, a class-3 or class-4 dimension also needs its matching
@@ -56,7 +56,8 @@ current-screening qualified statement (and class 4 needs independent verificatio
 The statement does not replace the application studies or Planner assessment.
 An undetermined statement is not automatically a failed safety clearance: its
 limitations and unresolved risks must be evaluated against the actual requirements.
-Requests for specialist assistance go through City Manager within existing authority.
+Offices may consult available specialists directly within existing authority;
+staffing and unavailable peers go through City Manager.
 
 When a blocker could be eased by resident knowledge, access context, priorities
 or a scope choice, the Advisor offers a focused question and practical tradeoffs
@@ -316,8 +317,8 @@ and status checked again. Reporting a next actor is not itself a handoff. Succes
 sequential handoffs are not the two rounds allowed for an unresolved dependency.
 Actual resident decisions and confirmations, referrals, unavailable tools or
 offices, failures, and lack of progress still stop affected work. An office invoked
-directly without a coordinating caller cannot dispatch another office and must
-report that limitation. No agent can silently create the missing handoff.
+directly without an available peer or coordinating caller must report that
+limitation. No agent can silently create the missing handoff.
 Ready packets point to `city-manager / arrange-lifecycle-progression` until the
 case is `awaiting-approval`; only then is the handoff
 `city-council / review-authorization`. Arrange ordinary permitted transitions,

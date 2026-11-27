@@ -11,8 +11,9 @@ Library features and installed plugin caches are not the canonical store.
 Authors use the author-facing
 [records capture skill](../skills/city-records-capture/SKILL.md). An agent with
 `execute` may file directly when its role permits the local record operation.
-An agent without `execute` must return the complete content and payload as a
-filing request through City Manager to the Records Officer. The Officer captures
+An agent without `execute` sends the complete content and payload as a filing
+request directly to an available Records Officer, or through City Manager when
+needed. The Officer captures
 that content unchanged and attributes it to the authoring office; this is
 recordkeeping, not content review or approval. Do not report a document as saved
 until the apply result returns `changed: true`; otherwise report persistence as

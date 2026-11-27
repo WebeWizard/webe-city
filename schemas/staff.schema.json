@@ -19,10 +19,12 @@
     "status": { "enum": ["active", "retired"] },
     "tools": {
       "type": "array", "uniqueItems": true,
-      "items": { "enum": ["read", "search", "edit", "execute"] },
+      "items": { "enum": ["read", "search", "edit", "execute", "list_agents", "write_agent"] },
       "allOf": [
         { "contains": { "const": "read" }, "minContains": 1 },
-        { "contains": { "const": "search" }, "minContains": 1 }
+        { "contains": { "const": "search" }, "minContains": 1 },
+        { "if": { "contains": { "const": "list_agents" } }, "then": { "contains": { "const": "write_agent" } } },
+        { "if": { "contains": { "const": "write_agent" } }, "then": { "contains": { "const": "list_agents" } } }
       ]
     },
     "checks": { "$ref": "requisition.schema.json#/$defs/checks" },

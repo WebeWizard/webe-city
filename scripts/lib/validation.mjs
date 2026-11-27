@@ -1302,8 +1302,9 @@ function workforceTools(value, label) {
     || value.some((tool) => !WORKFORCE_TOOLS.includes(tool))
     || new Set(value).size !== value.length
     || JSON.stringify(value) !== JSON.stringify(WORKFORCE_TOOLS.filter((tool) => value.includes(tool)))
+    || value.includes('list_agents') !== value.includes('write_agent')
     || !value.includes('read') || !value.includes('search')) {
-    fail('INVALID_RECORD', `${label} must be unique allowed tools in canonical order and include read and search.`);
+    fail('INVALID_RECORD', `${label} must be unique allowed tools in canonical order, include read and search, and pair list_agents with write_agent.`);
   }
 }
 

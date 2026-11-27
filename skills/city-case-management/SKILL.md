@@ -7,11 +7,11 @@ user-invocable: false
 # Case Management
 
 Capture the resident's need/outcome/observations, not an engineered application.
-Route [development screening](../city-development-applications/SKILL.md) through
-Manager to Planner, with focused questions for unknown scope/thresholds. A formal
+Route [development screening](../city-development-applications/SKILL.md) to
+an available Planner directly or through Manager, with focused questions for unknown scope/thresholds. A formal
 determination automatically routes to Development Advisor for proportionate
 assistance, then independent Planner assessment. RSO/Advisor/Planner draft commands
-go through Manager to Records Officer; never hand-edit canonical work orders.
+go to an available Records Officer directly or through Manager; never hand-edit canonical work orders.
 
 ## Competency and application
 
