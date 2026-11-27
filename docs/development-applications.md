@@ -22,11 +22,12 @@ executed load test, security study or compatibility experiment. Offices must nam
 unperformed studies and missing facts honestly. Neither a master plan nor a full
 impact matrix is required for every request.
 
-The Advisor may use bounded, non-mutating commands to investigate available facts,
-including GitHub repository metadata and accessible settings with `gh`. Repository
-ownership or account access does not verify a resident's identity. Host permissions
-and approvals still apply; execute access is not a read-only sandbox. State-changing
-commands, builds, tests, installations and delivery remain outside this role.
+The Advisor and Planner may independently use bounded, non-mutating commands to
+investigate available facts, including GitHub repository metadata and accessible
+settings with `gh`. Repository ownership or account access does not verify a
+resident's identity. Host permissions and approvals still apply; execute access
+is not a read-only sandbox. State-changing commands, builds, tests, installations
+and delivery remain outside these roles.
 
 For a formal application the Advisor prepares a usable, proportionate plan, not
 just a list of topics: relevant scope, interfaces, data flows, operations, failure
@@ -182,8 +183,8 @@ node "<installed-plugin>/scripts/city.mjs" assess-application --root "<repositor
 ```
 
 RSO, Advisor and Planner prepare record commands for Records Officer through
-Manager. The Advisor's execute access is for read-only investigation, not record
-mutation. The Officer persists the supplied professional finding,
+Manager. Advisor and Planner execute access is for read-only investigation, not
+record mutation. The Officer persists the supplied professional finding,
 not its own substitute assessment, and returns the actual canonical revision.
 The package does not install a `city` executable on PATH. Use the actual absolute
 installed plugin path in the examples; the hook's `PLUGIN_ROOT` is not guaranteed
