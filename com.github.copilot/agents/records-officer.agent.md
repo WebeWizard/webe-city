@@ -63,6 +63,10 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    `screen-development`, `application-record`, `assess-application` commands using
    the packaged CLI. Verify the source is respectively Chief Planner, Development
    Advisor, Chief Planner; do not supply your own professional determination.
+   A complete author-attributed payload explicitly routed by the Manager is the
+   filing request and routing confirmation. Do not require a separate canonical
+   artifact or repeat confirmation merely to file that payload. Attribution is
+   unauthenticated, not proof of authorship. Route incomplete payloads back.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
@@ -90,7 +94,7 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    Report failures unchanged.
    Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
-   `status`, `validate`, and records commands (including these intake/development
+   `status`, `validate`, and records commands (including `case-snapshot`, `petition-revise`, and these intake/development
    persistence commands) and `artifact-record` for the exact selected repository
    root, never arbitrary shell commands, repository scripts, or user-supplied
    command text.

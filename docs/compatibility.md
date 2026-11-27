@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.8.2 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.9.0 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -149,12 +149,16 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.8.1 remain valid under 0.8.2. Plugin 0.8.2
+Records written by 0.1.0 through 0.8.2 remain valid under 0.9.0. Plugin 0.9.0
+adds optional petition revision history and case snapshots. Earlier plugins reject
+orders containing `requestRevisions`; do not alternate plugin versions after
+using that feature. Snapshot digests are local coordination aids, not authority.
+Plugin 0.8.2
 improves the completeness of Planner revision feedback without changing record shapes.
 Plugin 0.8.1 improved resident consultation on planning blockers without changing
 record shapes. Plugin 0.8.0 added
 [development CLI preview summaries and file/stdin input](./development-applications.md)
-without changing record shapes; new provenance records the 0.8.2 version.
+without changing record shapes; new provenance records the 0.9.0 version.
 Plugin 0.7.0 added
 optional work-order `fileParts` with `.city/work-order-parts/` and optional
 statement `supersedes`, `correctionReason` and `evidenceArtifactId`. No migration

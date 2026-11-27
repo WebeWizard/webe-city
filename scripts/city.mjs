@@ -5,7 +5,7 @@ import {
   TRANSITIONS,
 } from './lib/constants.mjs';
 import {
-  adopt, amend, authorize, complete, init, migrate, petition, projectAdd, recordsCancel, recordsGet,
+  adopt, amend, authorize, caseSnapshot, complete, init, migrate, petition, petitionRevise, projectAdd, recordsCancel, recordsGet,
   recordsList, recordsRequest, recordsResolve, reviewRecord, status, transition, validate, developmentRecord,
   infrastructureAssetRegister, infrastructureAssetRevise, infrastructureAssetReview,
   infrastructureProgrammeRecord, zoningMapRecord, zoningCheckRecord,
@@ -17,7 +17,7 @@ import { readRegular, rootDirectory } from './lib/filesystem.mjs';
 import { appoint, assign, hire, requisition, retire, reviewRequisition } from './lib/workforce.mjs';
 
 const developmentInput = {
-  allowed: ['root', 'id', 'data', 'data-file', 'apply'],
+  allowed: ['root', 'id', 'data', 'data-file', 'expected-snapshot', 'apply'],
   required: ['root', 'id'],
   requiresDataSource: true,
 };
@@ -27,6 +27,11 @@ const commands = {
   status: { allowed: ['root'], required: ['root'] },
   validate: { allowed: ['root'], required: ['root'] },
   petition: { allowed: ['root', 'title', 'request', 'project', 'infrastructure', 'criterion', 'apply'], required: ['root', 'title', 'request'] },
+  'petition-revise': {
+    allowed: ['root', 'id', 'expected-sha256', 'data', 'data-file', 'apply'],
+    required: ['root', 'id', 'expected-sha256'], requiresDataSource: true,
+  },
+  'case-snapshot': { allowed: ['root', 'id'], required: ['root', 'id'] },
   'asset-register': {
     allowed: ['root', 'data', 'recorded-by', 'reason', 'apply'],
     required: ['root', 'data', 'recorded-by', 'reason'],
@@ -141,10 +146,12 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs asset-review --root ABS --id IA-ID --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs infrastructure-programme-record --root ABS --revision N --data JSON --recorded-by OFFICE --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs petition --root ABS --title TEXT --request TEXT [--project ID repeated] [--infrastructure JSON] [--criterion TEXT repeated] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs petition-revise --root ABS --id WO-ID --expected-sha256 HASH (--data JSON | --data-file PATH) [--apply]',
+      'node <installed-plugin>/scripts/city.mjs case-snapshot --root ABS --id WO-ID',
       'node <installed-plugin>/scripts/city.mjs transition --root ABS --id ID --to STATE --reason TEXT [--apply]',
-      'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
-      'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
-      'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID (--data JSON | --data-file PATH) [--apply]',
+      'node <installed-plugin>/scripts/city.mjs screen-development --root ABS --id WO-ID (--data JSON | --data-file PATH) [--expected-snapshot HASH] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs application-record --root ABS --id WO-ID (--data JSON | --data-file PATH) [--expected-snapshot HASH] [--apply]',
+      'node <installed-plugin>/scripts/city.mjs assess-application --root ABS --id WO-ID (--data JSON | --data-file PATH) [--expected-snapshot HASH] [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-map --root ABS --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs zoning-check --root ABS --id WO-ID --data JSON [--apply]',
       'node <installed-plugin>/scripts/city.mjs permit-statement --root ABS --id WO-ID --data JSON [--apply]',
@@ -182,6 +189,8 @@ function help() {
       'Absent record directories are empty registers, provided existing records do not reference missing entries. Reads, init on an existing city, and the hook do not create them; confirmed record writes create their destination directory safely. Symlinks, non-directory paths, malformed records and broken decision links still fail closed. Missing governance files require reviewed recovery, not reinitialization.',
       'artifact-record persists full document content in .city/artifacts/ with ART-UUID IDs. Strict data: {title,kind,format,content,sourceOffice,workOrderId,supersedes,recordCategory}; recordCategory is working-draft|filed-work-product|proposed-instrument; format is markdown|text|mermaid|json. The categories describe intended use, not approval; no artifact category or link establishes formal adoption. workOrderId and supersedes may be null. Legacy artifacts without recordCategory remain readable as legacy-unclassified. records-list --type artifact --search TEXT searches title, kind, source office and content with stable ID ordering and pagination; records-get retrieves full content. Storage/attribution is not approval. See docs/artifact-library.md.',
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All three take strict JSON from exactly one source: --data JSON or --data-file PATH (use - for stdin). A relative PATH is resolved from the current working directory; file and stdin inputs are limited to 256 KiB.',
+      'petition-revise takes {request,acceptanceCriteria,reason} and the current records-get work-order sha256. Preview and obtain resident confirmation before applying the same payload and hash. Earlier requests and criteria are preserved; preparation becomes stale. It cannot change project or infrastructure scope or revise an actively authorized case.',
+      'case-snapshot takes a temporary local mutation lock and returns a case context and snapshot digest. screen-development, application-record and assess-application accept optional --expected-snapshot HASH, checked before preparation and under the mutation lock before apply. A conflict requires fresh review. The digest covers local case and planning context, not repository files, external evidence, other worktrees, identity, or consent. Use a single canonical checkout for city record writes.',
       'Development payloads: screen-development {route,projectIds,scopeEvidence,reason,evidence,impacts,questions,policyCitations,requirements}; application-record {screeningRevision,reason,evidence,proposal,answers,artifacts}; assess-application {applicationRevision,outcome,reason,evidence}.',
       'Successful development results include validation:"passed" and recordSummary {workOrderId,recordType,revision}; with dryRun:true that revision is only proposed. Apply rechecks current state. See docs/development-applications.md for payload shapes and examples.',
       'Zoning uses a separate path map and does not change project scope or district ownership. zoning-map takes {schemaVersion:1,zones:[{id,name,path,description,rules:[{changeType,disposition,requirements}]}]}; zoning-check takes {changeTypes,reason,evidence}. Checks use declared project directories and exact infrastructure targets, never inferred diffs. Adopted zoning requires a current map and check before authorization; conditional zones require formal development review, while prohibited or unknown outcomes block readiness.',
@@ -223,7 +232,7 @@ function help() {
       'status and validate report adoption drift when the charter or policies no longer match the adopted digests; drift is reported, not enforced.',
       'Proposed requires acceptance criteria. Rejected and withdrawn cases must be reopened before routing again.',
       'adopt refuses once governance is adopted; amend is the only way to record a later charter or policy revision, appending the superseded revision (with --summary) to adoption.history and never returning governance to draft.',
-      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.8.2.',
+      'Configuration and record provenance are self-reported local metadata, not trusted identity or human consent. Records written by compatible earlier plugin versions remain valid; new records use 0.9.0.',
       'The optional public-information policy uses existing case and artifact workflows. There is no publication command; filing an information product does not authorize release.',
       'schemaVersion 1 decisions remain proposal-only records. authorize and complete are the only decision-writing commands; adopt records charter adoption in config, not decisions.',
       'The city CLI does not itself execute work-order text. The generated check toolkit launches its recorded argv arrays with shell: false; it is not a sandbox, and a configured command may execute code, access the network, install packages or modify files. Review each command before running it. MCP servers are never installed by workforce commands.',
@@ -337,6 +346,10 @@ async function main() {
       return validate(root);
     case 'petition':
       return petition(root, options);
+    case 'petition-revise':
+      return petitionRevise(root, options);
+    case 'case-snapshot':
+      return caseSnapshot(root, options);
     case 'asset-register':
       return infrastructureAssetRegister(root, options);
     case 'asset-revise':

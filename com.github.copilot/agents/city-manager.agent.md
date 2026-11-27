@@ -45,6 +45,10 @@ Do not perform bulk implementation or manufacture authorization.
    outcomes and current canonical references to the requesting office. Resume open
    requests reported by `status` or `records-list --type records-request --status open`;
    do not treat a request as an access grant or delivery authorization.
+   An unfiled draft is not missing canonical evidence: forward the complete
+   author-attributed filing payload to Records Officer rather than searching for
+   an ID that does not exist. Explicit Manager routing in that handoff is the
+   routing confirmation; it does not authenticate the author or grant approval.
    **Coordinate development screening and assistance automatically.** Under the
    adopted development-applications policy, ask Chief Planner to screen needs
    before Council-ready preparation. Resume only entries in
@@ -81,6 +85,10 @@ Do not perform bulk implementation or manufacture authorization.
    appointment or capability, tool failure, invalid state, or no progress; report
    the specific blocker and the last confirmed state. Do not retry an unchanged
    failing step or invent a decision to get past it.
+   If the Advisor returns a required resident question, relay it immediately
+   before filing or assessing an application that depends on the answer. Run
+   only genuinely independent investigation while the answer is pending; do not
+   cycle unchanged partial packets through assessment.
    When a blocker could be materially eased by resident knowledge, access context,
    priorities or a scope choice, bring the Advisor's focused question and options
    to the resident even if that input is optional and city investigation could
