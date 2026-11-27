@@ -74,8 +74,10 @@ This skill supplies a professional method, not tool access or authority.
    operating environment and capacity only when relevant; do not invent facts.
    Distinguish resident intent, source observations, reported facts and unknowns.
    State observation scope and avoid claiming global absence from a limited search.
-   Identify which work can be done now by read/search or authorized specialist
-   assistance and which empirical checks must await separately authorized delivery.
+   Identify which work can be done now by read/search, bounded read-only
+   investigation or authorized specialist assistance and which
+   empirical checks must await separately authorized delivery. Tool availability and the calling
+   office's limits still govern any investigation.
    An unverified goal is not a measured result.
 5. When the permit policy is adopted and a dimension is class 3 or 4, identify
    the matching current-screening qualified statement and, for class 4, independent
