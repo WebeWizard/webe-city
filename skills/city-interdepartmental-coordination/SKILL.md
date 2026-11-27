@@ -17,8 +17,10 @@ Current authorized delivery (including blocked delivery), closed cases and
 disabled policy have no automatic preparation action (`next: null`).
 Formal screening is the
 assignment trigger; do not ask residents to request assistance again. Advisor
-engineering/specialist requests go through Manager within existing authority.
-Send draft professional/intake commands to Records Officer for actual persistence.
+engineering/specialist consultations may go directly to available peers within
+existing authority; staffing and unavailable peers go through Manager.
+Send draft professional/intake commands directly to an available Records Officer,
+or through Manager when needed, for actual persistence.
 After each returned result, the coordinating caller routes needed persistence,
 obtains fresh status, and dispatches the next actionable office in the same run.
 For a persisted Advisor application, pass its actual revision and evidence to
@@ -56,6 +58,11 @@ decisions across a repository's explicitly declared districts.
    expected evidence, and condition for proceeding.
 3. Specify each handoff's root, case, scope, inputs, output, and stopping condition.
    Do not send an entire repository where a bounded question suffices.
+   The coordinating caller reuses an available delegate for related follow-ups
+   to the same office and work order when its host supports messaging. Keep
+   delegate handles scoped to the current session, root, work order and office;
+   never treat a handle or accepted message as a durable record or a completed
+   handoff. If messaging is unavailable, dispatch normally with current evidence.
 4. Check interface responsibilities and capacity assumptions with available evidence.
    Record uncertainty; do not make silent ownership transfers.
 5. Separate a technical disagreement from an authority or resident-priority dispute.
@@ -73,6 +80,37 @@ decisions across a repository's explicitly declared districts.
 9. Give the Clerk the resulting decision proposal and the Records Officer the
    evidence references that need stewardship.
 
+## Direct peer messages
+
+Any participating office may communicate directly with any other available peer
+for the same selected root and case when the host exposes `list_agents` and
+`write_agent` and adopted governance permits the particular handoff. Existing
+charters and policies may require Manager routing; follow those requirements
+until properly amended, without silently changing adopted documents.
+The coordinator shares the actual session-local office/handle
+mapping with participants and updates it as the team changes. A listing or an
+office name alone does not establish a peer's case, identity, appointment or
+authority. If the recipient or its case is uncertain, ask the coordinator to
+identify or arrange the peer; do not send case information to an unknown agent.
+
+Send a bounded request with the root, case ID, sender and recipient offices,
+purpose, relevant scope and record revisions, expected result and stopping
+condition. Share only information needed for the request. Follow host visibility,
+permissions and same-task restrictions. A receiving peer may reply directly
+when the host supports it. A message is not a decision, authentication, authority
+to act, or a filed record; do not claim delivery, completion, or persistence
+without the corresponding result. Preserve material findings and handoffs through
+the normal canonical records route.
+
+If direct messaging or a peer is unavailable, return the request to City Manager
+or the coordinating caller for routing. If delivery is uncertain, do not resend
+or start duplicate work until its outcome is known. A directly invoked office
+without an available peer or coordinating caller reports the limitation. Notify
+the Manager when coordination, staffing, a required confirmation, a resident
+decision, or an escalation is needed. Direct consultation does not permit an
+office to launch agents, appoint staff, authorize work, or bypass independent
+assessment or inspection.
+
 ## Structured result and evidence
 
 Return a coordination ledger with columns: dependency, root/case, supplying office,
@@ -84,9 +122,9 @@ number of coordination rounds used.
 
 - City Manager delegates through its exact configured allowlist; Engineering
   Manager delegates within its own restricted staffing remit.
-  Other offices return coordination requests instead of delegating themselves.
-  A directly invoked office without a coordinating caller cannot dispatch a
-  handoff; report that limitation rather than claiming it happened.
+  Other offices can message available peers but cannot launch agents. When a
+  peer or the messaging tools are unavailable, return coordination requests to
+  the caller rather than claiming a handoff happened.
 - The manager may cover analysis provisionally but cannot spawn arbitrary offices,
   appoint specialists, approve spending, or fabricate specialist clearance.
 - A skill cannot grant tools or make office names separate security principals.

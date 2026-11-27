@@ -67,9 +67,18 @@ ordinary work that requires no defined specialty.
 
 ## Fixed limits and onboarding
 
-Every generated engineer receives only `read`, `search`, `edit`, and `execute`
-tools, with `read` and `search` mandatory. It receives no `agent` tool and no
-delegated agents. The governance section of generated agent definitions and the
+Every generated engineer receives only `read`, `search`, `edit`, `execute`,
+and the optional paired `list_agents` and `write_agent` messaging tools, with
+`read` and `search` mandatory. Peer messaging must be explicitly requested in
+the requisition and is permitted only while this adopted policy includes:
+
+<!-- city-peer-messaging: enabled -->
+
+The marker is a machine-readable opt-in, not an appointment or delivery
+authorization. Remove it before adopting or amending this policy to disallow
+new messaging-enabled requisitions and hires. Existing generated staff are not
+silently modified. No specialist receives the `agent` tool or delegated agents.
+The governance section of generated agent definitions and the
 check-runner implementation are fixed by the plugin and cannot be changed by a
 requisition or appointment. Specialist checks use reviewed local command
 arrays. `shell: false` prevents shell parsing but is not a sandbox: a configured

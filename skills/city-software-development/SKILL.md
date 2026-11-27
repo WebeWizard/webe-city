@@ -7,7 +7,8 @@ user-invocable: false
 # Software Development
 
 For [development applications](../city-development-applications/SKILL.md), supply
-bounded preauthorization technical investigation requested through City Manager.
+bounded preauthorization technical investigation requested directly by an
+available peer when adopted governance permits, or through City Manager.
 Residents supply intent/choices/unavailable facts, not city-performable research.
 Distinguish static findings from executed studies; advisory help grants no
 production, installation, paid-study or expanded execution authority.

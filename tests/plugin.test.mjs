@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.10.2');
+  assert.equal(manifest.version, '0.11.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -186,17 +186,21 @@ test('bundled offices have distinct identities and explicit least-tool contracts
     if (filename === 'engineering-manager.agent.md') {
       assert.deepEqual(metadata.agents, ['*'], filename);
       assert.deepEqual(metadata.tools, ['read', 'search', 'execute', 'agent'], filename);
-    } else if (filename !== 'city-manager.agent.md') assert.deepEqual(metadata.agents, [], filename);
+    } else if (filename !== 'city-manager.agent.md') {
+      assert.deepEqual(metadata.agents, [], filename);
+      assert.ok(metadata.tools.includes('list_agents') && metadata.tools.includes('write_agent'), filename);
+      assert.ok(!metadata.tools.includes('agent'), filename);
+    }
   }
   assert.ok(manager.agents.includes('City: City Council'), 'Manager routes approvals to the council');
   assert.ok(manager.agents.includes('City: Development Advisor'));
-  assert.deepEqual(definitions.get('development-advisor.agent.md').tools, ['read', 'search', 'edit', 'execute']);
-  assert.deepEqual(definitions.get('chief-planner.agent.md').tools, ['read', 'search', 'edit', 'execute']);
+  assert.deepEqual(definitions.get('development-advisor.agent.md').tools, ['read', 'search', 'edit', 'execute', 'list_agents', 'write_agent']);
+  assert.deepEqual(definitions.get('chief-planner.agent.md').tools, ['read', 'search', 'edit', 'execute', 'list_agents', 'write_agent']);
   assert.ok(manager.agents.includes('City: Performance and Innovation Officer'));
   const information = definitions.get('public-information-officer.agent.md');
   assert.equal(information.name, 'City: Public Information Officer');
   assert.ok(manager.agents.includes(information.name));
-  assert.deepEqual(information.tools, ['read', 'search']);
+  assert.deepEqual(information.tools, ['read', 'search', 'list_agents', 'write_agent']);
   assert.match(await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8'), /check for institutional reviews automatically/i);
   for (const filename of ['building-inspector.agent.md', 'city-auditor.agent.md', 'city-council.agent.md']) {
     assert.ok(!definitions.get(filename).tools.includes('edit'), filename);
@@ -204,16 +208,16 @@ test('bundled offices have distinct identities and explicit least-tool contracts
   assert.ok(!definitions.get('city-auditor.agent.md').tools.includes('execute'));
   const council = definitions.get('city-council.agent.md');
   assert.equal(council.name, 'City: City Council');
-  assert.deepEqual(council.tools, ['read', 'search', 'execute']);
+  assert.deepEqual(council.tools, ['read', 'search', 'execute', 'list_agents', 'write_agent']);
   const engineer = definitions.get('municipal-software-engineer.agent.md');
   assert.ok(engineer.tools.includes('edit') && engineer.tools.includes('execute'));
   const records = definitions.get('records-officer.agent.md');
   assert.ok(records.tools.includes('execute'), 'Records Officer runs the scoped records CLI workflow');
   const improvement = definitions.get('performance-and-innovation-officer.agent.md');
-  assert.deepEqual(improvement.tools, ['read', 'search', 'execute']);
+  assert.deepEqual(improvement.tools, ['read', 'search', 'execute', 'list_agents', 'write_agent']);
   assert.deepEqual(improvement.agents, []);
   const hr = definitions.get('human-resources-officer.agent.md');
-  assert.deepEqual(hr.tools, ['read', 'search', 'execute']);
+  assert.deepEqual(hr.tools, ['read', 'search', 'execute', 'list_agents', 'write_agent']);
   const engineeringManager = definitions.get('engineering-manager.agent.md');
   assert.ok(engineeringManager.tools.includes('agent'));
 });
@@ -491,7 +495,7 @@ test('development contracts preserve compatible work orders and distinct profess
     assert.equal(schema.$defs[kind].properties.authenticated.const, false);
   }
   const advisor = await customization(path.join(agentsPath, 'development-advisor.agent.md'));
-  assert.deepEqual(advisor.metadata.tools, ['read', 'search', 'edit', 'execute']);
+  assert.deepEqual(advisor.metadata.tools, ['read', 'search', 'edit', 'execute', 'list_agents', 'write_agent']);
   assert.deepEqual(advisor.metadata.agents, []);
   assert.match(advisor.body, /independent Chief Planner/);
   assert.match(advisor.body, /through City Manager/);
@@ -508,7 +512,7 @@ test('development contracts preserve compatible work orders and distinct profess
   assert.match(planner.body, /does not authenticate the resident/);
   assert.match(planner.body, /execute is not\s+a read-only sandbox/);
   assert.match(planner.body, /including `--apply`/);
-  assert.match(planner.body, /Records Officer\s+for persistence/);
+  assert.match(planner.body, /Records Officer for persistence, directly when available/);
   const policy = await readFile(path.join(root, 'templates/repository/.city/policies/development-applications.md'), 'utf8');
   assert.match(policy, /Ordinary new features/);
   assert.match(policy, /never silently\s+waive/);
@@ -562,6 +566,22 @@ test('Advisor and Manager invite useful resident input on blockers without assum
   assert.match(advisor, /Do not frame optional input as a requirement or infer\s+consent/);
 });
 
+test('work-order delegate reuse is scoped and does not replace durable handoffs', async () => {
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
+  assert.match(manager, /track each actual delegate handle by selected root, work-order ID and\s+office/);
+  assert.match(manager, /message that existing delegate if the host supports it/);
+  assert.match(manager, /Do not\s+reuse a delegate for another work order or office/);
+  assert.match(manager, /if delivery is uncertain, do not resend or dispatch a duplicate/);
+  assert.match(manager, /Do not assume message acceptance means the task\s+was performed/);
+  assert.match(coordination, /never treat a handle or accepted message as a durable record or a completed\s+handoff/);
+  assert.match(coordination, /Any participating office may communicate directly with any other available peer/);
+  assert.match(coordination, /If direct messaging or a peer is unavailable, return the request to City Manager/);
+  assert.match(coordination, /A message is not a decision, authentication, authority\s+to act, or a filed record/);
+  assert.match(coordination, /Existing\s+charters and policies may require Manager routing; follow those requirements\s+until properly amended/);
+  assert.match(manager, /actual same-case office\/handle mapping/);
+});
+
 test('intake and handoffs preserve outcomes and promptly relay required choices', async () => {
   const petition = await readFile(path.join(root, 'skills/city-petition/SKILL.md'), 'utf8');
   const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
@@ -587,7 +607,7 @@ test('development coordination continues through persisted independent assessmen
   assert.match(manager, /Do not retry an unchanged\s+failing step/);
 
   const records = await readFile(path.join(agentsPath, 'records-officer.agent.md'), 'utf8');
-  assert.match(records, /On Manager request, run the packaged CLI `status`/);
+  assert.match(records, /On a case participant's request, run the packaged CLI `status`/);
   assert.match(records, /node "<installed-plugin>\/scripts\/city\.mjs"/);
   assert.match(records, /does not provide a `city` command\s+on PATH/);
   assert.match(records, /read-only `validate`\s+command is also permitted for the selected root/);
@@ -602,7 +622,7 @@ test('development coordination continues through persisted independent assessmen
   assert.match(recordsSkill, /separate `validate` command is not a prerequisite/);
   const advisor = await readFile(path.join(agentsPath, 'development-advisor.agent.md'), 'utf8');
   assert.match(advisor, /interim handoff, not a request for the resident/);
-  assert.match(advisor, /invoked directly without a coordinating caller[\s\S]*cannot dispatch/);
+  assert.match(advisor, /invoked without an available peer or coordinating caller[\s\S]*do not claim a handoff happened/);
   const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
   assert.match(coordination, /A next-actor\s+message alone is not a handoff/);
 });

@@ -33,6 +33,25 @@ Do not perform bulk implementation or manufacture authorization.
    a stopping condition. For delivery, include every `projectIds` entry and its
    registered directory; never infer or broaden project scope. Delegation does not
    expand any office's authority.
+   **Keep work-order teams together when the host permits.** For this coordination
+   session, track each actual delegate handle by selected root, work-order ID and
+   office. For a related follow-up to the same office on the same work order,
+   message that existing delegate if the host supports it and the delegate is
+   available; use the host's response mechanism to receive the result. Do not
+   reuse a delegate for another work order or office. Handles are session-local
+   coordination aids, not staff appointments or canonical records. If the host
+   cannot message the delegate, or the handle is unavailable before sending,
+   dispatch the office normally with the relevant current records. Report a
+   failed handoff; if delivery is uncertain, do not resend or dispatch a duplicate
+   until its outcome is known. Do not assume message acceptance means the task
+   was performed. Keep decisions, findings and other material handoffs in the
+   existing canonical records.
+   Give participating offices the actual same-case office/handle mapping and
+   update them when it changes so any peer can message any available peer
+   directly. Route requests yourself when direct communication is unavailable,
+   or coordination, staffing, a required decision or escalation needs you.
+   Follow the direct-message limits in interdepartmental coordination; do not
+   send unrelated case data or treat a handle as proof of identity.
 4. Route intake to Resident Services, proposals to the Planner or Engineer, meeting
    records to the Clerk, and records stewardship to the Records Officer. Route
    `awaiting-approval` work orders to the City Council for a decision; route

@@ -40,7 +40,8 @@ This skill supplies a professional method, not tool access or authority.
 5. Record `lightweight`, `formal` or `needs-clarification`, reasons and evidence
    with `screen-development`. Formal requirements must be individually justified,
    bounded and proportionate; a master plan/full impact matrix is not universal.
-   Route formal cases automatically to Development Advisor through City Manager.
+   Route formal cases automatically to an available Development Advisor directly,
+   or through City Manager when needed.
 
 ## Development Advisor: preparation
 
@@ -87,7 +88,8 @@ This skill supplies a professional method, not tool access or authority.
    assessment; an undetermined conclusion is not itself a clearance failure or
    proof of safety. Address its substantive unresolved risks against applicable
    requirements. Do not invent a policy requirement for a safe conclusion.
-6. Request other engineering or specialist investigation through City Manager.
+6. Request other bounded engineering or specialist investigation from an
+   available peer directly, or through City Manager when needed.
    Investigate available facts yourself. For each blocker, consider whether the
    resident could readily contribute a fact or access context, clarify priorities,
    or choose an alternative that materially helps, even when city investigation
@@ -127,7 +129,7 @@ Independently record `assess-application` for the exact revision with `ready` or
 `revise`, reasons and evidence. The `reason` is exposed in status, so summarize
 the actionable findings there; use `evidence` for supporting details. Both fields
 are limited to 4,000 characters. If necessary, request filing of a complete
-findings document through Manager and Records Officer, include its actual saved
+findings document through Records Officer directly or via Manager, include its actual saved
 ID/path in the assessment, and report persistence pending until confirmed. Do not
 silently omit findings to fit the fields. Distinguish a missing study from an
 unperformed future delivery test. A class-3 statement with an undetermined
@@ -138,8 +140,9 @@ delivery.
 
 ## Persistence, handoffs and limits
 
-Read/search/edit offices send draft commands through City Manager to Records
-Officer, which previews and applies the scoped packaged CLI mutations. Never
+Read/search/edit offices send draft commands directly to an available Records
+Officer, or through City Manager when needed. The Officer previews and applies
+the scoped packaged CLI mutations. Never
 hand-edit canonical JSON. Manager resumes `status.workOrders.development` next
 actions automatically only when `actionable: true`; after persistence, obtain
 fresh status and actually dispatch the next office in the same run. In particular,
@@ -147,7 +150,7 @@ route a persisted Advisor application and its actual revision to Chief Planner,
 then persist the independent assessment and recheck status. A reported next step
 is not a completed handoff. No second resident prompt is needed for city
 coordination, but required resident decisions and confirmations remain required.
-If there is no coordinating caller or a necessary tool/office is unavailable,
+If a necessary peer, messaging tool and coordinating caller are unavailable,
 report that limitation and the last confirmed state instead of claiming a handoff.
 Where parallel preparation is useful, Records may obtain `case-snapshot --root
 ABS --id WO-ID` and pass its context and digest to the offices. Include that

@@ -254,7 +254,21 @@ function parseTools(values) {
     fail('INVALID_ARGUMENT', `--tool values must be unique members of: ${WORKFORCE_TOOLS.join(', ')}.`);
   }
   const requested = new Set([...values, 'read', 'search']);
+  if (requested.has('list_agents') !== requested.has('write_agent')) {
+    fail('INVALID_ARGUMENT', 'Peer messaging requires both --tool list_agents and --tool write_agent.');
+  }
   return WORKFORCE_TOOLS.filter((tool) => requested.has(tool));
+}
+
+async function requirePeerMessagingPolicy(city, tools) {
+  if (!tools.includes('write_agent')) return;
+  const policyFile = await readRegular(
+    path.join(city.path, 'policies', path.basename(WORKFORCE_DELEGATION_POLICY)),
+    'Workforce delegation policy',
+  );
+  if (!/^<!-- city-peer-messaging: enabled -->\r?$/mu.test(policyFile.bytes.toString('utf8'))) {
+    fail('NO_DELEGATION', 'The adopted workforce policy does not enable specialist peer messaging.');
+  }
 }
 
 function parseChecks(values) {
@@ -382,6 +396,8 @@ export async function requisition(root, options) {
   }
   activeOrUsedStaffId(city, options['staff-id']);
   if (city.workforce.requisitions.size >= LIMITS.records) fail('SIZE_LIMIT', 'City has reached the supported workforce requisition count.');
+  const tools = parseTools(options.tools);
+  await requirePeerMessagingPolicy(city, tools);
   const record = requisitionRecord(city, {
     workOrderId: orderId,
     staffId: options['staff-id'],
@@ -390,7 +406,7 @@ export async function requisition(root, options) {
     duties: options.duties,
     competencies: options.competencies,
     standards: options.standards,
-    tools: parseTools(options.tools),
+    tools,
     checks: parseChecks(options.checks),
     mcpProposals: options['mcp-proposals'],
   });
@@ -400,6 +416,7 @@ export async function requisition(root, options) {
       await ensureDirectories(city.path, 'workforce/requisitions', 'City workforce requisitions');
       const current = await loadCity(root);
       workforceAuthorization(current);
+      await requirePeerMessagingPolicy(current, tools);
       checkSnapshot(city, current, orderId, city.workOrders.get(orderId).bytes);
       validateWorkOrderForRequisition(current, orderId);
       activeOrUsedStaffId(current, options['staff-id']);
@@ -572,9 +589,11 @@ authorize anything. This exception does not cover class 4, structural statements
 independent verification, or reserved matters. Once the statement is prepared,
 stop; delivery still requires current authorization and assignment.`
       : 'Pre-authorization evidence preparation is unavailable with this tool set; current delivery authorization and assignment are required.',
-    ARTIFACT_CAPTURE: requisition.tools.includes('execute')
-      ? 'Write a local city record only if the active assignment explicitly authorizes changes to `.city/artifacts/` outside the registered project directories; the normal delivery scope does not. Otherwise prepare the complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save without the actual apply result; return the saved ART ID/path or mark persistence pending.'
-      : 'You do not have `execute`. For every substantive document, prepare a complete author-attributed filing request and route it through the Engineering Manager to the Records Officer. Never claim a save; return the actual ART ID/path when reported or mark persistence pending.',
+    ARTIFACT_CAPTURE: `${requisition.tools.includes('execute')
+      ? 'Write a local city record only if the active assignment explicitly authorizes changes to `.city/artifacts/` outside the registered project directories; the normal delivery scope does not. Otherwise prepare the complete author-attributed filing request'
+      : 'You do not have `execute`. For every substantive document, prepare a complete author-attributed filing request'} ${requisition.tools.includes('write_agent')
+      ? 'and send it directly to an available Records Officer when adopted governance permits, or through the Engineering Manager.'
+      : 'and route it through the Engineering Manager to the Records Officer.'} Never claim a save without the actual apply result; return the saved ART ID/path or mark persistence pending.`,
   };
   const paths = {
     agent: `.github/agents/city-engineer-${requisition.staffId}.agent.md`,
@@ -646,6 +665,7 @@ export async function hire(root, options) {
   const original = city.workforce.requisitions.get(options.id);
   if (!original) fail('NOT_FOUND', 'City workforce requisition was not found.');
   if (original.value.status !== 'approved') fail('INVALID_TRANSITION', 'Only an approved requisition can be hired.');
+  await requirePeerMessagingPolicy(city, original.value.tools);
   const prepared = await hireContents(root, city, original);
   const recordPath = `.city/workforce/staff/${prepared.staff.id}.json`;
   const reqPath = `.city/workforce/requisitions/${original.value.id}.json`;
@@ -673,6 +693,7 @@ export async function hire(root, options) {
     if (!currentOriginal?.bytes.equals(original.bytes)) {
       fail('CONFLICT', 'City requisition changed since validation. Inspect concurrent edits and retry.');
     }
+    await requirePeerMessagingPolicy(current, currentOriginal.value.tools);
     if (currentOriginal.value.status !== 'approved') fail('INVALID_TRANSITION', 'Only an approved requisition can be hired.');
     if (current.workforce.staff.has(prepared.staff.id)) fail('ALREADY_STAFFED', 'This staff ID has already been used; staff records cannot be overwritten.');
     const createdDirectories = [];

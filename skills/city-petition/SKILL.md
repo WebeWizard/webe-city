@@ -8,11 +8,12 @@ user-invocable: true
 
 Residents supply needs, outcomes and observations, not a fully engineered proposal.
 For repository changes, route professional [development screening](../city-development-applications/SKILL.md)
-to Chief Planner through City Manager. Formal screening automatically assigns
+to an available Chief Planner directly or through City Manager. Formal screening automatically assigns
 Development Advisor; no second resident request is needed. Unknown jurisdiction,
 scope or thresholds means focused questions, not a guess or automatic formal route.
-RSO has no execute tool: send draft intake commands through Manager to Records
-Officer for persistence. Available technical investigation belongs to the city.
+RSO has no execute tool: send draft intake commands to an available Records
+Officer directly or through Manager for persistence. Available technical
+investigation belongs to the city.
 
 ## Purpose and inputs
 

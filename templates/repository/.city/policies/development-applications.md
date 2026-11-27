@@ -55,8 +55,9 @@ adequately resolved, not conceal a missing necessary study. Missing required
 evidence or resident answers blocks readiness. Unperformed studies remain missing;
 static analysis is not an executed performance, security or compatibility study.
 
-Request engineering or specialist investigation through City Manager within existing
-authority, tool and resource limits. Advisory investigation authorizes no production
+Consult available engineering or specialist peers directly, or request investigation
+through City Manager, within existing authority, tool and resource limits. Staffing
+and dispatch of unavailable specialists go through management. Advisory investigation authorizes no production
 implementation, tool installation, paid studies, expenditure or permission increases.
 The Advisor does not assess or approve its own application or grant authority.
 
@@ -68,8 +69,8 @@ reasons and evidence. The Advisor must not substitute for this assessment. The
 Council and resident retain delivery decisions, Inspector independent delivery
 inspection, and resident final acceptance.
 
-RSO, Advisor and Planner prepare records/CLI commands for the Records Officer
-through City Manager; no terminal access is implied. Records Officer persists
+RSO, Advisor and Planner prepare records/CLI commands for an available Records Officer
+directly or through City Manager; no terminal access is implied. Records Officer persists
 `screen-development`, `application-record` and `assess-application` revisions on the
 canonical work order. Office labels and evidence remain unauthenticated.
 All revisions are preserved. Re-screening, changed project/proposal/policy context,

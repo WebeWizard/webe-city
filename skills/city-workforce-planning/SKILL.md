@@ -45,8 +45,10 @@ engineer is a new post created only through a merit-based, recorded route.
 4. **Job analysis.** For a genuine gap, write a job description: a specific title,
    the purpose tied to the work order, duties (what the post does and does not
    do), observable competencies, applicable standards, and the minimum tools.
-   Choose only from `read`, `search`, `edit`, `execute`; `read` and `search` are
-   always included and `agent` is never available. Name existing project checks
+   Choose only from `read`, `search`, `edit`, `execute` and the optional paired
+   `list_agents` and `write_agent`; `read` and `search` are always included and
+   `agent` is never available. Request both messaging tools only when needed and
+   enabled by the adopted workforce policy. Name existing project checks
    as program-and-argument arrays without shell syntax. Review each command's
    possible side effects: `shell: false` is not a sandbox and the program may
    still execute code, access the network, install packages, or modify files.
