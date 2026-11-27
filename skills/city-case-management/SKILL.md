@@ -65,7 +65,7 @@ Mark whether persistence occurred and cite the actual CLI result if it did.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
   `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Intake moves an order no further than `awaiting-approval`.
-- Mutators default to dry-run; applying requires actual resident confirmation,
-  not merely a local approval file. `--apply` is not authentication.
+- Mutators default to dry-run; obtain resident confirmation where the applicable
+  workflow requires it. Do not seek identity proof. `--apply` is not authentication.
 - Escalate disputed decisions through `city-appeal`; no Ombudsperson is installed.
   Skills grant no powers; decisions are recorded, not authenticated.

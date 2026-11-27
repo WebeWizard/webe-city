@@ -285,8 +285,8 @@ function validateEvidence(value, label) {
   if (value.rule !== EVIDENCE_RULE) {
     fail('INVALID_RECORD', `${label} rule must be ${EVIDENCE_RULE}.`);
   }
-  text(value.declaredBy, `${label}.declaredBy`, 200);
-  text(value.reference, `${label}.reference`, 4000);
+  if (value.declaredBy !== null) text(value.declaredBy, `${label}.declaredBy`, 200);
+  if (value.reference !== null) text(value.reference, `${label}.reference`, 4000);
   if (value.authenticated !== false) {
     fail('INVALID_RECORD', `${label} must record authenticated: false; the plugin cannot authenticate a resident declaration.`);
   }
@@ -990,8 +990,8 @@ export function validateDevelopmentInput(kind, value) {
     }
     if (!['city-council', 'resident'].includes(value.decidedBy)) fail('INVALID_ARGUMENT', 'Permit extension decider must be city-council or resident.');
     if (value.decidedBy === 'resident') {
-      text(value.declaredBy, 'Permit extension declaredBy', 200);
-      text(value.evidence, 'Permit extension evidence', 4000);
+      if (value.declaredBy !== null) text(value.declaredBy, 'Permit extension declaredBy', 200);
+      if (value.evidence !== null) text(value.evidence, 'Permit extension evidence', 4000);
     } else if (value.declaredBy !== null || value.evidence !== null) {
       fail('INVALID_ARGUMENT', 'Council permit extensions must not include resident declaration evidence.');
     }
@@ -1605,8 +1605,8 @@ function validateDeliveryDecision(value, expectedCityId) {
   } else if (value.decidedBy === 'city-council') invalid('by the council must record the delegation policy digest.');
   fields(value.evidence, ['declaredBy', 'reference', 'authenticated'], 'City decision evidence');
   if (value.decidedBy === 'resident') {
-    text(value.evidence.declaredBy, 'City decision evidence.declaredBy', 200);
-    text(value.evidence.reference, 'City decision evidence.reference', 4000);
+    if (value.evidence.declaredBy !== null) text(value.evidence.declaredBy, 'City decision evidence.declaredBy', 200);
+    if (value.evidence.reference !== null) text(value.evidence.reference, 'City decision evidence.reference', 4000);
   } else if (value.evidence.declaredBy !== null || value.evidence.reference !== null) {
     invalid('by the council must not carry resident declaration evidence.');
   }

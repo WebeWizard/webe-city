@@ -33,7 +33,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.9.0 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.10.0 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -67,7 +67,7 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.8.2.
+repeated for 0.2.0 through 0.10.0.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -124,7 +124,7 @@ registered.
 | Installed package | Install from source into an isolated plugin inventory, list the plugin, then run its installed scripts |
 | VS Code host | Observe the offices and skills in the intended harness and exercise the workflows in a fresh session |
 | Hook enforcement | Observe that the target host invokes the hook and honors its denial, not merely that the script emits JSON |
-| Delivery decisions | Recorded with `authenticated: false`; repository access is the source of authority. No identity verification claimed |
+| Delivery decisions | Recorded with `authenticated: false`; host and platform permissions control access. No identity verification claimed |
 | Protected merges and deployment | Not performed by the runtime; the resident merges. Use the hosting platform's branch protection |
 
 Automated tests and a CLI installation do not establish VS Code UI discovery,
@@ -149,8 +149,12 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.8.2 remain valid under 0.9.0. Plugin 0.9.0
-adds optional petition revision history and case snapshots. Earlier plugins reject
+Records written by 0.1.0 through 0.9.0 remain valid under 0.10.0. Plugin 0.10.0
+allows null resident attribution and references in adoption, amendment, decisions,
+and permit extensions. Earlier plugins may reject records with these null values;
+restore a compatible backup to roll back. Existing adopted charter and policies
+are not silently rewritten: review changes and use `amend` to adopt them.
+Plugin 0.9.0 adds optional petition revision history and case snapshots. Earlier plugins reject
 orders containing `requestRevisions`; do not alternate plugin versions after
 using that feature. Snapshot digests are local coordination aids, not authority.
 Plugin 0.8.2
@@ -158,7 +162,7 @@ improves the completeness of Planner revision feedback without changing record s
 Plugin 0.8.1 improved resident consultation on planning blockers without changing
 record shapes. Plugin 0.8.0 added
 [development CLI preview summaries and file/stdin input](./development-applications.md)
-without changing record shapes; new provenance records the 0.9.0 version.
+without changing record shapes; new provenance records the current plugin version.
 Plugin 0.7.0 added
 optional work-order `fileParts` with `.city/work-order-parts/` and optional
 statement `supersedes`, `correctionReason` and `evidenceArtifactId`. No migration

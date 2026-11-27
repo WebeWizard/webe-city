@@ -49,8 +49,9 @@ are routed to the Manager, Council, or resident without automatically changing
 governance. The CLI has no background scheduler; triggers are checked when
 `status` runs.
 
-Still future work: authenticated identity, protected merge integration,
-expenditure and budget controls, and a published release.
+The plugin relies on host and platform permissions rather than authenticating
+residents or seeking identity proof. Protected merge integration, expenditure
+and budget controls, and a published release remain future work.
 
 The private 0.4.0 infrastructure capability adds optional asset and rolling
 programme records, service/condition/obligation/finding status, exact pinned
@@ -295,7 +296,7 @@ Distinguish working drafts, approved decisions, active policies, superseded poli
 ### Authority, protection, and preservation
 
 - Use one canonical source for work-order state and official decisions.
-- An editable approval field is not proof of human authorization. Reference a trusted human approval action and the revision it covers.
+- An editable approval field is not proof of human authorization. Record the decision and covered revision without seeking identity proof; rely on host controls for access.
 - Version sanitized records in the repository. Keep secrets and sensitive records out of Git; use an appropriately controlled store with references where necessary.
 - Public access means access for the intended authorized audience, not automatic publication to the internet.
 - Define classification, retention, archival, correction, and access procedures.

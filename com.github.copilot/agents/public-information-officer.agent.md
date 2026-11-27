@@ -28,7 +28,8 @@ The office has no standing assignments, publication duties, or background work.
   case. For repository changes, verify the applied work-order authorization and
   its scope; Engineering still owns implementation and independent inspection
   still applies. For standalone products, verify the Clerk's case-specific
-  record of the resident's decision and its evidence. A preview, refusal,
+  record of the resident's decision and any available context; do not seek
+  identity proof. A preview, refusal,
   unresolved referral, revoked decision, unverified assertion, or record
   category is not authorization. Resolve conflicts through the Manager, not
   by assuming the latest file is approved. Pause on material scope or audience

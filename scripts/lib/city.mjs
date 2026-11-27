@@ -2824,11 +2824,8 @@ export async function authorize(root, options) {
       fail('INVALID_ARGUMENT', 'City Council decisions do not carry resident declarations; omit --declared-by and --evidence.');
     }
   } else {
-    if (options['declared-by'] === undefined || options.evidence === undefined) {
-      fail('RESIDENT_EVIDENCE_REQUIRED', 'A resident decision requires --declared-by and --evidence describing the resident declaration.');
-    }
-    text(options['declared-by'], '--declared-by', 200);
-    text(options.evidence, '--evidence', 4000);
+    if (options['declared-by'] !== undefined) text(options['declared-by'], '--declared-by', 200);
+    if (options.evidence !== undefined) text(options.evidence, '--evidence', 4000);
   }
   const context = await deliveryContext(root, options.id);
   const { city, original } = context;
@@ -2901,8 +2898,8 @@ export async function permitExtend(root, options) {
   const declaredBy = options['declared-by'] ?? null;
   const evidence = options.evidence ?? null;
   if (decidedBy === 'resident') {
-    text(declaredBy, '--declared-by', 200);
-    text(evidence, '--evidence', 4000);
+    if (declaredBy !== null) text(declaredBy, '--declared-by', 200);
+    if (evidence !== null) text(evidence, '--evidence', 4000);
   } else if (declaredBy !== null || evidence !== null) {
     fail('INVALID_ARGUMENT', 'Council extensions must not include resident declaration evidence.');
   }
@@ -2972,8 +2969,8 @@ function validatePermitExtensionAllowed(city, order, input) {
 
 export async function complete(root, options) {
   validateOrderId(options.id);
-  text(options['declared-by'], '--declared-by', 200);
-  text(options.evidence, '--evidence', 4000);
+  if (options['declared-by'] !== undefined) text(options['declared-by'], '--declared-by', 200);
+  if (options.evidence !== undefined) text(options.evidence, '--evidence', 4000);
   text(options.reason, '--reason', 4000);
   const context = await deliveryContext(root, options.id);
   const { original } = context;
@@ -2992,8 +2989,8 @@ export async function complete(root, options) {
     routineClass: null,
     reservedMatters: [],
     reason: options.reason,
-    declaredBy: options['declared-by'],
-    reference: options.evidence,
+    declaredBy: options['declared-by'] ?? null,
+    reference: options.evidence ?? null,
   }, (id) => `Completion accepted by the resident in ${id}; recorded, not authenticated.`);
   if (options.apply) await writeDeliveryRecords(root, context, records);
   return deliveryOutput('complete', root, options.apply, context, records);
@@ -3132,8 +3129,8 @@ export async function migrate(root, options) {
 
 export async function adopt(root, options) {
   calendarDate(options['adopted-on'], '--adopted-on');
-  text(options['declared-by'], '--declared-by', 200);
-  text(options.evidence, '--evidence', 4000);
+  if (options['declared-by'] !== undefined) text(options['declared-by'], '--declared-by', 200);
+  if (options.evidence !== undefined) text(options.evidence, '--evidence', 4000);
   if (options['charter-version'] !== undefined) text(options['charter-version'], '--charter-version', 100);
   const city = await loadCity(root);
   if (city.config.schemaVersion !== CONFIG_SCHEMA_VERSION) {
@@ -3153,8 +3150,8 @@ export async function adopt(root, options) {
       policies: digests.policies,
       evidence: {
         rule: EVIDENCE_RULE,
-        declaredBy: options['declared-by'],
-        reference: options.evidence,
+        declaredBy: options['declared-by'] ?? null,
+        reference: options.evidence ?? null,
         authenticated: false,
       },
     },
@@ -3191,8 +3188,8 @@ function adoptionChanges(previous, digests) {
 
 export async function amend(root, options) {
   calendarDate(options['adopted-on'], '--adopted-on');
-  text(options['declared-by'], '--declared-by', 200);
-  text(options.evidence, '--evidence', 4000);
+  if (options['declared-by'] !== undefined) text(options['declared-by'], '--declared-by', 200);
+  if (options.evidence !== undefined) text(options.evidence, '--evidence', 4000);
   text(options.summary, '--summary', 4000);
   if (options['charter-version'] !== undefined) text(options['charter-version'], '--charter-version', 100);
   const city = await loadCity(root);
@@ -3226,8 +3223,8 @@ export async function amend(root, options) {
       policies: digests.policies,
       evidence: {
         rule: EVIDENCE_RULE,
-        declaredBy: options['declared-by'],
-        reference: options.evidence,
+        declaredBy: options['declared-by'] ?? null,
+        reference: options.evidence ?? null,
         authenticated: false,
       },
       history: [...(previousHistory ?? []), supersededEntry],

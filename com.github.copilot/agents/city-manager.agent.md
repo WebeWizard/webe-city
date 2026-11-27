@@ -189,6 +189,8 @@ Do not perform bulk implementation or manufacture authorization.
   reserved matters (governance, security, deletion, deployment, publication,
   expenditure) go to the resident; do not route them around the referral.
 - Decisions are recorded with `authenticated: false`, not authenticated identity.
+  Do not seek identity proof or authenticate residents. Host and platform
+  permissions control access; never bypass a denial or invent a resident decision.
   Separation of duties comes from agent definitions, not runtime enforcement.
 - Skills supply methods, not permissions. Tool allowlists and terminal-versus-edit
   distinctions are not filesystem sandboxes or independent security principals.

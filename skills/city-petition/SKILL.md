@@ -98,7 +98,7 @@ Collect only the city-record information necessary to understand the request.
 The City Council then records `authorize`, `return` (back to `proposed`), `reject`,
 or `refer`. Reserved matters (governance, security, deletion, deployment,
 publication, expenditure) are referred to the resident, who decides with
-`authorize --decided-by resident --declared-by ... --evidence ...`. Once authorized,
+`authorize --decided-by resident`; optional attribution is not authentication. Once authorized,
 the City Manager automatically dispatches the Engineer, who delivers on a branch;
 the Inspector gates `inspection` ->
 `awaiting-merge`, and the resident runs `complete` with the pull request as evidence.

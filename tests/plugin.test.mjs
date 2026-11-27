@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.9.0');
+  assert.equal(manifest.version, '0.10.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -310,6 +310,18 @@ test('the delivery authorization skill covers reserved matters, routine classes,
   }
   assert.match(await readFile(path.join(root, 'skills/city-petition/SKILL.md'), 'utf8'), /City Council/);
   assert.match(await readFile(path.join(root, 'skills/city-status/SKILL.md'), 'utf8'), /referral/i);
+});
+
+test('shipped trust guidance relies on host permissions without seeking identity proof', async () => {
+  const charter = await readFile(path.join(root, 'templates/repository/.city/charter.md'), 'utf8');
+  const policy = await readFile(path.join(root, 'templates/repository/.city/policies/authority-and-policy.md'), 'utf8');
+  const manager = await readFile(path.join(root, 'com.github.copilot/agents/city-manager.agent.md'), 'utf8');
+  const delivery = await readFile(path.join(root, 'skills/city-delivery-authorization/SKILL.md'), 'utf8');
+  assert.match(charter, /does not authenticate residents or seek identity proof/);
+  assert.match(policy, /host and platform permissions/i);
+  assert.match(policy, /does not itself establish a specific decision/);
+  assert.match(manager, /never bypass a denial or invent a resident decision/);
+  assert.match(delivery, /optional context, not identity proof/);
 });
 
 test('the default charter appoints the bundled pilot roster upon valid adoption', async () => {
