@@ -17,11 +17,20 @@ The package uses Agent Plugins 1.0:
   required.
 
 The City Manager can reuse a delegate for related follow-ups on the same work
-order when the host exposes multi-turn subagent messaging. If it does not, the
-Manager uses ordinary dispatch. Bundled offices have separately named
+order when the host exposes multi-turn subagent messaging. Coordinators prefer
+background delegation where supported, track returned handles and launch modes,
+and wait for results; independent work may run concurrently but conflicting
+record writes are serialized. If background dispatch is unavailable, the caller
+routes handoffs returned by synchronous delegates. Bundled offices have separately named
 `list_agents` and `write_agent` tools to message available peers directly without
 the broader `agent` tool. Host support, peer visibility and handle lifetime vary;
 where direct communication is unavailable, the Manager routes the handoff.
+Listings may include the caller itself, synchronous agents, or stale handles;
+they do not establish a distinct messageable peer. An explicit sync-mode
+rejection is not delivery, so return the complete request and attributed draft
+to the caller for routing. Uncertain delivery must be resolved before retrying
+or dispatching duplicate work. The plugin cannot enforce a host's launch mode,
+identify the caller without host-provided identity, or guarantee message delivery.
 Adopted charters or policies may require Manager routing even when messaging
 works; existing cities must amend them through their normal governance process
 before using a newly permitted direct handoff. Plugin updates do not amend them.
@@ -44,7 +53,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.13.0 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.13.1 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -78,7 +87,7 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.13.0.
+repeated for 0.2.0 through 0.13.1.
 
 The 0.13.0 loading changes add a shared operational guide, read-only scoped
 command help and machine-readable contracts, and bounded artifact file/stdin
@@ -90,6 +99,10 @@ handoffs in a fresh host session. A current-version clean-profile host exercise
 remains required before claiming those behaviors are observed. Existing
 instructions and generated specialists are not automatically rewritten.
 See [plugin loading and recovery](./plugin-loading.md).
+
+The 0.13.1 background-first handoff guidance is instruction-based. Package
+checks cannot establish that a host follows it, identifies self-listings, or
+delivers messages; a fresh host exercise is still required.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -171,7 +184,10 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.12.1 remain valid under 0.13.0.
+Records written by 0.1.0 through 0.13.0 remain valid under 0.13.1.
+Plugin 0.13.1 changes coordination guidance without changing record shapes or
+governance gates. Earlier plugins reject 0.13.1 provenance; use a compatible
+backup to roll back.
 Plugin 0.13.0 changes CLI input/help and operational guidance without changing
 record shapes or governance gates. Earlier plugins reject 0.13.0 provenance;
 use a compatible backup to roll back. No charter amendment is required merely

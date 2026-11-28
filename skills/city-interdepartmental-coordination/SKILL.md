@@ -72,6 +72,11 @@ decisions across a repository's explicitly declared districts.
    delegate handles scoped to the current session, root, work order and office;
    never treat a handle or accepted message as a durable record or a completed
    handoff. If messaging is unavailable, dispatch normally with current evidence.
+   Where background delegation is supported, the coordinating caller launches
+   delegates in background mode, records actual handles and launch modes, and
+   waits for results. Use synchronous dispatch if background mode is unavailable;
+   the caller routes the returned handoff. Parallelize only independent work and
+   serialize conflicting writes to the same canonical records.
 4. Check interface responsibilities and capacity assumptions with available evidence.
    Record uncertainty; do not make silent ownership transfers.
 5. Separate a technical disagreement from an authority or resident-priority dispute.
@@ -97,10 +102,13 @@ for the same selected root and case when the host exposes `list_agents` and
 charters and policies may require Manager routing; follow those requirements
 until properly amended, without silently changing adopted documents.
 The coordinator shares the actual session-local office/handle
-mapping with participants and updates it as the team changes. A listing or an
-office name alone does not establish a peer's case, identity, appointment or
-authority. If the recipient or its case is uncertain, ask the coordinator to
-identify or arrange the peer; do not send case information to an unknown agent.
+mapping and launch mode with participants, identifies each participant's own
+entry, and updates it as the team changes. A listing can include the caller
+itself or stale handles; an office name or listing alone does not establish a
+distinct, messageable peer or its case, identity, appointment or authority.
+Never message the caller's own handle. If the recipient, its mode, or its case
+is uncertain, ask the coordinator to identify or arrange the peer; do not send
+case information to an unknown agent.
 
 Send a bounded request with the root, case ID, sender and recipient offices,
 purpose, relevant scope and record revisions, expected result and stopping
@@ -111,10 +119,15 @@ to act, or a filed record; do not claim delivery, completion, or persistence
 without the corresponding result. Preserve material findings and handoffs through
 the normal canonical records route.
 
-If direct messaging or a peer is unavailable, return the request to City Manager
-or the coordinating caller for routing. If delivery is uncertain, do not resend
-or start duplicate work until its outcome is known. A directly invoked office
-without an available peer or coordinating caller reports the limitation. Notify
+If direct messaging or a peer is unavailable, return the complete request and
+any author-attributed draft payload to City Manager or the coordinating caller
+for routing. An explicit host rejection because the recipient is in sync mode
+means that attempt was not delivered: do not retry that handle; return the
+payload in the synchronous result for the caller to route and obtain the result.
+If delivery is uncertain, do not resend or start duplicate work until its outcome
+is known. Recheck canonical records and any active assignment before a write;
+listing the caller's own task is not evidence of another writer. A directly
+invoked office without an available peer or coordinating caller reports the limitation. Notify
 the Manager when coordination, staffing, a required confirmation, a resident
 decision, or an escalation is needed. Direct consultation does not permit an
 office to launch agents, appoint staff, authorize work, or bypass independent
