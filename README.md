@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.12.1 pilot, not a production government.**
+**Status: private 0.13.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -44,6 +44,22 @@ An open-source license and publisher have not been selected.
   malformed or incompatible city records.
 
 No RSG or rsgdev component is required.
+
+## Reliable plugin loading
+
+All bundled offices and skills share
+[plugin loading and recovery guidance](./docs/plugin-loading.md): discover the
+actual installation, resolve links from the containing installed file, keep the
+target repository separate, and correct observed tooling mistakes without
+bypassing genuine state or authority blockers. No `city` PATH executable or
+fixed cache path is assumed.
+
+Plugin 0.13.0 adds read-only `<command> --help`, machine-readable command
+contracts, and `artifact-record --data-file PATH` or stdin `--data-file -`.
+Input modes remain command-specific; `status` still takes only `--root`.
+Existing cities may review the guide's optional instruction snippet; updates
+never overwrite repository instructions, rewrite generated engineers, or
+silently amend adopted governance.
 
 ## Persistent agent documents
 

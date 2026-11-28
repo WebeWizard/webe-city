@@ -6,6 +6,15 @@ user-invocable: false
 
 # Infrastructure Asset Management
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Apply the adopted [infrastructure-management policy](../../templates/repository/.city/policies/infrastructure-management.md)
 and distinguish recorded fact, technical assessment, proposal, authorization,
 and verified outcome. If that policy is absent or not adopted, provide advice

@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "A private development marketplace for the Repository City pilot.",
-    "version": "0.12.1"
+    "version": "0.13.0"
   },
   "plugins": [
     {
       "name": "repository-city",
       "description": "Municipal offices, professional skills, and durable repository records.",
-      "version": "0.12.1",
+      "version": "0.13.0",
       "source": "./"
     }
   ]

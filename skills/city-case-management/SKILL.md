@@ -6,6 +6,15 @@ user-invocable: false
 
 # Case Management
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Capture the resident's need/outcome/observations, not an engineered application.
 Route [development screening](../city-development-applications/SKILL.md) to
 an available Planner directly or through Manager, with focused questions for unknown scope/thresholds. A formal

@@ -6,6 +6,15 @@ user-invocable: false
 
 # Plan Checking
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Under adopted [development applications](../city-development-applications/SKILL.md),
 Chief Planner independently assesses the exact current Advisor application revision
 against proportionate screening requirements and resident answers. An Inspector

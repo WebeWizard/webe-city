@@ -44,7 +44,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.12.1 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.13.0 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -78,7 +78,18 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.12.1.
+repeated for 0.2.0 through 0.13.0.
+
+The 0.13.0 loading changes add a shared operational guide, read-only scoped
+command help and machine-readable contracts, and bounded artifact file/stdin
+input. Automated coverage exercises help without city access, content-preserving
+preview/apply/retrieval, invalid inputs without writes, resource links and
+packaged recovery from an unrelated working directory with absent empty registers.
+These checks do not prove model-driven skill activation or successful office
+handoffs in a fresh host session. A current-version clean-profile host exercise
+remains required before claiming those behaviors are observed. Existing
+instructions and generated specialists are not automatically rewritten.
+See [plugin loading and recovery](./plugin-loading.md).
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -160,7 +171,11 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.12.0 remain valid under 0.12.1.
+Records written by 0.1.0 through 0.12.1 remain valid under 0.13.0.
+Plugin 0.13.0 changes CLI input/help and operational guidance without changing
+record shapes or governance gates. Earlier plugins reject 0.13.0 provenance;
+use a compatible backup to roll back. No charter amendment is required merely
+for the new input/help support; adopted policies remain in force.
 Plugin 0.12.1 permits completion notices for active authorized permits even
 when later governance changes make the planning screening stale. Earlier plugins
 reject 0.12.1 provenance; use a compatible backup to roll back.

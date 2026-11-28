@@ -15,12 +15,13 @@ assert.ok(path.isAbsolute(pluginRoot), '--plugin-root must be absolute');
 const cli = path.join(pluginRoot, 'scripts/city.mjs');
 const hook = path.join(pluginRoot, 'scripts/city-hook.mjs');
 
-function command(script, args, { input, failure = false } = {}) {
+function command(script, args, { input, failure = false, cwd } = {}) {
   const result = spawnSync(process.execPath, [script, ...args], {
     encoding: 'utf8',
     input,
     timeout: 15_000,
     maxBuffer: 1024 * 1024,
+    cwd,
   });
   if (result.error) throw result.error;
   assert.notEqual(result.signal, 'SIGTERM', 'Scenario command timed out');
@@ -94,6 +95,49 @@ function completionNotice(root, id, permitId) {
   return development('completion-notice', root, id, {
     permitId, conditions: [], evidence: 'All permit conditions have been addressed.',
   });
+}
+
+async function smokeLoading(root, cwd) {
+  const agentPath = path.join(pluginRoot, 'com.github.copilot/agents/city-manager.agent.md');
+  const resource = path.resolve(path.dirname(agentPath), '../../skills/city-strategic-planning/SKILL.md');
+  assert.match(await readFile(resource, 'utf8'), /docs\/plugin-loading\.md/);
+  assert.match(await readFile(path.join(pluginRoot, 'docs/plugin-loading.md'), 'utf8'), /containing installed/);
+  const run = (args, options = {}) => command(cli, args, { ...options, cwd });
+  const contract = run(['artifact-record', '--help']);
+  assert.ok(contract.contract.dataSources.includes('data-file'));
+  run(['init', '--root', root, '--apply']);
+  for (const register of ['work-orders', 'decisions', 'records-requests']) {
+    await rm(path.join(root, '.city', register), { recursive: true, force: true });
+  }
+  assert.equal(run(['records-list', '--root', root, '--type', 'decision']).total, 0);
+  assert.equal(run(['records-list', '--root', root, '--type', 'records-request']).total, 0);
+  assert.deepEqual(command(hook, [], {
+    cwd, input: JSON.stringify({ cwd: root, toolName: 'read', toolArgs: {} }),
+  }), {});
+  const failed = run(['status', '--root', root, '--id', 'WO-example'], { failure: true });
+  assert.match(JSON.parse(failed.stderr).error.message, /status --help/);
+  const statusContract = run(['status', '--help']).contract;
+  assert.deepEqual(statusContract.allowedFlags, ['root']);
+  assert.equal(run(['status', '--root', root]).enrolled, true);
+  const data = {
+    title: 'Recovery filing', kind: 'plan', format: 'markdown',
+    content: '# Recovery\n\n  Full content with \"quotes\" and a final newline.\n',
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'filed-work-product',
+  };
+  const inputPath = path.join(root, 'artifact payload with spaces.json');
+  await writeFile(inputPath, JSON.stringify(data));
+  const args = ['artifact-record', '--root', root, '--data-file', path.relative(cwd, inputPath)];
+  assert.equal(run(args).dryRun, true);
+  assert.equal(existsSync(path.join(root, '.city/artifacts')), false);
+  const saved = run([...args, '--apply']);
+  const fetched = run(['records-get', '--root', root, '--id', saved.artifact.id]).records[0];
+  assert.equal(fetched.record.content, data.content);
+  assert.equal(saved.changed, true);
+  assert.equal(run(['validate', '--root', root]).valid, true);
+  for (const register of ['work-orders', 'decisions', 'records-requests']) {
+    assert.equal(existsSync(path.join(root, '.city', register)), false);
+  }
 }
 
 async function smokePublicInformation(root, adoptedOn) {
@@ -177,8 +221,10 @@ try {
   const third = path.join(temporary, 'Council City');
   const reviewCity = path.join(temporary, 'Institutional Review City');
   const informationCity = path.join(temporary, 'Information City');
+  const loadingCity = path.join(temporary, 'Loading Recovery City');
   const unrelated = path.join(temporary, 'Unenrolled workspace');
-  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(reviewCity), mkdir(informationCity), mkdir(unrelated)]);
+  await Promise.all([mkdir(first), mkdir(second), mkdir(third), mkdir(reviewCity), mkdir(informationCity), mkdir(loadingCity), mkdir(unrelated)]);
+  await smokeLoading(loadingCity, unrelated);
   await mkdir(path.join(first, '.github'));
   const instructions = '# Existing contributor instructions\n\nPreserve this content.\n';
   await writeFile(path.join(first, '.github/copilot-instructions.md'), instructions);
@@ -549,6 +595,7 @@ try {
     result: 'passed',
     pluginRoot,
     scenarios: [
+      'installed resource resolution, scoped help and corrected artifact filing from an unrelated cwd with absent empty registers',
       'read-only initialization preview',
       'repeatable draft initialization preserving existing instructions',
       'project registration and project-scoped petition',
