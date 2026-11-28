@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.13.0');
+  assert.equal(manifest.version, '0.13.1');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -176,6 +176,7 @@ test('bundled offices have distinct identities and explicit least-tool contracts
   }
   const manager = definitions.get('city-manager.agent.md');
   assert.ok(manager.tools.includes('agent'));
+  assert.ok(manager.tools.includes('list_agents') && manager.tools.includes('write_agent'));
   assert.ok(!manager.tools.includes('edit'));
   assert.ok(!manager.tools.includes('execute'));
   for (const target of manager.agents) {
@@ -185,7 +186,7 @@ test('bundled offices have distinct identities and explicit least-tool contracts
   for (const [filename, metadata] of definitions) {
     if (filename === 'engineering-manager.agent.md') {
       assert.deepEqual(metadata.agents, ['*'], filename);
-      assert.deepEqual(metadata.tools, ['read', 'search', 'execute', 'agent'], filename);
+      assert.deepEqual(metadata.tools, ['read', 'search', 'execute', 'agent', 'list_agents', 'write_agent'], filename);
     } else if (filename !== 'city-manager.agent.md') {
       assert.deepEqual(metadata.agents, [], filename);
       assert.ok(metadata.tools.includes('list_agents') && metadata.tools.includes('write_agent'), filename);
@@ -576,10 +577,28 @@ test('work-order delegate reuse is scoped and does not replace durable handoffs'
   assert.match(manager, /Do not assume message acceptance means the task\s+was performed/);
   assert.match(coordination, /never treat a handle or accepted message as a durable record or a completed\s+handoff/);
   assert.match(coordination, /Any participating office may communicate directly with any other available peer/);
-  assert.match(coordination, /If direct messaging or a peer is unavailable, return the request to City Manager/);
+  assert.match(coordination, /If direct messaging or a peer is unavailable, return the complete request and\s+any author-attributed draft payload/);
+  assert.match(coordination, /explicit host rejection because the recipient is in sync mode\s+means that attempt was not delivered/);
+  assert.match(coordination, /If delivery is uncertain, do not resend or start duplicate work until its outcome\s+is known/);
   assert.match(coordination, /A message is not a decision, authentication, authority\s+to act, or a filed record/);
   assert.match(coordination, /Existing\s+charters and policies may require Manager routing; follow those requirements\s+until properly amended/);
   assert.match(manager, /actual same-case office\/handle mapping/);
+});
+
+test('coordination prefers background delegates without confusing self or stale peers', async () => {
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  const engineering = await readFile(path.join(agentsPath, 'engineering-manager.agent.md'), 'utf8');
+  const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
+  assert.match(manager, /launch delegates in background\s+mode and retain the actual returned handles and launch modes/);
+  assert.match(manager, /If background mode is unavailable, use synchronous dispatch and route its\s+returned handoff/);
+  assert.match(manager, /serialize conflicting writes to the same records/);
+  assert.match(manager, /identifying each recipient's own entry/);
+  assert.match(manager, /explicitly rejects a synchronous recipient[\s\S]*not delivered[\s\S]*do not retry the rejected handle/);
+  assert.match(engineering, /prefer host-supported background mode,[\s\S]*wait for actual results/);
+  assert.match(coordination, /Never message the caller's own handle/);
+  assert.match(coordination, /listing can include the caller\s+itself or stale handles/);
+  assert.match(coordination, /If the recipient, its mode, or its case\s+is uncertain, ask the coordinator/);
+  assert.match(coordination, /listing the caller's own task is not evidence of another writer/);
 });
 
 test('intake and handoffs preserve outcomes and promptly relay required choices', async () => {

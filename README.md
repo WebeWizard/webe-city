@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.13.0 pilot, not a production government.**
+**Status: private 0.13.1 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -670,7 +670,9 @@ See the [governance guide](./docs/governance.md) and
 - When host messaging is available, the City Manager can reuse an office delegate
   for related follow-ups on the same work order. Participating offices can message
   available same-case peers directly when adopted governance permits; the
-  Manager routes handoffs when necessary.
+  Manager prefers background delegation when supported and routes synchronous
+  or unavailable peer handoffs. A listing alone does not identify a distinct
+  messageable peer; uncertain delivery is not retried until resolved.
   Handles and messages are not durable city records or authorization.
 - Agents, tool lists, and hooks are not a filesystem sandbox or separate
   security identities. Terminal access remains powerful.
