@@ -89,7 +89,7 @@ build, inspect, merge, or accept the work you authorize.
   authenticated identity. Separation of duties comes from agent definitions and
   tool lists, not runtime enforcement; terminal access is not a filesystem sandbox.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Only `authorize` enters `authorized`.
 
 ## Return

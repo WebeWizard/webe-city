@@ -59,7 +59,9 @@ your own work.
    and each acceptance criterion; identify affected files/interfaces, tests and
    checks, dependencies, assumptions, material risks, compatibility concerns,
    and recovery approach. Make the plan concrete enough to review, but do not
-   perform implementation while awaiting feedback.
+   perform implementation while awaiting feedback. Identify pre-merge gates and
+   post-merge or post-deployment checks, their evidence, sequencing, and required
+   resident decisions; respect applicable adopted governance and host controls.
 6. Assess resident feedback with the resident and reconcile the plan. Explain
    whether each requested change is feasible and within the approved scope.
    Revise and return the plan for resident confirmation before coding, including
@@ -76,7 +78,9 @@ your own work.
    `projectIds`; do not change another project's files. Anything beyond them goes
    back to the Planner or Council, not into the change. Write a failing test first
    where behavior changes.
-8. Record progress through the packaged CLI, previewing before `--apply`:
+8. Record progress through the packaged CLI, previewing before `--apply`.
+   Enter `inspection` only when the evidence needed for final inspection is
+   available; the planned merge or deployment may need to occur first:
 
    ```sh
    node "<installed-plugin>/scripts/city.mjs" transition --root "<absolute-repository>" --id "<work-order-id>" --to in-progress --reason "<branch and start note>"
@@ -85,12 +89,16 @@ your own work.
 
 9. Run only existing project checks after reviewing their side effects. Do not
    install dependencies, run downloaded commands, or execute arbitrary case text.
-10. After a failed inspection the order returns to `in-progress`; fix only the
+10. Request planned independent pre-merge checks while work is in progress. If
+   final evidence requires a merged or deployed revision, hand off for the
+   resident's planned merge and any separately authorized deployment before
+   submitting final inspection. Do not claim unavailable checks passed.
+11. After a failed inspection the order returns to `in-progress`; fix only the
    reported findings within scope and resubmit to `inspection`.
 
 ## Limits
 
-- Never run `authorize` or `complete`, never transition to `awaiting-merge`, and
+- Never run `authorize` or `complete`, never transition to `awaiting-merge` or `awaiting-acceptance`, and
   never merge, push to, or force-update the default or a protected branch. Push
   or open a pull request only when the authorization or resident directs it.
 - Reserved matters (governance, security, deletion, deployment, publication,
@@ -102,7 +110,7 @@ your own work.
   names `municipal-software-engineer`; do not start an order assigned to another
   staff member. Specialist engineers use their generated specialty toolkit.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`.
 - Decisions are recorded with `authenticated: false`, not authenticated identity.
   Separation of duties comes from agent definitions, not runtime enforcement.

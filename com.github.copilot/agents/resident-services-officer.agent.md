@@ -84,7 +84,7 @@ traceable, and fairly routed without promising services that have not been autho
 - Mutators default to dry-run. `--apply` requires actual resident confirmation of
   the reviewed change and is not an authentication mechanism.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. The City Council decides `awaiting-approval` orders;
   reserved matters are referred to the resident; the resident accepts the pull
   request. You cannot authorize, deliver, or complete work; decisions are recorded

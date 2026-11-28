@@ -447,7 +447,8 @@ async function assertProjectPaths(root, projects) {
 }
 
 const DECISION_FROM = Object.freeze({
-  authorize: 'awaiting-approval', reject: 'awaiting-approval', return: 'awaiting-approval', accept: 'awaiting-merge',
+  authorize: ['awaiting-approval'], reject: ['awaiting-approval'], return: ['awaiting-approval'],
+  accept: ['awaiting-merge', 'awaiting-acceptance'],
 });
 const LINKED_ENTRIES = Object.freeze({ authorized: 'authorize', completed: 'accept' });
 const linkKey = (orderId, timestamp, state) => `${orderId}\n${timestamp}\n${state}`;
@@ -468,7 +469,7 @@ function checkDecisionLinkage(orders, decisions) {
       }
       continue;
     }
-    const matches = order.history.filter((entry) => entry.from === DECISION_FROM[decision.outcome]
+    const matches = order.history.filter((entry) => DECISION_FROM[decision.outcome].includes(entry.from)
       && entry.to === state && entry.timestamp === decision.createdAt);
     const key = linkKey(order.id, decision.createdAt, state);
     if (matches.length !== 1 || links.has(key)) {
@@ -861,7 +862,7 @@ function validateInfrastructureProgrammeReferences(city, programme) {
       const order = activity.workOrderId && city.workOrders.get(activity.workOrderId)?.value;
       if (!order || !order.infrastructure?.assets.some((pin) => pin.assetId === activity.assetId)
         || (activity.authorityStatus === 'authorized'
-          && !['authorized', 'in-progress', 'inspection', 'awaiting-merge', 'completed'].includes(order.status))
+          && !['authorized', 'in-progress', 'inspection', 'awaiting-merge', 'awaiting-acceptance', 'completed'].includes(order.status))
         || (activity.authorityStatus === 'complete' && order.status !== 'completed')) {
         fail('INVALID_RECORD', 'Authorized or completed programme activities must link to a delivery order for that asset in the matching lifecycle state.');
       }
@@ -2974,8 +2975,8 @@ export async function complete(root, options) {
   text(options.reason, '--reason', 4000);
   const context = await deliveryContext(root, options.id);
   const { original } = context;
-  if (original.value.status !== 'awaiting-merge') {
-    fail('INVALID_TRANSITION', 'Only a work order awaiting merge can be accepted as completed by the resident.');
+  if (!['awaiting-merge', 'awaiting-acceptance'].includes(original.value.status)) {
+    fail('INVALID_TRANSITION', 'Only an inspected work order awaiting merge or acceptance can be completed by the resident.');
   }
   if (original.value.acceptanceCriteria.length === 0) {
     fail('CRITERIA_REQUIRED', 'At least one acceptance criterion is required before completion.');

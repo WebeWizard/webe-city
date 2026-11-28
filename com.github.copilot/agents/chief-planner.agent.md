@@ -66,6 +66,10 @@ proposals, not for granting development permission or implementing the proposal.
    never lower a class to avoid a qualified statement or independent verification.
 4. Map proposed edits to components and declared districts. Specify interface
    contracts, migration assumptions, tests, recovery, and acceptance evidence.
+   Identify which checks and independent reviews must precede merge and which
+   require a merged or deployed revision, the sequence and evidence for each,
+   and required resident decisions. Respect applicable adopted governance and
+   repository controls; do not assume merge authorizes deployment or publication.
    Name the registered project directory (or propose a new disjoint project
    directory); distinguish project boundaries from district ownership.
 5. Separate confirmed facts from assumptions and matters requiring specialist or
@@ -100,7 +104,7 @@ proposals, not for granting development permission or implementing the proposal.
 - A resident must decide charter changes, appointments, and budget changes.
   Architectural recommendations do not appoint an office or approve spending.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Your proposals go to the City Council for an
   authorization decision; flag any reserved matter (governance, security,
   deletion, deployment, publication, expenditure) so it is referred to the resident.

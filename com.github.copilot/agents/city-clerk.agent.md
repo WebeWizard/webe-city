@@ -71,7 +71,7 @@ was proposed, what they actually said, and what remains undecided.
 - Skill loading grants no powers. Tool restrictions are not filesystem sandboxes;
   distinct office names do not establish independently authenticated principals.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Do not hand-edit work-order transitions or decisions to
   bypass the CLI. Minute Council decisions and resident referrals as recorded.
 - `--apply` is write confirmation, not authentication. Separation of duties comes

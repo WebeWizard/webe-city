@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.11.0 pilot, not a production government.**
+**Status: private 0.12.0 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -443,7 +443,8 @@ Run `node scripts/city.mjs --help` for the JSON command contract and bounds.
 ## Authorize and accept delivery
 
 The lifecycle is `received -> triaged -> proposed -> awaiting-approval ->
-authorized -> in-progress -> inspection -> awaiting-merge -> completed`, plus
+authorized -> in-progress -> inspection -> awaiting-merge or awaiting-acceptance
+-> completed`, plus
 `blocked`, `rejected`, `withdrawn`, and `reopened`. `authorized` is entered only
 through `authorize` and `completed` only through `complete`; `transition` to
 either fails with `AUTHORIZATION_REQUIRED`. Both commands require adopted
@@ -490,11 +491,15 @@ The output of an applied authorization routes to
 City Manager dispatches the Engineering Manager without another resident prompt.
 The Engineering Manager assigns a fitting existing engineer or uses the
 workforce workflow to hire and assign a specialist. Only then does it dispatch
-the engineer, which delivers on a non-default branch. The Inspector moves the
-order to `awaiting-merge` or back to `in-progress`, using `transition`.
+the engineer, which delivers on a non-default branch. The plan identifies
+pre-merge and post-merge checks, evidence, and required resident decisions.
+Independent pre-merge checks can be reported while work is in progress. After
+all criteria pass final inspection, the Inspector moves the order to
+`awaiting-merge` if merge remains, or `awaiting-acceptance` if already merged;
+failed inspection returns it to `in-progress`.
 `status.workOrders.readyForDelivery` shows assignment state; authorized previews,
 `refer`, `return`, and `reject` never start delivery. After reviewing and
-merging the pull request, the resident records acceptance:
+merging the pull request and obtaining final inspection, the resident records acceptance:
 
 ```sh
 node /absolute/path/to/city/scripts/city.mjs complete \

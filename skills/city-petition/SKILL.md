@@ -101,8 +101,9 @@ or `refer`. Reserved matters (governance, security, deletion, deployment,
 publication, expenditure) are referred to the resident, who decides with
 `authorize --decided-by resident`; optional attribution is not authentication. Once authorized,
 the City Manager automatically dispatches the Engineer, who delivers on a branch;
-the Inspector gates `inspection` ->
-`awaiting-merge`, and the resident runs `complete` with the pull request as evidence.
+the plan identifies pre-merge and post-merge checks. The Inspector gates final
+`inspection` -> `awaiting-merge` or `awaiting-acceptance`, and the resident runs
+`complete` after merge and inspection, with evidence.
 Council authorization requires adopted governance including the delegation policy.
 
 ## Return and boundaries
@@ -110,7 +111,7 @@ Council authorization requires adopted governance including the delegation polic
 Return root, draft/persisted distinction, actual case ID if created, title, criteria,
 source evidence, routing proposal, actual intake state, and next resident action.
 Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-`in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+`in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
 `withdrawn`, `reopened`; `awaiting-approval` is not approval. `transition` cannot
 enter `authorized` or `completed`. Mutators default to dry-run. `--apply` requests
 writing; it does not authenticate the resident or verify consent, and decisions are

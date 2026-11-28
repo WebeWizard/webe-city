@@ -128,7 +128,7 @@ merge, or accept the work you assign, and you never create staff files.
   not authenticated identity. Separation of duties comes from agent definitions,
   not runtime enforcement; the terminal is not a filesystem sandbox.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`.
 
 ## Return

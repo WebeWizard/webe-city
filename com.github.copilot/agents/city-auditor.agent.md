@@ -45,7 +45,8 @@ chain. Findings may support resident judgment; they do not confer authorization.
 5. Check authorization linkage: each entry into `authorized` or `completed` has
    exactly one matching decision; council decisions cite adopted delegation, no
    reserved matter, and no `--declared-by`; reserved matters were referred to and
-   decided by the resident; inspection preceded `awaiting-merge`; the Engineer
+   decided by the resident; final inspection preceded `awaiting-merge` or
+   `awaiting-acceptance` and followed the applicable planned sequence; the Engineer
    did not authorize, inspect, or complete its own work; returns to `proposed`
    were followed by a new authorization before delivery resumed.
    When the building-permits policy is adopted, also trace the screening class,
@@ -72,7 +73,7 @@ chain. Findings may support resident judgment; they do not confer authorization.
 - Do not remediate, approve your own findings, alter the charter, appoint officers,
   decide appeals, ratify policy, or authorize spending or implementation.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`.
 - Council and resident decisions are recorded with `authenticated: false`. A
   linked record shows procedure was followed as recorded, not who acted; anyone

@@ -63,7 +63,7 @@ Mark whether persistence occurred and cite the actual CLI result if it did.
 ## Escalation and limits
 
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Intake moves an order no further than `awaiting-approval`.
 - Mutators default to dry-run; obtain resident confirmation where the applicable
   workflow requires it. Do not seek identity proof. `--apply` is not authentication.
