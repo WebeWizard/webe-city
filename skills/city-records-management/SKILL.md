@@ -6,6 +6,15 @@ user-invocable: false
 
 # Records Management
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Preserve work-order-attached development screenings, assisted applications and
 independent assessments as append-only revisions. On explicitly routed professional
 commands, Records Officer may preview/apply `screen-development`,
@@ -16,7 +25,11 @@ Invoke it as `node "<installed-plugin>/scripts/city.mjs"` with the actual
 absolute installed plugin path; do not assume a `city` executable exists on PATH
 or that the hook's `PLUGIN_ROOT` is available in the agent shell. Use the exact
 target repository as `--root`. If the executable path is unknown, report the
-blocker rather than guessing.
+missing discovery capability after following the loading guide rather than guessing.
+Inspect the installed command's help before using input flags; global `--help`
+is the fallback for older releases. From 0.13.0, `artifact-record` also accepts
+exactly one of `--data JSON` or `--data-file PATH` (use `-` for stdin), under the
+same 256 KiB input limit. This does not add file input to every record command.
 
 For these three development commands, use `--data-file PATH` for a supplied JSON
 file, `--data-file -` for stdin, or `--data JSON` inline. Use exactly one source.

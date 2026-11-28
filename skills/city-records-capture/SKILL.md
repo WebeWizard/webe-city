@@ -6,6 +6,15 @@ user-invocable: false
 
 # Records Capture
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 This author-facing skill explains how to preserve a substantive work product.
 It does not replace the Records Officer's stewardship practice in
 [records management](../city-records-management/SKILL.md).
@@ -44,6 +53,11 @@ First determine whether your agent has the `execute` tool.
 When `execute` is available and the role permits the local record operation,
 prepare the exact payload below, preview the command, inspect the returned
 dry-run, and add `--apply` only when permitted by the active work instructions.
+Inspect installed `artifact-record --help` (global `--help` on older releases).
+From 0.13.0, use exactly one of `--data JSON` or `--data-file PATH`;
+`--data-file -` reads stdin. Relative paths resolve from the executor's cwd,
+and file/stdin input is limited to 256 KiB. Reuse the reviewed content for apply.
+Do not assume that other commands support the same input modes.
 Use the target repository's exact absolute root, never the installed plugin
 directory or an inferred parent. Run only the packaged `city.mjs` artifact
 command; skills do not grant terminal access or expand the command allowlist.

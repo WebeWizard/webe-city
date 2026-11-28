@@ -6,6 +6,15 @@ user-invocable: false
 
 # Public Information Writing
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Use this method only in response to a resident's specific request under the
 adopted public-information policy and appointment. It does not commission
 work or grant permission to issue anything.

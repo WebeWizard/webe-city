@@ -26,7 +26,10 @@ const commands = {
   init: { allowed: ['root', 'name', 'apply'], required: ['root'] },
   status: { allowed: ['root'], required: ['root'] },
   validate: { allowed: ['root'], required: ['root'] },
-  petition: { allowed: ['root', 'title', 'request', 'project', 'infrastructure', 'criterion', 'apply'], required: ['root', 'title', 'request'] },
+  petition: {
+    allowed: ['root', 'title', 'request', 'project', 'infrastructure', 'criterion', 'apply'],
+    required: ['root', 'title', 'request'], repeated: ['project', 'criterion'],
+  },
   'petition-revise': {
     allowed: ['root', 'id', 'expected-sha256', 'data', 'data-file', 'apply'],
     required: ['root', 'id', 'expected-sha256'], requiresDataSource: true,
@@ -56,15 +59,17 @@ const commands = {
     allowed: ['root', 'type', 'id', 'work-order', 'project', 'status', 'search', 'limit', 'offset'],
     required: ['root'],
   },
-  'records-get': { allowed: ['root', 'id', 'linked'], required: ['root', 'id'] },
-  'artifact-record': { allowed: ['root', 'data', 'apply'], required: ['root', 'data'] },
+  'records-get': { allowed: ['root', 'id', 'linked'], required: ['root', 'id'], repeated: ['id'] },
+  'artifact-record': {
+    allowed: ['root', 'data', 'data-file', 'apply'], required: ['root'], requiresDataSource: true,
+  },
   'records-request': {
     allowed: ['root', 'requested-by', 'source-office', 'purpose', 'related-work-order', 'item', 'apply'],
-    required: ['root', 'requested-by', 'purpose', 'item'],
+    required: ['root', 'requested-by', 'purpose', 'item'], repeated: ['item'],
   },
   'records-resolve': {
     allowed: ['root', 'id', 'resolved-by', 'response', 'reason', 'apply'],
-    required: ['root', 'id', 'resolved-by', 'response', 'reason'],
+    required: ['root', 'id', 'resolved-by', 'response', 'reason'], repeated: ['response'],
   },
   'records-cancel': {
     allowed: ['root', 'id', 'cancelled-by', 'reason', 'apply'],
@@ -72,7 +77,7 @@ const commands = {
   },
   'review-record': {
     allowed: ['root', 'conducted-by', 'summary', 'recommendation', 'apply'],
-    required: ['root', 'conducted-by', 'summary'],
+    required: ['root', 'conducted-by', 'summary'], repeated: ['recommendation'],
   },
   transition: { allowed: ['root', 'id', 'to', 'reason', 'apply'], required: ['root', 'id', 'to', 'reason'] },
   'screen-development': developmentInput,
@@ -111,6 +116,7 @@ const commands = {
       'tool', 'check', 'mcp-proposal', 'apply',
     ],
     required: ['root', 'work-order', 'staff-id', 'title', 'reason', 'duties'],
+    repeated: ['competency', 'standard', 'tool', 'check', 'mcp-proposal'],
   },
   'review-requisition': {
     allowed: ['root', 'id', 'outcome', 'reason', 'apply'],
@@ -131,8 +137,26 @@ const commands = {
   },
 };
 
-function help() {
+const booleanFlags = ['apply', 'linked'];
+
+function commandContract(command) {
+  const specification = commands[command];
   return {
+    allowedFlags: specification.allowed,
+    requiredFlags: specification.required,
+    booleanFlags: specification.allowed.filter((flag) => booleanFlags.includes(flag)),
+    repeatedFlags: specification.repeated ?? [],
+    dataSources: specification.requiresDataSource ? ['data', 'data-file']
+      : specification.allowed.includes('data') ? ['data'] : [],
+    requiresExactlyOneDataSource: specification.requiresDataSource ?? false,
+    ...(specification.allowed.includes('data-file')
+      ? { dataFile: { relativeTo: 'cwd', stdin: '-', maxBytes: LIMITS.fileBytes } } : {}),
+    dryRunByDefault: specification.allowed.includes('apply'),
+  };
+}
+
+function help(command) {
+  const output = {
     plugin: PLUGIN,
     mode: 'governance-intake-and-recorded-delivery-decisions',
     usage: [
@@ -161,7 +185,7 @@ function help() {
       'node <installed-plugin>/scripts/city.mjs file-part-close --root ABS --id WO-ID --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-list --root ABS [--type TYPE] [--id ID] [--work-order ID] [--project ID] [--status STATE] [--search TEXT] [--limit N] [--offset N]',
       'node <installed-plugin>/scripts/city.mjs records-get --root ABS --id ID [--id ID repeated] [--linked]',
-      'node <installed-plugin>/scripts/city.mjs artifact-record --root ABS --data JSON [--apply]',
+      'node <installed-plugin>/scripts/city.mjs artifact-record --root ABS (--data JSON | --data-file PATH) [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-request --root ABS --requested-by TEXT [--source-office OFFICE] --purpose TEXT --item JSON [--item JSON repeated] [--related-work-order ID] [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-resolve --root ABS --id RR-ID --resolved-by OFFICE --response JSON [--response JSON repeated] --reason TEXT [--apply]',
       'node <installed-plugin>/scripts/city.mjs records-cancel --root ABS --id RR-ID --cancelled-by OFFICE --reason TEXT [--apply]',
@@ -184,8 +208,12 @@ function help() {
     routineClasses: ROUTINE_CLASSES,
     reservedMatters: RESERVED_MATTERS,
     delegationPolicy: `.city/${DELEGATION_POLICY}`,
+    commandContracts: Object.fromEntries(Object.keys(commands).map((name) => [name, commandContract(name)])),
     notice: DRAFT_NOTICE,
     notes: [
+      'Use <command> --help for a command-specific JSON contract without --root or writes. Flag names in commandContracts omit the leading --. Unknown flags remain errors; status takes --root only, while records-get --id retrieves exact cases.',
+      'Resolve plugin resources relative to the installed file, not the target repository or shell cwd. Installation provides no city executable on PATH and hook PLUGIN_ROOT is not guaranteed in agent shells. See docs/plugin-loading.md for discovery and bounded recovery.',
+      'artifact-record accepts exactly one of --data JSON or --data-file PATH (use - for stdin). File/stdin inputs are limited to 256 KiB; relative PATH is resolved from cwd. Preview and confirmed apply use the same reviewed payload. Input support in other commands is command-specific; consult their help.',
       'Absent record directories are empty registers, provided existing records do not reference missing entries. Reads, init on an existing city, and the hook do not create them; confirmed record writes create their destination directory safely. Symlinks, non-directory paths, malformed records and broken decision links still fail closed. Missing governance files require reviewed recovery, not reinitialization.',
       'artifact-record persists full document content in .city/artifacts/ with ART-UUID IDs. Strict data: {title,kind,format,content,sourceOffice,workOrderId,supersedes,recordCategory}; recordCategory is working-draft|filed-work-product|proposed-instrument; format is markdown|text|mermaid|json. The categories describe intended use, not approval; no artifact category or link establishes formal adoption. workOrderId and supersedes may be null. Legacy artifacts without recordCategory remain readable as legacy-unclassified. records-list --type artifact --search TEXT searches title, kind, source office and content with stable ID ordering and pagination; records-get retrieves full content. Storage/attribution is not approval. See docs/artifact-library.md.',
       'Development mutators append work-order-attached revisions without changing lifecycle updatedAt. All three take strict JSON from exactly one source: --data JSON or --data-file PATH (use - for stdin). A relative PATH is resolved from the current working directory; file and stdin inputs are limited to 256 KiB.',
@@ -246,47 +274,54 @@ function help() {
       'Bounds: 256 KiB per JSON/template file, 1000 records per record directory, 1000 history entries, 50 criteria and 1 MiB hook stdin. Exceeding a bound is an explicit error.',
     ],
   };
+  if (!command) return output;
+  const contract = commandContract(command);
+  return {
+    plugin: PLUGIN,
+    command,
+    usage: output.usage.filter((usage) => usage.includes(`/scripts/city.mjs ${command} `)),
+    contract,
+    notice: DRAFT_NOTICE,
+    notes: [
+      'Help requires no --root and performs no reads or writes to city records. Flag names omit the leading --.',
+      ...(contract.requiresExactlyOneDataSource
+        ? ['Specify exactly one of --data JSON or --data-file PATH; use - for stdin. Relative file paths resolve from cwd, and file/stdin input is limited to 256 KiB.'] : []),
+      ...(contract.dryRunByDefault
+        ? ['Preview first. --apply requests a confirmed local write, not authorization or authenticated approval.'] : []),
+    ],
+  };
 }
 
 function parse(args) {
   if (args.length === 1 && (args[0] === '--help' || args[0] === 'help')) return { command: 'help' };
   const [command, ...flags] = args;
   if (!Object.hasOwn(commands, command)) fail('INVALID_ARGUMENT', 'Unknown or missing city command. Use --help for the JSON command contract.');
+  if (flags.length === 1 && flags[0] === '--help') return { command: 'help', helpCommand: command };
+  const invalidArgument = (message) => fail('INVALID_ARGUMENT', `${message} Use ${command} --help for the supported command contract.`);
   const specification = commands[command];
   const options = {
     apply: false, linked: false, criteria: [], projects: [], ids: [], items: [], responses: [],
     competencies: [], standards: [], tools: [], checks: [], 'mcp-proposals': [], recommendations: [],
   };
-  const repeated = new Set([
-    'criterion', 'project', 'id', 'item', 'response', 'competency', 'standard',
-    'tool', 'check', 'mcp-proposal', 'recommendation',
-  ]);
   const seen = new Set();
   for (let index = 0; index < flags.length; index += 1) {
     const flag = flags[index];
     if (!flag.startsWith('--') || !specification.allowed.includes(flag.slice(2))) {
-      fail('INVALID_ARGUMENT', 'Unknown flag or positional argument. Use --help for the supported command contract.');
+      invalidArgument('Unknown flag or positional argument.');
     }
     const name = flag.slice(2);
-    const mayRepeat = repeated.has(name)
-      && ((['criterion', 'project'].includes(name) && command === 'petition')
-        || (name === 'id' && command === 'records-get')
-        || (name === 'item' && command === 'records-request')
-        || (name === 'response' && command === 'records-resolve')
-        || (name === 'recommendation' && command === 'review-record')
-        || (['competency', 'standard', 'tool', 'check', 'mcp-proposal'].includes(name)
-          && command === 'requisition'));
+    const mayRepeat = specification.repeated?.includes(name);
     if (seen.has(name) && !mayRepeat) {
-      fail('INVALID_ARGUMENT', 'Duplicate flags are not allowed except for explicitly repeated list flags.');
+      invalidArgument('Duplicate flags are not allowed except for explicitly repeated list flags.');
     }
     seen.add(name);
-    if (['apply', 'linked'].includes(name)) {
+    if (booleanFlags.includes(name)) {
       options[name] = true;
       continue;
     }
     const value = flags[index + 1];
     if (value === undefined || value.startsWith('--') || value.includes('\0')) {
-      fail('INVALID_ARGUMENT', 'A flag value is missing or malformed. Use --help for the supported command contract.');
+      invalidArgument('A flag value is missing or malformed.');
     }
     index += 1;
     if (name === 'criterion') options.criteria.push(value);
@@ -303,10 +338,10 @@ function parse(args) {
     else options[name] = value;
   }
   if (specification.required.some((name) => !seen.has(name))) {
-    fail('INVALID_ARGUMENT', 'A required flag is missing. Use --help for the supported command contract.');
+    invalidArgument('A required flag is missing.');
   }
   if (specification.requiresDataSource && seen.has('data') === seen.has('data-file')) {
-    fail('INVALID_ARGUMENT', 'Specify exactly one of --data JSON or --data-file PATH (use - for stdin).');
+    invalidArgument('Specify exactly one of --data JSON or --data-file PATH (use - for stdin).');
   }
   return { command, options };
 }
@@ -329,8 +364,8 @@ async function readDataFile(location) {
 }
 
 async function main() {
-  const { command, options } = parse(process.argv.slice(2));
-  if (command === 'help') return help();
+  const { command, options, helpCommand } = parse(process.argv.slice(2));
+  if (command === 'help') return help(helpCommand);
   const root = await rootDirectory(options.root);
   if (Object.hasOwn(options, 'data-file')) options.data = await readDataFile(options['data-file']);
   if (Object.hasOwn(options, 'revision')) {

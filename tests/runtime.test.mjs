@@ -1030,6 +1030,45 @@ test('help is JSON and explicitly refuses to equate apply with authority', () =>
   assert.doesNotMatch(help, /no amendment command/i);
 });
 
+test('command help discovers the exact contract without a root or city access', async () => {
+  const { root } = await fixture();
+  await mkdir(path.join(root, '.city'));
+  await writeFile(path.join(root, '.city/config.json'), 'Malformed state must not prevent help.');
+  const before = await snapshot(root);
+  const global = success(['--help']);
+  for (const [command, contract] of Object.entries(global.commandContracts)) {
+    const result = spawnSync(process.execPath, [cli, command, '--help'], {
+      cwd: root, encoding: 'utf8',
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.command, command);
+    assert.deepEqual(output.contract, contract);
+    assert.ok(output.usage.length > 0, command);
+    assert.ok(output.usage.every((usage) => usage.includes(`/scripts/city.mjs ${command} `)), command);
+    assert.equal(output.commandContracts, undefined, 'Scoped help does not return unrelated command contracts.');
+  }
+  assert.deepEqual(await snapshot(root), before);
+  assert.equal(global.commandContracts['artifact-record'].requiresExactlyOneDataSource, true);
+  assert.deepEqual(global.commandContracts['artifact-record'].dataSources, ['data', 'data-file']);
+  assert.deepEqual(global.commandContracts.status.allowedFlags, ['root']);
+  assert.deepEqual(global.commandContracts['records-get'].repeatedFlags, ['id']);
+  for (const args of [
+    ['status', '--root', root, '--id', 'DO_NOT_ECHO_THIS_VALUE'],
+    ['artifact-record', '--root', root, '--help', '--apply'],
+    ['artifact-record', '--root', root, '--data-file', '-', '--data-file', '-'],
+    ['artifact-record', '--root', root, '--data-file'],
+    ['artifact-record', '--data', '{}'],
+  ]) {
+    const output = failure(args, 'INVALID_ARGUMENT');
+    assert.ok(output.error.message.includes(`${args[0]} --help`));
+    assert.doesNotMatch(output.error.message, /DO_NOT_ECHO_THIS_VALUE/);
+  }
+  failure(['unknown-command', '--help'], 'INVALID_ARGUMENT');
+  assert.deepEqual(await snapshot(root), before);
+});
+
 test('records can be listed and fetched in batches with linked provenance and hashes', async () => {
   const { root } = await fixture();
   init(root);
@@ -1124,6 +1163,71 @@ test('artifact library persists full documents, discovers case links and preserv
     }), '--apply',
   ]);
   assert.equal(success(['validate', '--root', root]).records.artifacts, 2);
+});
+
+test('artifact file and stdin inputs preserve full content through preview, apply and retrieval', async () => {
+  const { directory, root } = await fixture();
+  init(root);
+  const input = {
+    title: 'Loading recovery plan', kind: 'plan', format: 'markdown',
+    content: '# Recovery\n\n  Preserve indentation, \"quotes\", backslashes \\\\ and trailing spaces.  \n',
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'filed-work-product',
+  };
+  const payload = JSON.stringify(input);
+  const payloadPath = path.join(directory, 'artifact input with spaces.json');
+  await writeFile(payloadPath, payload);
+  const before = await snapshot(root);
+  const fileArgs = ['artifact-record', '--root', root, '--data-file', path.relative(project, payloadPath)];
+  const preview = success(fileArgs);
+  assert.equal(preview.dryRun, true);
+  assert.equal(preview.changed, false);
+  assert.equal(preview.artifact.content, input.content);
+  assert.deepEqual(await snapshot(root), before);
+  const filed = success([...fileArgs, '--apply']);
+  assert.equal(filed.changed, true);
+  assert.equal(success(['records-get', '--root', root, '--id', filed.artifact.id]).records[0].record.content, input.content);
+  const revision = JSON.stringify({ ...input, supersedes: filed.artifact.id });
+  const stdinArgs = ['artifact-record', '--root', root, '--data-file', '-'];
+  const afterFile = await snapshot(root);
+  assert.equal(success(stdinArgs, cli, revision).dryRun, true);
+  assert.deepEqual(await snapshot(root), afterFile);
+  const revised = success([...stdinArgs, '--apply'], cli, revision);
+  assert.equal(revised.artifact.supersedes, filed.artifact.id);
+  assert.equal(success(['records-get', '--root', root, '--id', revised.artifact.id]).records[0].record.content, input.content);
+  assert.equal(await readFile(payloadPath, 'utf8'), payload);
+  assert.equal(success(['validate', '--root', root]).records.artifacts, 2);
+});
+
+test('artifact file and stdin failures are bounded and leave records unchanged', async () => {
+  const { directory, root } = await fixture();
+  init(root);
+  const file = path.join(directory, 'artifact.json');
+  await writeFile(file, '{');
+  const linked = path.join(directory, 'linked artifact.json');
+  await symlink(file, linked);
+  const before = await snapshot(root);
+  const args = ['artifact-record', '--root', root, '--apply'];
+  failure(args, 'INVALID_ARGUMENT');
+  failure([...args, '--data', '{}', '--data-file', '-'], 'INVALID_ARGUMENT');
+  failure([...args, '--data-file', file], 'MALFORMED_JSON');
+  failure([...args, '--data-file', '-'], 'MALFORMED_JSON', '');
+  failure([...args, '--data-file', '-'], 'INVALID_RECORD', '{"unexpected":true}');
+  failure([...args, '--data-file', linked], 'UNSAFE_PATH');
+  failure([...args, '--data-file', directory], 'UNSAFE_PATH');
+  failure([...args, '--data-file', path.join(directory, 'missing.json')], 'UNSAFE_PATH');
+  const oversized = ' '.repeat(256 * 1024 + 1);
+  await writeFile(file, oversized);
+  failure([...args, '--data-file', file], 'SIZE_LIMIT');
+  failure([...args, '--data-file', '-'], 'SIZE_LIMIT', oversized);
+  const encodedTooLarge = JSON.stringify({
+    title: 'Large artifact', kind: 'plan', format: 'text', content: '\\'.repeat(130900),
+    sourceOffice: 'chief-planner', workOrderId: null, supersedes: null,
+    recordCategory: 'proposed-instrument',
+  });
+  assert.ok(Buffer.byteLength(encodedTooLarge) < 256 * 1024);
+  failure([...args, '--data-file', '-'], 'SIZE_LIMIT', encodedTooLarge);
+  assert.deepEqual(await snapshot(root), before);
 });
 
 test('artifact input rejects missing sources, bad links, formats and oversized encoded documents without writes', async () => {
@@ -1500,7 +1604,7 @@ test('init applies blank templates with fixed not-adopted metadata and is exactl
   const config = await readJSON(configPath(root));
   assert.equal(config.schemaVersion, 2);
   assert.equal(config.adoption, null);
-  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.12.1' });
+  assert.deepEqual(config.plugin, { name: 'repository-city', version: '0.13.0' });
   assert.match(config.cityId, /^[0-9a-f-]{36}$/);
   assert.equal(config.governance, 'draft');
   assert.equal(config.createdAt, new Date(config.createdAt).toISOString());
@@ -2382,7 +2486,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
   }
   for (const name of ['config', 'config.v1']) {
     const schema = await readJSON(path.join(project, 'schemas', `${name}.schema.json`));
-    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1']);
+    assert.deepEqual(schema.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1', '0.13.0']);
   }
   const config = await readJSON(path.join(project, 'schemas/config.schema.json'));
   assert.deepEqual(config.properties.governance.enum, ['draft', 'adopted']);
@@ -2409,7 +2513,7 @@ test('published schemas are strict, draft-only and versioned without runtime dep
     'authorized', 'in-progress', 'inspection', 'awaiting-merge', 'awaiting-acceptance', 'completed',
     'blocked', 'rejected', 'withdrawn', 'reopened',
   ]);
-  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1']);
+  assert.deepEqual(order.properties.provenance.properties.plugin.properties.version.enum, ['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1', '0.13.0']);
   assert.equal(order.$defs.development.properties.permitExtensions.items.$ref, '#/$defs/permitExtension');
   assert.deepEqual(order.$defs.permitExtension.properties.decidedBy.enum, ['city-council', 'resident']);
   const decision = await readJSON(path.join(project, 'schemas/decision.schema.json'));
@@ -3098,7 +3202,7 @@ test('a council-authorized order completes the full delivery lifecycle with link
   assert.deepEqual(decision.reservedMatters, []);
   assert.deepEqual(decision.workOrderIds, [order.id]);
   assert.deepEqual(decision.evidence, { declaredBy: null, reference: null, authenticated: false });
-  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.12.1' } });
+  assert.deepEqual(decision.provenance, { source: 'local-draft', plugin: { name: 'repository-city', version: '0.13.0' } });
   assert.equal(decision.subject.workOrderSha256, sha256(orderBytes));
   assert.equal(decision.subject.charterSha256, sha256(await readFile(path.join(root, '.city/charter.md'))));
   assert.equal(
@@ -3473,7 +3577,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
   assert.deepEqual(hookResult(payload(root)), {});
   const output = success(authorizeArgs(root, order.id, { extra: ['--apply'] }));
   assert.deepEqual(output.workOrder.provenance, legacy);
-  assert.equal(output.decision.provenance.plugin.version, '0.12.1');
+  assert.equal(output.decision.provenance.plugin.version, '0.13.0');
   const status = success(['status', '--root', root]);
   assert.deepEqual(status.decisions.byKind, { proposal: 1, authorization: 1, acceptance: 0 });
   assert.equal(status.decisions.proposed, 1);
@@ -3483,7 +3587,7 @@ test('records written by plugin 0.1.0 still load and can enter the delivery life
 
 test('help documents delivery commands, command-only states and honest limits', () => {
   const output = success(['--help']);
-  assert.equal(output.plugin.version, '0.12.1');
+  assert.equal(output.plugin.version, '0.13.0');
   assert.ok(output.usage.some((line) => line.includes(' authorize --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' complete --root ABS')));
   assert.ok(output.usage.some((line) => line.includes(' zoning-map --root ABS')));
@@ -3854,7 +3958,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   assert.deepEqual(await snapshot(root), before);
   const requested = success([...args, '--apply']).record;
   assert.equal(requested.status, 'requested');
-  assert.equal(requested.provenance.plugin.version, '0.12.1');
+  assert.equal(requested.provenance.plugin.version, '0.13.0');
   assert.equal(requested.appointment, null);
   assert.deepEqual(requested.history[0], {
     from: null, to: 'requested', actor: 'engineering-manager',
@@ -3914,7 +4018,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   const hired = success([...hiringArgs, '--apply']);
   const staff = hired.record;
   assert.equal(staff.id, 'website-specialist');
-  assert.equal(staff.provenance.plugin.version, '0.12.1');
+  assert.equal(staff.provenance.plugin.version, '0.13.0');
   assert.equal(staff.status, 'active');
   assert.equal(staff.files.length, 5);
   assert.deepEqual(staff.files.map((file) => file.path), staff.files.map((file) => file.path).slice().sort());
@@ -3939,7 +4043,7 @@ test('requisition, HR review, delegated appointment, hire preview and exclusive 
   ], 'NOT_FOUND');
   assert.equal(success(assignmentArgs).dryRun, true);
   const firstAssignment = success([...assignmentArgs, '--apply']);
-  assert.equal(firstAssignment.record.provenance.plugin.version, '0.12.1');
+  assert.equal(firstAssignment.record.provenance.plugin.version, '0.13.0');
   assert.deepEqual(firstAssignment.next, { actor: 'City Engineer: Website Specialist', action: 'start-delivery' });
   await new Promise((resolve) => setTimeout(resolve, 5));
   success([

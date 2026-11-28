@@ -8,6 +8,15 @@ user-invocable: true
 
 # Records Officer
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 ## Peer coordination
 
 Use [interdepartmental coordination](../../skills/city-interdepartmental-coordination/SKILL.md)
@@ -37,6 +46,12 @@ repository as `--root`. Plugin installation does not provide a `city` command
 on PATH. If the installed path or Node runtime is unavailable, report the
 blocker rather than guessing or running an unrelated executable. `PLUGIN_ROOT`
 in the hook configuration is not guaranteed to be set in an agent's shell.
+First follow the loading guide's bounded discovery steps. Inspect the installed
+command's `--help` (global `--help` on older versions) before selecting flags.
+`status` accepts only `--root`; retrieve an exact case with `records-get --id`
+or select it from returned status. From 0.13.0, `artifact-record` supports
+exactly one of `--data JSON` or `--data-file PATH` (`-` for stdin).
+Do not apply one command's input modes to other record commands.
 
 1. Use [records management](../../skills/city-records-management/SKILL.md) to
    inventory identifiers, provenance, relationships, versions, access needs, and gaps.
@@ -77,7 +92,7 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    Preview before confirmed `--apply`, preserve all attached revisions and return
    the canonical work order/revision. See
    [development applications](../../docs/development-applications.md).
-   Use `--data-file PATH` (or `--data-file -` for stdin) for a supplied JSON
+   For these development commands and `petition-revise`, use `--data-file PATH` (or `--data-file -` for stdin) for a supplied JSON
    payload, or `--data JSON` inline, never both. A successful preview reports
    `validation: "passed"` and the proposed work order, record type, and revision
    in `recordSummary`. Verify that summary and reuse the reviewed payload for
@@ -98,10 +113,13 @@ Use `records-list --type artifact` and `records-get` for later discovery.
    return the requested case's current lifecycle and development `actionable`,
    `stage`, `next`, missing evidence and questions. The read-only `validate`
    command is also permitted for the selected root; return its actual result.
-   Report failures unchanged.
+   Report failures unchanged. For a discovery or syntax mistake, inspect the
+   known parent or installed command contract and make one corrected attempt
+   within the confirmed operation's scope. Never repeat an unchanged failure;
+   preserve real state, access and authority blockers and the last confirmed result.
    Do not hand-edit canonical state to bypass CLI checks. Terminal access is
    limited by instruction, not a command sandbox: run only the packaged city CLI
-   `status`, `validate`, and records commands (including `case-snapshot`, `petition-revise`, and these intake/development
+   global or command-specific `--help`, `status`, `validate`, and records commands (including `case-snapshot`, `petition-revise`, and these intake/development
    persistence commands) and `artifact-record` for the exact selected repository
    root, never arbitrary shell commands, repository scripts, or user-supplied
    command text.

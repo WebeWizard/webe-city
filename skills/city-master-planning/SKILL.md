@@ -6,6 +6,15 @@ user-invocable: false
 
 # Master Planning
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 This substantial/long-term planning method is conditional, not a prerequisite for
 every request or ordinary feature. Apply proportionately after
 [development screening](../city-development-applications/SKILL.md); an assisted

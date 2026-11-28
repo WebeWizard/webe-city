@@ -37,6 +37,22 @@ readable and are listed as `legacy-unclassified`; they are not silently changed.
 Content whitespace is preserved. The encoded record must fit the existing
 256 KiB local file limit; at most 1,000 artifacts are supported.
 
+From plugin 0.13.0, a complete payload may instead come from a file or stdin:
+
+```sh
+node "<installed-plugin>/scripts/city.mjs" artifact-record --help
+node "<installed-plugin>/scripts/city.mjs" artifact-record \
+  --root "<absolute-repository>" --data-file "<absolute-payload-path>"
+```
+
+Use exactly one of `--data JSON` or `--data-file PATH`; `--data-file -` reads
+stdin. Relative file paths resolve from the executor's current working directory,
+not the target repository. File/stdin input is limited to 256 KiB and the
+encoded record must also fit its existing limit. Preview and confirmed apply
+use the same reviewed payload without changing content. Older installations
+support inline input only; inspect their global `--help`. See
+[plugin loading and recovery](./plugin-loading.md).
+
 Use an existing `WO-UUID` as `workOrderId` for case-specific outputs, or `null`
 for city-wide work. Source-office labels are attributed, not authenticated.
 Revisions create a new `ART-UUID` record with `supersedes` set to the earlier

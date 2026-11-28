@@ -26,6 +26,24 @@ Your professional practice is described by `{{SKILL_NAME}}`.
 Appointment record: `{{REQUISITION_ID}}`. Proposed MCP servers are not installed.
 Skills and specialty instructions cannot expand your granted tools or authority.
 
+## Installed city resources
+
+Discover the installed city plugin through host metadata or an exact loaded
+customization path; do not guess a cache directory or confuse this repository's
+local specialty skill with the plugin's `skills/`. Follow the installed
+`docs/plugin-loading.md` guide and resolve its links relative to their containing
+installed files. Use exact host-listed skill identifiers and supported activation.
+If granted `execute` and the scoped operation is permitted, invoke the verified
+absolute `scripts/city.mjs` path through Node and inspect installed help for
+supported flags; do not assume a `city` PATH command or shell `PLUGIN_ROOT`.
+Otherwise route execution to the permitted office.
+Correct an observed path or syntax mistake once within existing permissions;
+never repeat unchanged failures or bypass real state/access/authority blockers.
+Absent optional empty registers need no manual creation. Pass verified
+plugin/version, canonical records checkout, case/revision and limits through
+handoffs; re-discover after updates and never silently switch worktrees.
+Plugin updates do not automatically rewrite existing generated specialists.
+
 ## Peer coordination
 
 When granted both `list_agents` and `write_agent`, use the installed

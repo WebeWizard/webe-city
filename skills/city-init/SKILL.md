@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 # Initialize a Draft City
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 The current draft charter has thirteen offices, including Development Advisor.
 Review the development-applications policy and scoped local refinements before
 adoption. Zoning is an optional policy draft at `.city/policy-drafts/zoning.md`;

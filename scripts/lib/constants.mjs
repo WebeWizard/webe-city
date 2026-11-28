@@ -1,6 +1,6 @@
-export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.12.1' });
+export const PLUGIN = Object.freeze({ name: 'repository-city', version: '0.13.0' });
 // Records written by earlier compatible releases stay valid; new writes always use PLUGIN.version.
-export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1']);
+export const COMPATIBLE_PLUGIN_VERSIONS = Object.freeze(['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.5.1', '0.5.2', '0.5.3', '0.5.4', '0.6.0', '0.6.1', '0.7.0', '0.8.0', '0.8.1', '0.8.2', '0.9.0', '0.10.0', '0.10.1', '0.10.2', '0.11.0', '0.12.0', '0.12.1', '0.13.0']);
 export const SCHEMA_VERSION = 1;
 export const WORK_ORDER_SCHEMA_VERSION = 2;
 export const INFRASTRUCTURE_WORK_ORDER_SCHEMA_VERSION = 3;

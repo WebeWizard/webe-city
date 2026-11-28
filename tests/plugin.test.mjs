@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.12.1');
+  assert.equal(manifest.version, '0.13.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -650,11 +650,34 @@ test('all bundled customization resource links resolve within the package', asyn
   for (const file of files) await markdownLinksExist(file);
 });
 
+test('all bundled offices and skills share installed-resource discovery and bounded recovery', async () => {
+  const files = [
+    ...agentIds.map((id) => `com.github.copilot/agents/${id}.agent.md`),
+    ...[...professionalSkills, ...residentSkills].map((name) => `skills/${name}/SKILL.md`),
+  ];
+  for (const file of files) {
+    const content = await readFile(path.join(root, file), 'utf8');
+    assert.match(content, /\[plugin loading and recovery\]\(\.\.\/\.\.\/docs\/plugin-loading\.md\)/, file);
+    assert.match(content, /containing installed file, not the target repository or cwd/, file);
+    assert.match(content, /once within existing tools\s+and authority/, file);
+  }
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  assert.match(manager, /unsupported CLI flag is a recoverable tool error/);
+  assert.match(manager, /one corrected attempt within existing\s+permission/);
+  const records = await readFile(path.join(agentsPath, 'records-officer.agent.md'), 'utf8');
+  assert.match(records, /global or command-specific `--help`/);
+  assert.match(records, /`status` accepts only `--root`/);
+  const generated = await readFile(path.join(root, 'templates/workforce/agent.md'), 'utf8');
+  assert.match(generated, /installed\s+`docs\/plugin-loading\.md`/);
+  assert.match(generated, /never silently switch worktrees/);
+});
+
 test('resident documentation and founding templates have no broken local references', async () => {
   const files = [
     'README.md',
     'docs/governance.md',
     'docs/compatibility.md',
+    'docs/plugin-loading.md',
     'docs/development-applications.md',
     'docs/zoning.md',
     'docs/public-information.md',
@@ -726,6 +749,7 @@ test('the distributable contains runtime resources but no development profile or
     ...policyTemplates.map((name) => `templates/repository/.city/policies/${name}.md`),
     'docs/governance.md',
     'docs/compatibility.md',
+    'docs/plugin-loading.md',
     'docs/development-applications.md',
     'docs/zoning.md',
     'docs/infrastructure-plan.md',

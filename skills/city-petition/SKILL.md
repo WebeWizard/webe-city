@@ -6,6 +6,15 @@ user-invocable: true
 
 # Submit a Resident Petition
 
+## Plugin loading and recovery
+
+Before resolving plugin resources, follow [plugin loading and recovery](../../docs/plugin-loading.md).
+Discover the exact installed path and host-listed activation identifier; resolve
+links from the containing installed file, not the target repository or cwd.
+Carry verified plugin/version, canonical records checkout and limits through
+handoffs. Correct an observed path or syntax error once within existing tools
+and authority; never repeat unchanged failures or bypass real blockers.
+
 Residents supply needs, outcomes and observations, not a fully engineered proposal.
 For repository changes, route professional [development screening](../city-development-applications/SKILL.md)
 to an available Chief Planner directly or through City Manager. Formal screening automatically assigns
