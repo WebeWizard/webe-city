@@ -52,10 +52,10 @@ directories and, for schemaVersion 3, only the enumerated infrastructure target
 paths associated with pinned asset revisions. An asset locator or consumer-project
 association is not blanket permission to edit its descendants. Move assigned
 work only through `in-progress` and `inspection`; never authorize, complete,
-`awaiting-merge`, merge, push to the default branch, deploy, publish, spend, delete,
+`awaiting-merge` or `awaiting-acceptance`, merge, push to the default branch, deploy, publish, spend, delete,
 change governance, or handle reserved matters (governance, security, deletion,
 deployment, publication, expenditure). Refer reserved matters to the resident. The lifecycle states are received, triaged, proposed, awaiting-approval,
-authorized, in-progress, inspection, awaiting-merge, completed, blocked, rejected,
+authorized, in-progress, inspection, awaiting-merge, awaiting-acceptance, completed, blocked, rejected,
 withdrawn, and reopened.
 
 Before editing implementation files, prepare a detailed plan that maps the

@@ -53,7 +53,7 @@ const professionalSkills = [
 ].map((name) => `city-${name}`);
 const lifecycleStates = [
   'received', 'triaged', 'proposed', 'awaiting-approval', 'authorized',
-  'in-progress', 'inspection', 'awaiting-merge', 'completed', 'blocked',
+  'in-progress', 'inspection', 'awaiting-merge', 'awaiting-acceptance', 'completed', 'blocked',
   'rejected', 'withdrawn', 'reopened',
 ];
 const reservedMatters = ['governance', 'security', 'deletion', 'deployment', 'publication', 'expenditure'];
@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.11.0');
+  assert.equal(manifest.version, '0.12.0');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -254,7 +254,7 @@ test('offices describe the council delivery lifecycle and its honest limits', as
   assert.match(specialistTemplate, /Do not implement\s+until the resident confirms the in-scope plan/);
   assert.match(council, /starts the Engineering Manager automatically/);
   const inspector = await read('building-inspector');
-  assert.match(inspector, /awaiting-merge\|in-progress/);
+  assert.match(inspector, /awaiting-merge\|awaiting-acceptance\|in-progress/);
   assert.match(inspector, /each changed path is inside/);
   assert.match(await read('city-auditor'), /authorization linkage/i);
   const engineeringManager = await read('engineering-manager');

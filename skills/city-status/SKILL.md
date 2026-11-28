@@ -78,7 +78,10 @@ Do not infer enrollment, approval, or completion from the installed plugin inven
    a fresh screening and authorization before delivery resumes. Expiry is
    evaluated on status or lifecycle commands, not by a background scheduler.
 7. List orders awaiting the resident first: Council referrals of reserved matters
-   (still `awaiting-approval`) and `awaiting-merge` orders ready for `complete`.
+   (still `awaiting-approval`) and inspected `awaiting-merge` or
+   `awaiting-acceptance` orders; merge and all required evidence must precede `complete`.
+   Also identify planned resident merge or deployment decisions for in-progress
+   work from its actual plan and review evidence; status alone cannot detect them.
    Keep `awaiting-approval` distinct from authorized and `awaiting-merge` distinct
    from `completed`.
 8. Identify stale or missing evidence and disagreements between summaries and

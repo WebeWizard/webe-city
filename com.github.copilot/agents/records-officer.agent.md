@@ -129,7 +129,7 @@ Use `records-list --type artifact` and `records-get` for later discovery.
 - Office labels and SHA-256 digests are self-reported local evidence, not identity,
   authenticity, immutable custody, or permission enforcement.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Decisions are recorded with `authenticated: false`; a
   linked decision is provenance, not authenticated identity or proof of consent.
 

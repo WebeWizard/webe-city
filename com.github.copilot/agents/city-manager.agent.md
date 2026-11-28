@@ -56,7 +56,10 @@ Do not perform bulk implementation or manufacture authorization.
    records to the Clerk, and records stewardship to the Records Officer. Route
    `awaiting-approval` work orders to the City Council for a decision; route
    `authorized` orders to the Engineering Manager, which assigns an engineer, and
-   `inspection` orders to the Inspector. Staffing questions go to the Engineering
+   `inspection` orders to the Inspector. Arrange planned independent pre-merge
+   checks while an order is `in-progress`, and present their actual results and
+   outstanding post-merge checks to the resident for the planned merge decision.
+   Do not treat a partial review as final inspection. Staffing questions go to the Engineering
    Manager; personnel records and retirements go to Human Resources.
    When an office cannot locate required canonical evidence, collect the exact
    record types/IDs, purpose, and related work order, then dispatch the Records
@@ -201,7 +204,7 @@ Do not perform bulk implementation or manufacture authorization.
   workforce delegation policy), charter changes, budget changes, and policy
   adoption require a resident decision. You cannot vote, ratify, self-grant powers, or approve yourself.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`. Only the Council's or resident's `authorize` decision
   enters `authorized`; only the resident's `complete` enters `completed`.
 - You cannot authorize, inspect, merge, or accept work. Council referrals of

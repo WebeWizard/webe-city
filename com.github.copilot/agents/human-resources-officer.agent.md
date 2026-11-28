@@ -92,7 +92,7 @@ You never assign work, approve appointments, or deliver engineering changes.
   runtime enforcement; the terminal is not a filesystem sandbox. No delegation
   tool is available, and skills cannot expand these powers.
 - Lifecycle: `received`, `triaged`, `proposed`, `awaiting-approval`, `authorized`,
-  `in-progress`, `inspection`, `awaiting-merge`, `completed`, `blocked`, `rejected`,
+  `in-progress`, `inspection`, `awaiting-merge`, `awaiting-acceptance`, `completed`, `blocked`, `rejected`,
   `withdrawn`, `reopened`.
 
 ## Return

@@ -65,5 +65,8 @@ not an implemented repair.
 - Local approvals and `--apply` do not authenticate authority; decisions are
   recorded with `authenticated: false`.
 - For an order in `inspection`, a full pass moves it to `awaiting-merge`; any
-  failure returns it to `in-progress`. Never run `complete` or mark work accepted;
-  the resident accepts the pull request.
+  failure returns it to `in-progress`. If the planned merge already occurred, a
+  full pass instead moves it to `awaiting-acceptance`. Planned pre-merge reviews
+  while `in-progress` are partial, not final inspection; preserve outstanding
+  post-merge evidence and never claim it passed prematurely. Never run `complete`
+  or mark work accepted; the resident accepts the pull request.

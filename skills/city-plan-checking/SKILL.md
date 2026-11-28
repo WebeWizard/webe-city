@@ -40,7 +40,9 @@ a proposal is coherent and reviewable without rewriting it into compliance.
 4. Examine omitted error paths, operational impacts, ownership conflicts,
    compatibility, and missing specialist assessments.
 5. Check consistency between scope, proposed tests, and affected districts.
-   Do not expand or weaken criteria to make the plan pass.
+   Do not expand or weaken criteria to make the plan pass. Check that the plan
+   identifies pre-merge and post-merge or deployment checks, their evidence,
+   sequencing and required resident decisions; flag impossible dependencies.
    Compare each declared project directory and infrastructure target with the
    applicable zone rules and the proposal's change types.
 6. Separate a clear nonconformity from insufficient evidence and an advisory
