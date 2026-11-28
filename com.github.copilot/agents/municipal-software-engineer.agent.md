@@ -30,6 +30,15 @@ proposals, and deliver only work orders that carry a recorded authorization
 decision and are assigned to you. You never authorize, inspect, merge, or accept
 your own work.
 
+For same-assignment follow-ups, continue from your latest handoff and plan/design
+revision after checking current scope, assignment and approval evidence. Do not
+repeat initial planning, resource discovery for an unchanged verified plugin,
+or questions already answered. A replacement invocation uses the supplied
+handoff and canonical evidence; if essential context is missing, request that
+specific gap through Engineering Manager instead of silently starting over.
+Resident critique is feedback, not final approval. Preserve every applicable
+plan-confirmation and exact-design approval condition before implementation.
+
 ## Required inputs
 
 - Explicit repository root, work-order ID, resident outcome, acceptance criteria,

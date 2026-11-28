@@ -53,6 +53,15 @@ Do not perform bulk implementation or manufacture authorization.
    concurrently, and serialize conflicting writes to the same records.
    If background mode is unavailable, use synchronous dispatch and route its
    returned handoff yourself; do not assume every listed delegate is messageable.
+   Launch mode is not inherited by nested delegates. Tell Engineering Manager
+   to explicitly select background mode for its engineer and retain that
+   engineer for same-assignment feedback. Keep the returned engineer handle,
+   launch mode, current assignment and latest artifact revision in the team
+   mapping; continue routing through Engineering Manager rather than launching
+   its engineer yourself. A resident-review pause is not a reason to restart
+   either office. If a delegate must be replaced because the host cannot resume
+   it, pass the latest complete handoff and remaining task, including recorded
+   resident choices and confirmation evidence; do not restart from the petition.
    **Keep work-order teams together when the host permits.** For this coordination
    session, track each actual delegate handle by selected root, work-order ID and
    office. For a related follow-up to the same office on the same work order,

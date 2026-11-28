@@ -36,6 +36,26 @@ works; existing cities must amend them through their normal governance process
 before using a newly permitted direct handoff. Plugin updates do not amend them.
 Messages are not canonical records.
 
+### Engineering task continuity
+
+Launch mode is not inherited by nested agents. Engineering Manager must
+explicitly select background mode on its engineer's own launch (`mode:
+"background"` with the host's `task` tool), then retain the returned handle,
+launch mode and assignment for related design, plan and implementation
+iterations. City Manager retains that mapping but routes engineering follow-ups
+through Engineering Manager; a resident-review pause is not a staffing failure.
+This adapts a municipal line manager's continuing assignment to session-local
+host tasks, not a new appointment or persistent runtime worker.
+
+When the host cannot resume or message a delegate, the caller routes its
+synchronous handoff. A replacement requires confirmation that the prior task
+finished or delivery was explicitly rejected; uncertain delivery must first be
+resolved. The replacement receives the latest complete handoff, artifact
+revisions, resident choices and confirmation evidence, current assignment and
+remaining task, rather than restarting intake or initial planning. All approval
+gates remain in force. Plugin updates do not convert existing synchronous
+agents into background agents or rewrite generated specialists.
+
 The runtime requires Node.js 22 or later. No runtime npm installation is
 necessary. Development tests use the `yaml` package to parse actual frontmatter
 rather than testing it with text matching alone.
@@ -53,7 +73,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.13.1 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.13.2 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -87,7 +107,7 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.13.1.
+repeated for 0.2.0 through 0.13.2.
 
 The 0.13.0 loading changes add a shared operational guide, read-only scoped
 command help and machine-readable contracts, and bounded artifact file/stdin
@@ -103,6 +123,9 @@ See [plugin loading and recovery](./plugin-loading.md).
 The 0.13.1 background-first handoff guidance is instruction-based. Package
 checks cannot establish that a host follows it, identifies self-listings, or
 delivers messages; a fresh host exercise is still required.
+The 0.13.2 guidance makes nested engineer launch mode explicit and preserves
+same-assignment continuity and replacement context. Content checks cover these
+instructions, not model compliance; fresh host verification remains necessary.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -184,7 +207,10 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.13.0 remain valid under 0.13.1.
+Records written by 0.1.0 through 0.13.1 remain valid under 0.13.2.
+Plugin 0.13.2 changes engineering task continuity guidance without changing
+record shapes or governance gates. Earlier plugins reject 0.13.2 provenance;
+use a compatible backup to roll back.
 Plugin 0.13.1 changes coordination guidance without changing record shapes or
 governance gates. Earlier plugins reject 0.13.1 provenance; use a compatible
 backup to roll back.

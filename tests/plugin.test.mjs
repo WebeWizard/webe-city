@@ -110,7 +110,7 @@ test('manifest uses the documented Agent Plugins 1.0 format', async () => {
   const manifest = await json('plugin.json');
   assert.equal(manifest.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
   assert.equal(manifest.name, 'repository-city');
-  assert.equal(manifest.version, '0.13.1');
+  assert.equal(manifest.version, '0.13.2');
   assert.ok(manifest.description.length >= 30);
   const allowed = new Set([
     '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -599,6 +599,31 @@ test('coordination prefers background delegates without confusing self or stale 
   assert.match(coordination, /listing can include the caller\s+itself or stale handles/);
   assert.match(coordination, /If the recipient, its mode, or its case\s+is uncertain, ask the coordinator/);
   assert.match(coordination, /listing the caller's own task is not evidence of another writer/);
+});
+
+test('nested engineer dispatch preserves same-assignment continuity and approval gates', async () => {
+  const engineering = await readFile(path.join(agentsPath, 'engineering-manager.agent.md'), 'utf8');
+  const manager = await readFile(path.join(agentsPath, 'city-manager.agent.md'), 'utf8');
+  const coordination = await readFile(path.join(root, 'skills/city-interdepartmental-coordination/SKILL.md'), 'utf8');
+  const workforce = await readFile(path.join(root, 'skills/city-workforce-planning/SKILL.md'), 'utf8');
+  assert.match(engineering, /Background mode is not inherited from the manager/);
+  assert.match(engineering, /set `mode: "background"` on the engineer's own call/);
+  assert.match(engineering, /canonical root,\s*work-order ID, staff ID and current assignment ID/);
+  assert.match(engineering, /reuse that engineer with\s*`write_agent`/);
+  assert.match(engineering, /do not launch a fresh engineer for each iteration/);
+  assert.match(engineering, /pending resident review and exact artifact revision/);
+  assert.match(engineering, /confirm the prior\s*task finished or the host explicitly rejected delivery; resolve uncertain\s*delivery first/);
+  assert.match(engineering, /latest\s*complete handoff,[\s\S]*exact remaining task/);
+  assert.match(manager, /continue routing through Engineering Manager rather than launching\s*its engineer yourself/);
+  assert.match(coordination, /every permitted nested caller must explicitly\s*select background mode/);
+  assert.match(workforce, /reuse the same messageable engineer for same-case iterations/);
+  for (const file of ['com.github.copilot/agents/municipal-software-engineer.agent.md', 'templates/workforce/agent.md']) {
+    const engineer = await readFile(path.join(root, file), 'utf8');
+    assert.match(engineer, /same-assignment follow-ups, continue from/i, file);
+    assert.match(engineer, /questions already answered/, file);
+    assert.match(engineer, /Critique is (?:feedback, )?not\s*final approval/i, file);
+    assert.match(engineer, /plan-confirmation and exact-design approval/, file);
+  }
 });
 
 test('intake and handoffs preserve outcomes and promptly relay required choices', async () => {

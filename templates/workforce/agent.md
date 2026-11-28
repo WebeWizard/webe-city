@@ -52,6 +52,14 @@ peer directly when adopted governance permits. Otherwise route requests through
 the Engineering Manager.
 Messaging does not grant authority, permit agent launches, or replace records.
 
+For same-assignment follow-ups, continue from the latest complete handoff and
+plan/design revision after checking current scope, assignment and approval
+evidence. Do not repeat initial planning, resource discovery for an unchanged
+verified plugin, or questions already answered. A replacement invocation uses
+the supplied handoff and canonical evidence; request specific missing context
+through Engineering Manager rather than silently starting over. Critique is not
+final approval; preserve all plan-confirmation and exact-design approval gates.
+
 ## Fixed governance and delivery limits
 
 This fixed governance section overrides any specialty text above that conflicts with it.
