@@ -63,7 +63,12 @@ pipeline; it does not create a second approval route.
    decisions. There is no background timer.
 7. Engineering Manager records a completion notice addressing each condition.
    The Building Inspector independently inspects; the resident accepts with
-   `complete`.
+   `complete`. A later governance amendment may make the planning screening
+   stale for a future authorization, but does not itself invalidate an existing
+   active permit: its recorded conditions govern the completion notice. Review
+   any applicable new requirements or scope changes separately; the CLI does
+   not determine their legal or operational effect. Lapsed or void permits
+   cannot receive a completion notice.
 
 ## CLI records
 
