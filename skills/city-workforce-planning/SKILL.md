@@ -72,7 +72,14 @@ engineer is a new post created only through a merit-based, recorded route.
    beyond the fixed limits, or an appointment to any office other than a
    specialist engineer.
 8. **Deployment.** After the hire, assign the order and dispatch the engineer by
-   exact `agentName` only after delivery authorization. If the current adopted,
+   exact `agentName` only after delivery authorization. Explicitly select
+   background mode on the engineer's own launch when supported; the manager's
+   mode is not inherited. Retain its actual handle, launch mode and assignment,
+   and reuse the same messageable engineer for same-case iterations rather than
+   repeatedly initializing it. If the host requires a replacement invocation,
+   follow the continuity and uncertain-delivery checks in
+   [interdepartmental coordination](../city-interdepartmental-coordination/SKILL.md).
+   If the current adopted,
    drift-free workforce delegation policy permits pre-authorization class-3 safety
    preparation, the manager may instead request the outstanding statement from
    an active, drift-free read/search-only specialist hired after HR endorsement

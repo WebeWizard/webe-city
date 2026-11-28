@@ -77,6 +77,17 @@ decisions across a repository's explicitly declared districts.
    waits for results. Use synchronous dispatch if background mode is unavailable;
    the caller routes the returned handoff. Parallelize only independent work and
    serialize conflicting writes to the same canonical records.
+   Launch mode is not inherited: every permitted nested caller must explicitly
+   select background mode on its own delegate call (`mode: "background"` with
+   `task`). In particular, a background Engineering Manager can otherwise
+   create a synchronous engineer. Keep a messageable engineer for related design,
+   plan and delivery iterations; a resident-review pause does not require a new
+   task. Read results with the known handle rather than listing to rediscover it.
+   If the host cannot resume the prior delegate, confirm it is finished or that
+   delivery was explicitly rejected, resolve any uncertain delivery, and supply
+   its latest complete handoff, artifact revisions, recorded resident choices
+   and confirmation evidence with the exact remaining task to the replacement.
+   Do not restart initial planning or repeat already answered questions.
 4. Check interface responsibilities and capacity assumptions with available evidence.
    Record uncertainty; do not make silent ownership transfers.
 5. Separate a technical disagreement from an authority or resident-priority dispute.

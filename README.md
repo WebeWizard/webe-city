@@ -5,7 +5,7 @@ Humans are the residents; agents are the city's employees. Residents establish
 the mandate. Employees maintain records, assess requests, plan work, and inspect
 results without inventing their own authority.
 
-**Status: private 0.13.1 pilot, not a production government.**
+**Status: private 0.13.2 pilot, not a production government.**
 The plugin supplies installable offices and skills, foundational governance
 templates, local recordkeeping, and a recorded City Council approval and
 delivery lifecycle. Decisions are **recorded, not authenticated**: under the
@@ -14,6 +14,11 @@ local access can run the CLI and every decision says `authenticated: false`. The
 resident gives final acceptance of each pull request. The runtime never runs
 git, merges, pushes, or deploys, and it does not implement expenditure.
 An open-source license and publisher have not been selected.
+
+Engineering Manager explicitly launches its engineer in background mode when
+supported and reuses it for same-assignment feedback.
+[Task continuity and fallback limits](./docs/compatibility.md#engineering-task-continuity)
+apply when the host cannot resume a delegate.
 
 ## What is included
 
