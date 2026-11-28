@@ -2369,6 +2369,19 @@ function requirePermitCompetency(city, staffId, dimension, riskClass) {
   }
 }
 
+function assertCompletionNoticeAllowed(city, order, input) {
+  const permit = permitStatus(city, order);
+  if (permit.state !== 'active' || permit.permit.permitId !== input.permitId) {
+    fail('STALE_PERMIT', 'Completion notice must reference the current active permit.');
+  }
+  const expected = permit.permit.conditions.map((condition) => condition.id).sort();
+  const supplied = input.conditions.map((condition) => condition.id).sort();
+  if (JSON.stringify(expected) !== JSON.stringify(supplied)
+    || input.conditions.some((condition) => condition.status !== 'met' && condition.status !== 'not-applicable')) {
+    fail('PERMIT_CONDITIONS_INCOMPLETE', 'Completion notice must address every permit condition exactly once.');
+  }
+}
+
 export async function developmentRecord(root, options, kind) {
   validateOrderId(options.id);
   const input = validateDevelopmentInput(kind, requestJSON(options.data, 'Development --data'));
@@ -2432,6 +2445,8 @@ export async function developmentRecord(root, options, kind) {
         fail('INVALID_ARGUMENT', 'Architecture, boundary, interface, migration, and cross-project impacts require structural class 2 or higher.');
       }
     }
+  } else if (kind === 'completionNotices') {
+    assertCompletionNoticeAllowed(city, order, input);
   } else {
     const screening = currentScreening(city, order);
     if (!screening || screening.route === 'needs-clarification') fail('STALE_DEVELOPMENT', 'Record a current conclusive screening before permit records.');
@@ -2501,17 +2516,6 @@ export async function developmentRecord(root, options, kind) {
       if (development.verifications.some((verification) => verification.statementRevision === statement.revision)) {
         fail('INVALID_ARGUMENT', 'This permit statement already has an independent verification.');
       }
-    } else if (kind === 'completionNotices') {
-      const permit = permitStatus(city, order);
-      if (permit.state !== 'active' || permit.permit.permitId !== input.permitId) {
-        fail('STALE_PERMIT', 'Completion notice must reference the current active permit.');
-      }
-      const expected = permit.permit.conditions.map((condition) => condition.id).sort();
-      const supplied = input.conditions.map((condition) => condition.id).sort();
-      if (JSON.stringify(expected) !== JSON.stringify(supplied)
-        || input.conditions.some((condition) => condition.status !== 'met' && condition.status !== 'not-applicable')) {
-        fail('PERMIT_CONDITIONS_INCOMPLETE', 'Completion notice must address every permit condition exactly once.');
-      }
     }
   }
   const previousTimes = Object.values(development).flat().map((record) => Date.parse(record.recordedAt));
@@ -2538,6 +2542,7 @@ export async function developmentRecord(root, options, kind) {
       checkCityUnchanged(city, current);
       checkOrderUnchanged(city, current, original);
       checkDevelopmentContextUnchanged(city, current);
+      if (kind === 'completionNotices') assertCompletionNoticeAllowed(current, current.workOrders.get(options.id).value, input);
       if (options['expected-snapshot'] !== undefined) {
         assertCaseSnapshot(current, current.workOrders.get(options.id), options['expected-snapshot']);
       }

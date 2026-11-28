@@ -44,7 +44,7 @@ This platform adaptation retains collision checks and identity-checked cleanup.
 
 ## Verification scope
 
-Plugin 0.12.0 ships thirteen default pilot offices, an opt-in Public Information
+Plugin 0.12.1 ships thirteen default pilot offices, an opt-in Public Information
 Officer, 30 skills, explicit project registration,
 project-scoped work orders, and the engineering workforce offices. The 0.2.0
 release added the City Council and delivery decisions, including
@@ -78,7 +78,7 @@ information products or distribution channels. There is no new CLI or hook
 guard for commissioning or release.
 The host observations below were made
 with the 0.1.0 package (eight offices, 21 skills) and have not yet been
-repeated for 0.2.0 through 0.12.0.
+repeated for 0.2.0 through 0.12.1.
 
 Observed on macOS with Node.js 22.23.2 and official Copilot CLI 1.0.105:
 
@@ -160,7 +160,10 @@ when proving the absence of unwanted organization-specific customizations.
 
 ## Record compatibility
 
-Records written by 0.1.0 through 0.11.0 remain valid under 0.12.0.
+Records written by 0.1.0 through 0.12.0 remain valid under 0.12.1.
+Plugin 0.12.1 permits completion notices for active authorized permits even
+when later governance changes make the planning screening stale. Earlier plugins
+reject 0.12.1 provenance; use a compatible backup to roll back.
 Plugin 0.12.0 adds the `awaiting-acceptance` work-order state for inspection
 after merge. Earlier plugins cannot read records using the new state or 0.12.0
 provenance; roll back only by restoring a compatible backup. Existing adopted
